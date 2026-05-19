@@ -1,0 +1,43 @@
+{
+  "build_command": "pnpm run build",
+  "capabilities": [
+    "server",
+    "db",
+    "user"
+  ],
+  "dev_command": "pnpm run dev",
+  "env_vars": {
+    "DATABASE_URL": "mysql://pdTWbQGbQRTDaRa.root:XD01ez3D1W0uqxI5tqDp@gateway06.us-east-1.prod.aws.tidbcloud.com:4000/VAdduKryPDvV2qaPpaxkLD?ssl={\"rejectUnauthorized\":true}"
+  },
+  "experiments": [
+    "no_db_push"
+  ],
+  "git_remote": {
+    "repo_url": "s3://vida-prod-gitrepo/webdev-git/310519663675567312/VAdduKryPDvV2qaPpaxkLD",
+    "access_key_id": "ASIAZV3A2ECZCL43DXL5",
+    "secret_access_key": "38c22GuOIzY/lIp5WurTH7x1fptGSIkxz2zhhtQC",
+    "session_token": "IQoJb3JpZ2luX2VjEA4aCXVzLWVhc3QtMSJHMEUCIQCAhgzGP1SRj2gxBY4Vh2P1RAST4DvGrLAKUoah4PwiKgIgDt0kbc66VuhMF3cDmm+8yIhfdi473qSGeWduL/J/UBwq/wMI1v//////////ARAEGgw2NjUzODYwOTg4NjYiDGiTROjuZhvz8wF/vyrTAx/TEadfKwZ6OqLmGpNUoIiw7RgmWvV/tSfFf/XE0OIpY6912ETiPAkUIvezLKgDaroeuwYE+BXuvqtYhK6P8aC5ZxUkHqv8e33GjNoLIKnNRA7SG91Hw9D+cJP4SE1AlRenWkxyYyH+FgRmVuuLlQ0yjNvghqLqTURbGp5GMntx3YnzlymcV+yLHgNzCrZAqM0DYasgptEDRRFdxIAJGk1uuViJkeu61YuAMt2+jxBuDqbjyjmm6DkgtshxZ3WcS48IwsiEEQEsOI5vg2tAY2ThAzbICfHbBr54pR/jd4XNXrcafVemaJgDUmlUWDAop38gKBh0UZ/h2fWr5UfJd9DekxLzDiK5FAAzk4ENHpTBioxGSrEjwxtGXCFI8m5dv0lq/8xmMTymhAxkDbCRozLc3nc23CWyS7HfW0Zy3piNhMFxL3Y/surdpebsTfAPhT7FjSWVBnKqEvjPt6bZ8Me/bN4r3+Z8JcN8O35teUR96I4FG9BSHWnauBCw16PCtgBn8C7buiJzjKA5OJtFkNWli13Xpzr+nBV135tm3oKfto8EAXri1Puzbbtr2rT6HiDAeUrRJ6eLzR1W8TZuN9nBrQa/Q09MhMfes+9RG87E9pmoMMbFsdAGOp0BU1kHtJ/m7rMeQdNkfUPNFmVNi/6tT+WvnYYMOxx7O9/t4OKGMlPLonKBA07CmN4F1bi13YuAioRih4zMKUYSC961qAk46ajzvH7eSbPtgACYnEAdcsvtPcqfGiVH85mdKk+PEjJIlhUKwaTROdbn+M365avAYNvt29LjjCs7Dc2OoAf0Rus4pchDe4Exw8Q5kmYgwNwnqbDabwRozw==",
+    "expiration": "2026-05-20T01:16:54.000Z"
+  },
+  "name": "gesher-partners-site",
+  "path": "/home/ubuntu/gesher-partners-site",
+  "port": 3000,
+  "secrets": {
+    "BUILT_IN_FORGE_API_KEY": "gp6hbhLQiYLw9Rhhem4FzA",
+    "BUILT_IN_FORGE_API_URL": "https://forge.manus.ai",
+    "JWT_SECRET": "mQPGLGXYFoqJmFnsqUnA4w",
+    "OAUTH_SERVER_URL": "https://api.manus.im",
+    "OWNER_NAME": "baronson94",
+    "OWNER_OPEN_ID": "2g7D5H4HiSaMmdVdfWABp2",
+    "VITE_ANALYTICS_ENDPOINT": "https://manus-analytics.com",
+    "VITE_ANALYTICS_WEBSITE_ID": "c80b306c-71b7-45ea-895f-e8cd612c779d",
+    "VITE_APP_ID": "VAdduKryPDvV2qaPpaxkLD",
+    "VITE_APP_LOGO": "",
+    "VITE_APP_TITLE": "Gesher Partners Site",
+    "VITE_FRONTEND_FORGE_API_KEY": "F337tKHCFY33vpHMP45usA",
+    "VITE_FRONTEND_FORGE_API_URL": "https://forge.manus.ai",
+    "VITE_OAUTH_PORTAL_URL": "https://manus.im"
+  },
+  "template_id": "web-db-user",
+  "test_command": "pnpm test"
+}
