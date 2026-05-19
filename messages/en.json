@@ -1,0 +1,126 @@
+{
+  "nav": {
+    "wordmark": "Gesher",
+    "howItWorks": "How it works",
+    "founders": "Founders",
+    "contact": "Contact",
+    "exitBrief": "Get a quick read on your business"
+  },
+  "hero": {
+    "eyebrow": "For Israeli family-owned businesses. NIS 5–50M revenue.",
+    "h1": "Get the most out of your life's work.",
+    "tagline": "Small Businesses, Maximum Outcome.",
+    "subhead": "An Israeli sell-side advisor for family businesses built by people who have been on your side of the table.",
+    "primaryCta": "Talk to us.",
+    "secondaryCta": "Get a quick read on your business."
+  },
+  "stats": {
+    "item1_number": "4 decades",
+    "item1_label": "of Israeli M&A experience",
+    "item2_number": "3 markets",
+    "item2_label": "Israel, Europe, North America",
+    "item3_number": "Real auction",
+    "item3_label": "Multiple buyers, competitive process",
+    "item4_number": "Paid when you win",
+    "item4_label": "Success fee only. No retainer."
+  },
+  "howItWorks": {
+    "eyebrow": "The process",
+    "h2": "How a Gesher mandate works.",
+    "step1_title": "We read your business.",
+    "step1_body": "A 90-minute conversation and a look at three years of financials. We tell you what a buyer will see, what will compress your multiple, and what will expand it.",
+    "step2_title": "We build your buyer list.",
+    "step2_body": "Named Israeli strategics, regional PE, and relevant cross-border acquirers. Every name is researched. No generic lists.",
+    "step3_title": "We run the auction.",
+    "step3_body": "Simultaneous outreach, managed information flow, competitive tension. The process creates the price, not the asking number.",
+    "step4_title": "We close.",
+    "step4_body": "Term sheet, due diligence, SPA. We stay in the room until the wire clears.",
+    "cta": "Talk to us about your business."
+  },
+  "founders": {
+    "eyebrow": "The team",
+    "h2": "Built by people who have been on your side of the table.",
+    "ben_name": "Ben",
+    "ben_title": "Managing Partner",
+    "ben_bio": "Ben brings deep operational experience from the Israeli technology and services sector. He has sat on the founder side of multiple transactions and built Gesher to run the process he wished he had.",
+    "ofir_name": "Ofir Ben Haim",
+    "ofir_title": "Senior Advisor",
+    "ofir_bio": "Ofir has 40 years of Israeli M&A experience across industrial, distribution, and services verticals. He knows the buyers, the brokers, and the banks. He has seen every deal structure that works in the Israeli market and several that do not.",
+    "ofir_cta": "Book a 30-minute call with Ofir."
+  },
+  "contact": {
+    "eyebrow": "Get in touch",
+    "h2": "Talk to us.",
+    "subhead": "Tell us where you are and we will tell you honestly whether we can help.",
+    "label_name": "Your name",
+    "label_email": "Email",
+    "label_company": "Company name",
+    "label_revenue": "Annual revenue (NIS, approximate)",
+    "label_stage": "Where are you in the process?",
+    "stage_exploring": "Exploring options",
+    "stage_ready": "Ready to start a process",
+    "stage_received": "Have received an approach",
+    "stage_other": "Other",
+    "label_message": "Anything else you want us to know",
+    "submit": "Send message",
+    "success_title": "Message received.",
+    "success_body": "We will be in touch within one business day.",
+    "error": "Something went wrong. Please try again or email us directly."
+  },
+  "footer": {
+    "wordmark": "Gesher",
+    "tagline": "Small Businesses, Maximum Outcome.",
+    "address_label": "Office",
+    "address": "[OB&H office address, Ben to paste from obhcpa.com]",
+    "links_label": "Site",
+    "link_home": "Home",
+    "link_exitBrief": "Exit Brief",
+    "link_privacy": "Privacy",
+    "link_terms": "Terms",
+    "legal": "Gesher Partners is not a licensed investment advisor. Nothing on this site constitutes investment advice or a solicitation to buy or sell any security.",
+    "copyright": "© 2025 Gesher Partners. All rights reserved."
+  },
+  "exitBrief": {
+    "pageTitle": "Exit Brief",
+    "eyebrow": "Free tool",
+    "h1": "Get a quick read on your business.",
+    "subhead": "Paste your company website. We read it, pull comparable Israeli transactions, and return a three-part brief: market context, value drivers, and an estimated valuation range.",
+    "label_url": "Company website URL",
+    "url_placeholder": "https://your-company.co.il",
+    "label_revenue": "Annual revenue (NIS) — optional",
+    "label_ebitda": "EBITDA or net profit (NIS) — optional",
+    "label_sde": "Owner's salary + net profit (NIS) — optional",
+    "intake_note": "Financial figures sharpen the valuation range from [low] to [high] confidence. We never share them.",
+    "submit": "Generate my Exit Brief",
+    "disclaimer": "Strictly private. Built from public sources. Not an offer or a valuation opinion.",
+    "generating_title": "Reading your business.",
+    "tab_market": "Market Snapshot",
+    "tab_drivers": "Value Drivers",
+    "tab_valuation": "Valuation and Buyers",
+    "ofir_card_title": "Want the full picture?",
+    "ofir_card_body": "Book a 30-minute call with Ofir Ben Haim. We will walk through your specific number, your buyer list, and the two or three things that will move your multiple.",
+    "ofir_card_cta": "Book a call with Ofir",
+    "ofir_cal_url": "https://cal.com/gesher",
+    "pdf_cta": "Download as PDF",
+    "modal_title": "Get your Exit Brief as a PDF.",
+    "modal_body": "Enter your name and email. We will send the PDF directly to your inbox.",
+    "modal_label_name": "Your name",
+    "modal_label_email": "Email",
+    "modal_submit": "Send me the PDF",
+    "modal_success": "PDF sent. Check your inbox.",
+    "new_brief": "Start a new brief"
+  },
+  "notFound": {
+    "h1": "Nothing here.",
+    "body": "The page you are looking for does not exist. It may have moved, or the link may be wrong.",
+    "cta": "Go home"
+  },
+  "privacy": {
+    "h1": "Privacy Policy",
+    "body": "Privacy policy will be published before launch."
+  },
+  "terms": {
+    "h1": "Terms of Use",
+    "body": "Terms of use will be published before launch."
+  }
+}
