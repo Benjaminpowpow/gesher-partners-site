@@ -40,6 +40,33 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  // Contact form submission — delegates to the REST endpoint
+  contact: router({
+    submit: publicProcedure
+      .input(
+        z.object({
+          name: z.string().min(1),
+          email: z.string().email(),
+          company: z.string().optional(),
+          revenue: z.string().optional(),
+          stage: z.string().optional(),
+          message: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const response = await fetch(`http://localhost:${process.env.PORT ?? 3000}/api/contact`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({})) as { error?: string };
+          throw new Error(err.error ?? "Failed to submit contact form");
+        }
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

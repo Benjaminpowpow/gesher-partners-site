@@ -20,9 +20,24 @@ function getClientIp(req: Request): string {
 
 function stripThinkingTraces(markdown: string): string {
   // Remove every ## Internal: ... block and all content until the next ## heading or end of file
-  // This regex matches from "## Internal:" through the next "##" or end of string
-  return markdown
-    .replace(/^## Internal:.*?(?=^##|$)/gms, "")
+  // Split by lines, filter out Internal blocks, then rejoin
+  const lines = markdown.split("\n");
+  const filtered: string[] = [];
+  let inInternalBlock = false;
+
+  for (const line of lines) {
+    if (line.startsWith("## Internal:")) {
+      inInternalBlock = true;
+    } else if (line.startsWith("##") && inInternalBlock) {
+      inInternalBlock = false;
+      filtered.push(line);
+    } else if (!inInternalBlock) {
+      filtered.push(line);
+    }
+  }
+
+  return filtered
+    .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
