@@ -558,7 +558,7 @@ export default function ExitBrief() {
                   </div>
 
                   {/* Tab content */}
-                  <BriefMarkdown content={tabContent} />
+                  <ResultPageRenderer content={tabContent} />
 
                   {/* Hidden risk teaser on drivers tab */}
                   {activeTab === "drivers" && (

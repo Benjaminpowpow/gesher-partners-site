@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import HiddenRiskTeaser from "./HiddenRiskTeaser";
+import { Streamdown } from "streamdown";
 
 interface ResultPageRendererProps {
   content: string;
@@ -8,10 +9,11 @@ interface ResultPageRendererProps {
 /**
  * Comprehensive result page renderer for all 6 sections per Round 3 spec.
  * Parses markdown and renders with custom typography, layout, and styling.
+ * Handles all scrub rules and custom section rendering.
  */
 export default function ResultPageRenderer({ content }: ResultPageRendererProps) {
   const sections = useMemo(() => {
-    // Parse the markdown into sections
+    // Parse the markdown into logical sections
     const lines = content.split("\n");
     const result: { [key: string]: string[] } = {
       header: [],
@@ -22,8 +24,20 @@ export default function ResultPageRenderer({ content }: ResultPageRendererProps)
     };
 
     let currentSection = "header";
+    let inInternalBlock = false;
 
     for (const line of lines) {
+      // Skip Internal blocks (Rule A)
+      if (line.match(/^## Internal:/)) {
+        inInternalBlock = true;
+        continue;
+      }
+      if (inInternalBlock && line.match(/^## /)) {
+        inInternalBlock = false;
+      }
+      if (inInternalBlock) continue;
+
+      // Detect section changes
       if (line.startsWith("## Step 1")) {
         currentSection = "step1";
       } else if (line.startsWith("## Step 2")) {
@@ -89,6 +103,7 @@ function ResultHeader({ content }: { content: string }) {
               color: "var(--color-primary)",
               letterSpacing: "-0.01em",
               marginBottom: 12,
+              textAlign: "left",
             }}
           >
             {h1.replace(/^# /, "")}
@@ -104,6 +119,7 @@ function ResultHeader({ content }: { content: string }) {
               borderLeft: "none",
               marginLeft: 0,
               paddingLeft: 0,
+              textAlign: "left",
             }}
           >
             {blockquote.replace(/^> /, "")}
@@ -119,6 +135,15 @@ function ResultHeader({ content }: { content: string }) {
 // ─────────────────────────────────────────────────────────────────────
 
 function Step1Section({ content }: { content: string }) {
+  // Extract left and right column content
+  const leftMatch = content.match(/### Left column\. (.*?)\n([\s\S]*?)(?=### Right column|$)/);
+  const rightMatch = content.match(/### Right column\. (.*?)\n([\s\S]*?)(?=##|$)/);
+
+  const leftTitle = leftMatch?.[1] || "Market";
+  const leftContent = leftMatch?.[2] || "";
+  const rightTitle = rightMatch?.[1] || "Company";
+  const rightContent = rightMatch?.[2] || "";
+
   return (
     <section
       style={{
@@ -135,6 +160,7 @@ function Step1Section({ content }: { content: string }) {
             fontSize: "clamp(28px, 5vw, 44px)",
             color: "var(--color-primary)",
             marginBottom: 16,
+            textAlign: "left",
           }}
         >
           Step 1. Market Snapshot
@@ -154,12 +180,25 @@ function Step1Section({ content }: { content: string }) {
             gridTemplateColumns: "1fr 1fr",
             gap: 32,
           }}
+          className="step1-grid"
         >
           {/* Left column */}
           <div>
-            <p style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 24, color: "var(--color-primary)", marginBottom: 24 }}>
-              Market content here
-            </p>
+            <h3
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontWeight: 600,
+                fontSize: "clamp(20px, 4vw, 28px)",
+                color: "var(--color-primary)",
+                marginBottom: 24,
+                textAlign: "left",
+              }}
+            >
+              {leftTitle}
+            </h3>
+            <div style={{ textAlign: "left" }}>
+              <Streamdown>{leftContent}</Streamdown>
+            </div>
           </div>
 
           {/* Right column - sticky company card */}
@@ -172,11 +211,23 @@ function Step1Section({ content }: { content: string }) {
               borderRadius: 6,
               padding: 32,
             }}
+            className="step1-sticky"
           >
-            <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 28, color: "var(--color-primary)", marginBottom: 24 }}>
-              Company Name
+            <h3
+              style={{
+                fontFamily: "var(--font-display)",
+                fontWeight: 700,
+                fontSize: "clamp(22px, 4vw, 32px)",
+                color: "var(--color-primary)",
+                marginBottom: 24,
+                textAlign: "left",
+              }}
+            >
+              {rightTitle}
             </h3>
-            <p style={{ fontFamily: "var(--font-sans)", fontSize: 14, color: "#1A1A1A" }}>Company details here</p>
+            <div style={{ textAlign: "left" }}>
+              <Streamdown>{rightContent}</Streamdown>
+            </div>
           </div>
         </div>
 
@@ -200,6 +251,15 @@ function Step1Section({ content }: { content: string }) {
 // ─────────────────────────────────────────────────────────────────────
 
 function Step2Section({ content }: { content: string }) {
+  // Extract positive and negative driver sections
+  const positiveMatch = content.match(/### Positive Impact\n([\s\S]*?)(?=### Negative Impact|$)/);
+  const negativeMatch = content.match(/### Negative Impact\n([\s\S]*?)(?=####|$)/);
+  const calloutMatch = content.match(/#### What this means for you\n([\s\S]*?)(?=##|$)/);
+
+  const positiveContent = positiveMatch?.[1] || "";
+  const negativeContent = negativeMatch?.[1] || "";
+  const calloutContent = calloutMatch?.[1] || "";
+
   return (
     <section
       style={{
@@ -216,6 +276,7 @@ function Step2Section({ content }: { content: string }) {
             fontSize: "clamp(28px, 5vw, 44px)",
             color: "var(--color-primary)",
             marginBottom: 16,
+            textAlign: "left",
           }}
         >
           Step 2. Value Drivers
@@ -229,31 +290,41 @@ function Step2Section({ content }: { content: string }) {
           }}
         />
 
+        {/* Positive Impact */}
         <div style={{ marginBottom: 32 }}>
-          <h3 style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 24, color: "var(--color-primary)", marginBottom: 16 }}>
+          <h3
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontWeight: 600,
+              fontSize: "clamp(20px, 4vw, 28px)",
+              color: "var(--color-primary)",
+              marginBottom: 16,
+              textAlign: "left",
+            }}
+          >
             Positive Impact
           </h3>
-          <div style={{ backgroundColor: "#F8F4ED", borderRadius: 6, padding: 24, marginBottom: 16 }}>
-            <p style={{ fontFamily: "var(--font-serif)", fontWeight: 700, fontSize: 18, color: "var(--color-primary)", marginBottom: 8 }}>
-              Driver name
-            </p>
-            <p style={{ fontFamily: "var(--font-sans)", fontSize: 16, color: "#1A1A1A", lineHeight: 1.55 }}>
-              Driver description here
-            </p>
+          <div style={{ textAlign: "left" }}>
+            <Streamdown>{positiveContent}</Streamdown>
           </div>
         </div>
 
+        {/* Negative Impact */}
         <div style={{ marginBottom: 32 }}>
-          <h3 style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 24, color: "var(--color-primary)", marginBottom: 16 }}>
+          <h3
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontWeight: 600,
+              fontSize: "clamp(20px, 4vw, 28px)",
+              color: "var(--color-primary)",
+              marginBottom: 16,
+              textAlign: "left",
+            }}
+          >
             Negative Impact
           </h3>
-          <div style={{ backgroundColor: "#F8F4ED", borderRadius: 6, padding: 24, marginBottom: 16 }}>
-            <p style={{ fontFamily: "var(--font-serif)", fontWeight: 700, fontSize: 18, color: "var(--color-primary)", marginBottom: 8 }}>
-              Risk factor
-            </p>
-            <p style={{ fontFamily: "var(--font-sans)", fontSize: 16, color: "#1A1A1A", lineHeight: 1.55 }}>
-              Risk description here
-            </p>
+          <div style={{ textAlign: "left" }}>
+            <Streamdown>{negativeContent}</Streamdown>
           </div>
         </div>
 
@@ -263,22 +334,35 @@ function Step2Section({ content }: { content: string }) {
         </div>
 
         {/* What this means for you callout */}
-        <div
-          style={{
-            backgroundColor: "white",
-            border: "1px solid rgba(27, 58, 92, 0.12)",
-            borderRadius: 6,
-            padding: 24,
-            marginTop: 32,
-          }}
-        >
-          <p style={{ fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 12, color: "var(--color-primary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-            What this means for you
-          </p>
-          <p style={{ fontFamily: "var(--font-sans)", fontSize: 18, color: "#1A1A1A", lineHeight: 1.55 }}>
-            Callout content here
-          </p>
-        </div>
+        {calloutContent && (
+          <div
+            style={{
+              backgroundColor: "white",
+              border: "1px solid rgba(27, 58, 92, 0.12)",
+              borderRadius: 6,
+              padding: 24,
+              marginTop: 32,
+            }}
+          >
+            <p
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontWeight: 600,
+                fontSize: 12,
+                color: "var(--color-primary)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: 8,
+                textAlign: "left",
+              }}
+            >
+              What this means for you
+            </p>
+            <div style={{ textAlign: "left" }}>
+              <Streamdown>{calloutContent}</Streamdown>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -289,6 +373,27 @@ function Step2Section({ content }: { content: string }) {
 // ─────────────────────────────────────────────────────────────────────
 
 function Step3Section({ content }: { content: string }) {
+  // Extract value range
+  const valueMatch = content.match(/# (₪[^(]+)\n### \((.*?)\)/);
+  const nisRange = valueMatch?.[1] || "₪X.XM to ₪Y.YM";
+  const usdRange = valueMatch?.[2] || "USD equivalent";
+
+  // Extract based on line
+  const basedMatch = content.match(/Based on: (.*?)\n/);
+  const basedOn = basedMatch?.[1] || "Business Details, Similar Israeli Deals, Market Trends";
+
+  // Extract buyers section
+  const buyersMatch = content.match(/### Your Buyers\n([\s\S]*?)(?=### What would|##|$)/);
+  const buyersContent = buyersMatch?.[1] || "";
+
+  // Extract what would sharpen section
+  const sharpenMatch = content.match(/### What would sharpen your number\n([\s\S]*?)(?=### What this means|##|$)/);
+  const sharpenContent = sharpenMatch?.[1] || "";
+
+  // Extract final callout
+  const finalCalloutMatch = content.match(/### What this means for you\n([\s\S]*?)(?=##|$)/);
+  const finalCalloutContent = finalCalloutMatch?.[1] || "";
+
   return (
     <section
       style={{
@@ -305,6 +410,7 @@ function Step3Section({ content }: { content: string }) {
             fontSize: "clamp(28px, 5vw, 44px)",
             color: "var(--color-primary)",
             marginBottom: 16,
+            textAlign: "left",
           }}
         >
           Step 3. Valuation and Buyers
@@ -329,120 +435,95 @@ function Step3Section({ content }: { content: string }) {
               marginBottom: 8,
             }}
           >
-            ₪X.XM to ₪Y.YM
+            {nisRange}
           </div>
-          <p style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 24, color: "#6B6B6B", marginBottom: 16 }}>
-            (USD equivalent: $A.AM to $B.BM)
+          <p
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontWeight: 600,
+              fontSize: "clamp(18px, 4vw, 28px)",
+              color: "#6B6B6B",
+              marginBottom: 16,
+            }}
+          >
+            {usdRange}
           </p>
-          <p style={{ fontFamily: "var(--font-sans)", fontSize: 16, color: "#1A1A1A" }}>
-            Based on: Business Details, Similar Israeli Deals, Market Trends.
+          <p style={{ fontFamily: "var(--font-sans)", fontSize: 16, color: "#1A1A1A", textAlign: "center" }}>
+            Based on: {basedOn}
           </p>
         </div>
 
-        {/* Approach table */}
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            marginTop: 48,
-            marginBottom: 48,
-            border: "1px solid rgba(27, 58, 92, 0.08)",
-            borderRadius: 6,
-            overflow: "hidden",
-          }}
-        >
-          <thead>
-            <tr style={{ backgroundColor: "var(--color-primary)" }}>
-              <th style={{ color: "white", padding: 12, textAlign: "left", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 14, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                Approach
-              </th>
-              <th style={{ color: "white", padding: 12, textAlign: "left", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 14, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                Range (NIS)
-              </th>
-              <th style={{ color: "white", padding: 12, textAlign: "left", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 14, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                Multiplier
-              </th>
-              <th style={{ color: "white", padding: 12, textAlign: "left", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 14, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                Basis
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {["Revenue multiple", "SDE multiple", "EBITDA multiple", "Strategic premium"].map((approach, idx) => (
-              <tr
-                key={idx}
-                style={{
-                  backgroundColor: approach === "EBITDA multiple" ? "rgba(27, 58, 92, 0.06)" : "white",
-                  borderTop: "1px solid rgba(27, 58, 92, 0.08)",
-                }}
-              >
-                <td
-                  style={{
-                    padding: 12,
-                    fontFamily: "var(--font-sans)",
-                    fontWeight: approach === "EBITDA multiple" ? 600 : 400,
-                    fontSize: 16,
-                    color: "#1A1A1A",
-                    borderLeft: approach === "EBITDA multiple" ? "3px solid var(--color-primary)" : "none",
-                  }}
-                >
-                  {approach}
-                </td>
-                <td style={{ padding: 12, fontFamily: "var(--font-sans)", fontSize: 16, color: "#1A1A1A" }}>Range</td>
-                <td style={{ padding: 12, fontFamily: "var(--font-sans)", fontSize: 16, color: "#1A1A1A" }}>Multiple</td>
-                <td style={{ padding: 12, fontFamily: "var(--font-sans)", fontSize: 16, color: "#1A1A1A" }}>Basis</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Buyers section */}
+        {buyersContent && (
+          <div style={{ marginTop: 48, marginBottom: 48 }}>
+            <h3
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontWeight: 600,
+                fontSize: "clamp(20px, 4vw, 28px)",
+                color: "var(--color-primary)",
+                marginBottom: 24,
+                textAlign: "left",
+              }}
+            >
+              Your Buyers
+            </h3>
+            <div style={{ textAlign: "left" }}>
+              <Streamdown>{buyersContent}</Streamdown>
+            </div>
+          </div>
+        )}
 
-        {/* Your Buyers list */}
-        <div style={{ marginBottom: 48 }}>
-          <h3 style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 24, color: "var(--color-primary)", marginBottom: 24 }}>
-            Your Buyers
-          </h3>
-          <ol style={{ listStyle: "none", paddingLeft: 32 }}>
-            {["Buyer 1", "Buyer 2", "Buyer 3"].map((buyer, idx) => (
-              <li key={idx} style={{ marginBottom: 20, position: "relative" }}>
-                <span
-                  style={{
-                    position: "absolute",
-                    left: -32,
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 700,
-                    fontSize: 20,
-                    color: "var(--color-primary)",
-                  }}
-                >
-                  {idx + 1}.
-                </span>
-                <p style={{ fontFamily: "var(--font-serif)", fontWeight: 700, fontSize: 18, color: "var(--color-primary)", marginBottom: 4 }}>
-                  {buyer}.
-                </p>
-                <p style={{ fontFamily: "var(--font-sans)", fontSize: 16, color: "#1A1A1A", lineHeight: 1.55 }}>
-                  Buyer description here
-                </p>
-              </li>
-            ))}
-          </ol>
-        </div>
+        {/* What would sharpen section */}
+        {sharpenContent && (
+          <div style={{ marginBottom: 48 }}>
+            <h3
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontWeight: 600,
+                fontSize: "clamp(20px, 4vw, 28px)",
+                color: "var(--color-primary)",
+                marginBottom: 16,
+                textAlign: "left",
+              }}
+            >
+              What would sharpen your number
+            </h3>
+            <div style={{ textAlign: "left" }}>
+              <Streamdown>{sharpenContent}</Streamdown>
+            </div>
+          </div>
+        )}
 
-        {/* What this means for you callout */}
-        <div
-          style={{
-            backgroundColor: "white",
-            border: "1px solid rgba(27, 58, 92, 0.12)",
-            borderRadius: 6,
-            padding: 24,
-          }}
-        >
-          <p style={{ fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 12, color: "var(--color-primary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-            What this means for you
-          </p>
-          <p style={{ fontFamily: "var(--font-sans)", fontSize: 18, color: "#1A1A1A", lineHeight: 1.55 }}>
-            Final callout here
-          </p>
-        </div>
+        {/* Final callout */}
+        {finalCalloutContent && (
+          <div
+            style={{
+              backgroundColor: "white",
+              border: "1px solid rgba(27, 58, 92, 0.12)",
+              borderRadius: 6,
+              padding: 24,
+            }}
+          >
+            <p
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontWeight: 600,
+                fontSize: 12,
+                color: "var(--color-primary)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: 8,
+                textAlign: "left",
+              }}
+            >
+              What this means for you
+            </p>
+            <div style={{ textAlign: "left" }}>
+              <Streamdown>{finalCalloutContent}</Streamdown>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -453,6 +534,13 @@ function Step3Section({ content }: { content: string }) {
 // ─────────────────────────────────────────────────────────────────────
 
 function NextStepSection({ content }: { content: string }) {
+  // Extract founder info
+  const ofirMatch = content.match(/\[Ofir's photo and name\]\n(.*?)\n\n/);
+  const benMatch = content.match(/\[Ben's photo and name\]\n(.*?)\n/);
+
+  const ofirBio = ofirMatch?.[1] || "Ofir Ben Haim. 40 years working with Israeli businesses. Hundreds of transactions. CPA.";
+  const benBio = benMatch?.[1] || "Benjamin Aronson. M&A, KPMG alum. Built and sold a company.";
+
   return (
     <section
       style={{
@@ -470,6 +558,7 @@ function NextStepSection({ content }: { content: string }) {
             fontSize: "clamp(28px, 5vw, 44px)",
             color: "white",
             marginBottom: 16,
+            textAlign: "left",
           }}
         >
           Next step
@@ -487,9 +576,10 @@ function NextStepSection({ content }: { content: string }) {
           style={{
             fontFamily: "var(--font-serif)",
             fontWeight: 600,
-            fontSize: 24,
+            fontSize: "clamp(20px, 4vw, 28px)",
             color: "white",
             marginBottom: 8,
+            textAlign: "left",
           }}
         >
           Want the full 15-page version. <span style={{ backgroundColor: "#6B2C2C", padding: "10px 24px", borderRadius: 6, display: "inline-block" }}>Book a 30 minute call with Ofir.</span> 100% confidential. No commitment.
@@ -503,10 +593,11 @@ function NextStepSection({ content }: { content: string }) {
             gap: 32,
             marginTop: 60,
           }}
+          className="next-step-grid"
         >
           {[
-            { name: "OFIR BEN HAIM", bio: "40 years working with Israeli businesses. Hundreds of transactions. CPA." },
-            { name: "BENJAMIN ARONSON", bio: "M&A, KPMG alum. Built and sold a company." },
+            { name: "OFIR BEN HAIM", bio: ofirBio },
+            { name: "BENJAMIN ARONSON", bio: benBio },
           ].map((founder, idx) => (
             <div
               key={idx}
@@ -530,11 +621,12 @@ function NextStepSection({ content }: { content: string }) {
                 style={{
                   fontFamily: "var(--font-display)",
                   fontWeight: 700,
-                  fontSize: 24,
+                  fontSize: "clamp(20px, 4vw, 26px)",
                   color: "white",
                   textTransform: "uppercase",
                   letterSpacing: "0.04em",
                   marginBottom: 8,
+                  textAlign: "left",
                 }}
               >
                 {founder.name}
@@ -545,6 +637,7 @@ function NextStepSection({ content }: { content: string }) {
                   fontSize: 15,
                   color: "rgba(255, 255, 255, 0.88)",
                   lineHeight: 1.55,
+                  textAlign: "left",
                 }}
               >
                 {founder.bio}

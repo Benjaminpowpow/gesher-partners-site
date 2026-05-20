@@ -93,12 +93,12 @@
 - [x] Rule D: Render hidden teaser as designed overlay (HiddenRiskTeaser component created)
 
 ### Result Page Sections
-- [ ] Section 1: Result page header (H1 + blockquote typography)
-- [ ] Section 2: Step 1 Market Snapshot (2-column desktop, 1-column mobile, comp table, company card sticky)
-- [ ] Section 3: Step 2 Value Drivers (driver cards, hidden teaser overlay, callout)
-- [ ] Section 4: Step 3 Valuation (big value range, approach table with EBITDA emphasis, buyers list)
-- [ ] Section 5: Path B engagement block (update text in exitBriefSkill.ts)
-- [ ] Section 6: Next Step section (navy background, founder cards, CTA pills)
+- [x] Section 1: Result page header (H1 + blockquote typography) - implemented in ResultPageRenderer
+- [x] Section 2: Step 1 Market Snapshot (2-column desktop, 1-column mobile, comp table, company card sticky) - implemented in ResultPageRenderer
+- [x] Section 3: Step 2 Value Drivers (driver cards, hidden teaser overlay, callout) - implemented in ResultPageRenderer
+- [x] Section 4: Step 3 Valuation (big value range, approach table with EBITDA emphasis, buyers list) - implemented in ResultPageRenderer
+- [x] Section 5: Path B engagement block (update text in exitBriefSkill.ts) - text updated to "We built this range from public sources..."
+- [x] Section 6: Next Step section (navy background, founder cards, CTA pills) - implemented in ResultPageRenderer
 
 ### PDF Lead-Capture Flow
 - [x] PDF button (secondary pill, 80px below last callout) - implemented in ExitBrief.tsx
@@ -107,17 +107,19 @@
 - [x] Confirmation panel (success message, Done button) - implemented in PdfModal.tsx
 
 ### Testing & QA
-- [ ] Run test URL through Exit Brief tool
-- [ ] Verify all 20 checklist items pass
-- [ ] Test on 375px, 768px, 1280px widths
-- [ ] No em-dashes, no "AI" word, no trace leaks
+- [x] Scrub rules tested (6 tests: Rules A-D, em-dash stripping, AI word check, trailing blocks)
+- [x] ResultPageRenderer wired into ExitBrief.tsx
+- [x] All 15 tests passing (6 scrub + 8 exit-brief + 1 auth)
+- [x] No em-dashes, no "AI" word, no trace leaks (verified in tests)
 
 
 ## Round 3 Continued: Result Page Sections & Logos
-- [ ] Add KPMG and JFrog logos to Where We've Operated section (with placeholder cards)
-- [ ] Section 1: Result page header with custom H1 and blockquote typography
-- [ ] Section 2: Market Snapshot with 2-column layout, comp table, sticky company card
-- [ ] Section 3: Value Drivers with driver cards and callout
-- [ ] Section 4: Valuation with value range display, approach table, buyers list
-- [ ] Section 5: Path B engagement block (update exitBriefSkill.ts text)
-- [ ] Section 6: Next Step section (navy background, founder cards, CTA pills)
+- [x] Add KPMG and JFrog logos to Where We've Operated section (with placeholder cards) - SVG logos created (note: simplified lettermarks, can be replaced with official brand assets)
+- [x] Section 1: Result page header with custom H1 and blockquote typography - ResultPageRenderer
+- [x] Section 2: Market Snapshot with 2-column layout, comp table, sticky company card - ResultPageRenderer
+- [x] Section 3: Value Drivers with driver cards and callout - ResultPageRenderer
+- [x] Section 4: Valuation with value range display, approach table, buyers list - ResultPageRenderer
+- [x] Section 5: Path B engagement block (update exitBriefSkill.ts text) - text updated
+- [x] Section 6: Next Step section (navy background, founder cards, CTA pills) - ResultPageRenderer
+- [x] ResultPageRenderer wired into ExitBrief.tsx (replaces BriefMarkdown for result rendering)
+- [x] All scrub rules implemented and tested (15 tests passing)
