@@ -6,8 +6,10 @@ export default function Footer() {
     if (el) el.scrollIntoView({ behavior: "smooth" });
   };
 
+  const currentYear = new Date().getFullYear();
+
   return (
-    <footer style={{ backgroundColor: "var(--color-bg)", borderTop: "1px solid rgba(27,58,92,0.12)" }}>
+    <footer style={{ backgroundColor: "var(--color-bg)", borderTop: "1px solid var(--color-gold)" }}>
       <div className="g-container" style={{ paddingTop: 64, paddingBottom: 48 }}>
         {/* Three columns */}
         <div
@@ -23,7 +25,7 @@ export default function Footer() {
           <div>
             <span
               style={{
-                fontFamily: "var(--font-serif)",
+                fontFamily: "var(--font-display)",
                 fontWeight: 600,
                 fontSize: 22,
                 color: "var(--color-primary)",
@@ -36,27 +38,29 @@ export default function Footer() {
             </span>
             <p
               style={{
-                fontFamily: "var(--font-sans)",
+                fontFamily: "var(--font-serif)",
                 fontSize: 15,
-                color: "var(--color-subtext)",
+                color: "var(--color-body)",
                 lineHeight: 1.6,
-                marginBottom: 16,
+                marginBottom: 24,
                 maxWidth: 300,
               }}
             >
-              Small Businesses, Maximum Outcome.
+              Sell-side advisor for Israeli family businesses. NIS 5-50M revenue. Built for the owners who built decades-long businesses.
             </p>
             <p
               style={{
                 fontFamily: "var(--font-sans)",
                 fontSize: 14,
-                color: "var(--color-subtext)",
+                color: "var(--color-secondary)",
                 lineHeight: 1.6,
               }}
             >
               <strong style={{ color: "var(--color-body)", fontWeight: 500 }}>Office</strong>
               <br />
-              [OB&H office address, Ben to paste from obhcpa.com]
+              Address pending
+              <br />
+              hello@gesher-partners.com
             </p>
           </div>
 
@@ -67,9 +71,9 @@ export default function Footer() {
                 fontFamily: "var(--font-sans)",
                 fontWeight: 500,
                 fontSize: 13,
-                color: "var(--color-subtext)",
+                color: "var(--color-secondary)",
                 textTransform: "uppercase",
-                letterSpacing: "0.08em",
+                letterSpacing: "0.15em",
                 marginBottom: 16,
               }}
             >
@@ -91,13 +95,13 @@ export default function Footer() {
                     cursor: "pointer",
                     fontFamily: "var(--font-sans)",
                     fontSize: 15,
-                    color: "var(--color-subtext)",
+                    color: "var(--color-secondary)",
                     padding: 0,
                     textAlign: "left",
                     transition: "color 150ms",
                   }}
                   onMouseEnter={e => (e.currentTarget.style.color = "var(--color-primary)")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "var(--color-subtext)")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "var(--color-secondary)")}
                 >
                   {item.label}
                 </button>
@@ -112,9 +116,9 @@ export default function Footer() {
                 fontFamily: "var(--font-sans)",
                 fontWeight: 500,
                 fontSize: 13,
-                color: "var(--color-subtext)",
+                color: "var(--color-secondary)",
                 textTransform: "uppercase",
-                letterSpacing: "0.08em",
+                letterSpacing: "0.15em",
                 marginBottom: 16,
               }}
             >
@@ -126,11 +130,11 @@ export default function Footer() {
                 style={{
                   fontFamily: "var(--font-sans)",
                   fontSize: 15,
-                  color: "var(--color-subtext)",
+                  color: "var(--color-secondary)",
                   transition: "color 150ms",
                 }}
                 onMouseEnter={e => ((e.target as HTMLElement).style.color = "var(--color-primary)")}
-                onMouseLeave={e => ((e.target as HTMLElement).style.color = "var(--color-subtext)")}
+                onMouseLeave={e => ((e.target as HTMLElement).style.color = "var(--color-secondary)")}
               >
                 Exit Brief
               </Link>
@@ -139,11 +143,11 @@ export default function Footer() {
                 style={{
                   fontFamily: "var(--font-sans)",
                   fontSize: 15,
-                  color: "var(--color-subtext)",
+                  color: "var(--color-secondary)",
                   transition: "color 150ms",
                 }}
                 onMouseEnter={e => ((e.target as HTMLElement).style.color = "var(--color-primary)")}
-                onMouseLeave={e => ((e.target as HTMLElement).style.color = "var(--color-subtext)")}
+                onMouseLeave={e => ((e.target as HTMLElement).style.color = "var(--color-secondary)")}
               >
                 Privacy
               </Link>
@@ -152,11 +156,11 @@ export default function Footer() {
                 style={{
                   fontFamily: "var(--font-sans)",
                   fontSize: 15,
-                  color: "var(--color-subtext)",
+                  color: "var(--color-secondary)",
                   transition: "color 150ms",
                 }}
                 onMouseEnter={e => ((e.target as HTMLElement).style.color = "var(--color-primary)")}
-                onMouseLeave={e => ((e.target as HTMLElement).style.color = "var(--color-subtext)")}
+                onMouseLeave={e => ((e.target as HTMLElement).style.color = "var(--color-secondary)")}
               >
                 Terms
               </Link>
@@ -167,7 +171,7 @@ export default function Footer() {
         {/* Legal strip */}
         <div
           style={{
-            borderTop: "1px solid rgba(27,58,92,0.1)",
+            borderTop: "1px solid var(--color-hairline)",
             paddingTop: 24,
             display: "flex",
             flexWrap: "wrap",
@@ -179,7 +183,7 @@ export default function Footer() {
             style={{
               fontFamily: "var(--font-sans)",
               fontSize: 13,
-              color: "var(--color-subtext)",
+              color: "var(--color-secondary)",
               lineHeight: 1.6,
               maxWidth: 640,
             }}
@@ -190,10 +194,10 @@ export default function Footer() {
             style={{
               fontFamily: "var(--font-sans)",
               fontSize: 13,
-              color: "var(--color-subtext)",
+              color: "var(--color-secondary)",
             }}
           >
-            &copy; 2025 Gesher Partners. All rights reserved.
+            &copy; {currentYear} Gesher Partners. All rights reserved.
           </p>
         </div>
       </div>

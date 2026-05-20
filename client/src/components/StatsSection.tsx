@@ -1,38 +1,67 @@
 const stats = [
-  { number: "4 decades", label: "of Israeli M&A experience" },
-  { number: "3 markets", label: "Israel, Europe, North America" },
-  { number: "Real auction", label: "Multiple buyers, competitive process" },
-  { number: "Paid when you win", label: "Success fee only. No retainer." },
+  {
+    number: "4 decades",
+    caption: "Working with Israeli business owners. Thousands of clients, every vertical.",
+  },
+  {
+    number: "10x buyers",
+    caption: "Strategic buyers across Israel, the US, and the Gulf. Built on 40 years of relationships.",
+  },
+  {
+    number: "30% higher",
+    caption: "What a real auction delivers versus one buyer at a time.",
+  },
+  {
+    number: "Success fee only",
+    caption: "We get paid when you close.",
+  },
 ];
 
 export default function StatsSection() {
   return (
     <section
       style={{
-        backgroundColor: "var(--color-primary)",
-        paddingTop: 80,
-        paddingBottom: 80,
+        backgroundColor: "#F8F4ED",
+        paddingTop: 120,
+        paddingBottom: 120,
       }}
     >
       <div className="g-container">
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 40,
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: 24,
           }}
           className="stats-grid"
         >
           {stats.map((stat, i) => (
-            <div key={i} style={{ textAlign: "center" }}>
+            <div
+              key={i}
+              style={{
+                backgroundColor: "#FFFFFF",
+                border: "1px solid rgba(12, 27, 46, 0.08)",
+                borderRadius: 6,
+                padding: 32,
+                boxShadow: "0 1px 3px rgba(12, 27, 46, 0.04)",
+                textAlign: "left",
+                transition: "box-shadow 200ms ease-out",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(12, 27, 46, 0.12)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = "0 1px 3px rgba(12, 27, 46, 0.04)";
+              }}
+            >
               <div
                 style={{
                   fontFamily: "var(--font-serif)",
                   fontWeight: 700,
-                  fontSize: "clamp(28px, 4vw, 52px)",
-                  color: "var(--color-accent)",
+                  fontSize: "clamp(44px, 5vw, 56px)",
+                  color: "#6B2C2C",
                   lineHeight: 1.1,
-                  marginBottom: 10,
+                  marginBottom: 16,
                 }}
               >
                 {stat.number}
@@ -41,12 +70,12 @@ export default function StatsSection() {
                 style={{
                   fontFamily: "var(--font-sans)",
                   fontWeight: 400,
-                  fontSize: 15,
-                  color: "rgba(248,244,237,0.75)",
-                  lineHeight: 1.4,
+                  fontSize: 16,
+                  color: "#1A1A1A",
+                  lineHeight: 1.55,
                 }}
               >
-                {stat.label}
+                {stat.caption}
               </div>
             </div>
           ))}
@@ -54,13 +83,12 @@ export default function StatsSection() {
       </div>
 
       <style>{`
-        @media (max-width: 768px) {
+        @media (max-width: 980px) {
           .stats-grid {
             grid-template-columns: repeat(2, 1fr) !important;
-            gap: 32px !important;
           }
         }
-        @media (max-width: 375px) {
+        @media (max-width: 480px) {
           .stats-grid {
             grid-template-columns: 1fr !important;
           }

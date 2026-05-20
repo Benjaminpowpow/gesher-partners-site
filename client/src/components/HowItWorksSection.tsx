@@ -1,23 +1,23 @@
 const steps = [
   {
     number: "01",
-    title: "We read your business.",
-    body: "A 90-minute conversation and a look at three years of financials. We tell you what a buyer will see, what will compress your multiple, and what will expand it.",
+    title: "We package your business.",
+    body: "Real numbers, real story, ready for serious buyers. The way a strategic acquirer reads it.",
   },
   {
     number: "02",
-    title: "We build your buyer list.",
-    body: "Named Israeli strategics, regional PE, and relevant cross-border acquirers. Every name is researched. No generic lists.",
+    title: "We find your buyers.",
+    body: "PE funds. Strategics. Family offices. Globle. We map them in weeks, not months.",
   },
   {
     number: "03",
     title: "We run the auction.",
-    body: "Simultaneous outreach, managed information flow, competitive tension. The process creates the price, not the asking number.",
+    body: "Multiple buyers, same week, same room. Not one offer. Many. That is what gets you the price.",
   },
   {
     number: "04",
-    title: "We close.",
-    body: "Term sheet, due diligence, SPA. We stay in the room until the wire clears.",
+    title: "We close your deal.",
+    body: "Senior banker on the line for every call. From the first NDA to the last signature. No handoffs.",
   },
 ];
 
@@ -30,15 +30,18 @@ export default function HowItWorksSection() {
   return (
     <section id="how-it-works" className="g-section" style={{ backgroundColor: "var(--color-bg)" }}>
       <div className="g-container">
-        <p className="g-eyebrow" style={{ marginBottom: 16 }}>The process</p>
+        <p className="small-caps" style={{ marginBottom: 16, color: "var(--color-secondary)" }}>
+          The process
+        </p>
         <h2
           style={{
-            fontFamily: "var(--font-serif)",
-            fontWeight: 600,
-            fontSize: "clamp(28px, 3.5vw, 44px)",
+            fontFamily: "var(--font-display)",
+            fontWeight: 700,
+            fontSize: "clamp(38px, 5vw, 44px)",
             color: "var(--color-primary)",
             marginBottom: 64,
             maxWidth: 560,
+            textAlign: "left",
           }}
         >
           How a Gesher mandate works.
@@ -56,16 +59,29 @@ export default function HowItWorksSection() {
           {steps.map((step) => (
             <div
               key={step.number}
-              className="g-card"
-              style={{ padding: "32px 28px" }}
+              style={{
+                backgroundColor: "#FFFFFF",
+                border: "1px solid rgba(12, 27, 46, 0.08)",
+                borderRadius: 6,
+                padding: "32px 28px",
+                boxShadow: "0 1px 3px rgba(12, 27, 46, 0.04)",
+                transition: "box-shadow 200ms ease-out",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(12, 27, 46, 0.12)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = "0 1px 3px rgba(12, 27, 46, 0.04)";
+              }}
             >
               <div
                 style={{
-                  fontFamily: "var(--font-serif)",
-                  fontWeight: 700,
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 500,
                   fontSize: 13,
                   color: "var(--color-accent)",
-                  letterSpacing: "0.1em",
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
                   marginBottom: 16,
                 }}
               >
@@ -97,8 +113,8 @@ export default function HowItWorksSection() {
           ))}
         </div>
 
-        <div style={{ textAlign: "center" }}>
-          <button onClick={scrollToContact} className="g-btn-primary">
+        <div style={{ textAlign: "left" }}>
+          <button onClick={scrollToContact} className="btn-solid">
             Talk to us about your business.
           </button>
         </div>

@@ -103,7 +103,7 @@ async function handleExitBrief(req: Request, res: Response) {
 
   try {
     const stream = await anthropic.messages.create({
-      model: "claude-opus-4-7",
+      model: "claude-opus-4-5",
       max_tokens: 16000,
       system: EXIT_BRIEF_SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],

@@ -12,45 +12,39 @@ export default function HeroSection() {
         backgroundColor: "var(--color-bg)",
         paddingTop: 160,
         paddingBottom: 120,
+        textAlign: "center",
       }}
     >
-      <div className="g-container g-fade-in">
-        <p className="g-eyebrow" style={{ marginBottom: 24 }}>
+      <div className="g-container" style={{ maxWidth: 800 }}>
+        <p className="small-caps" style={{ marginBottom: 24, color: "var(--color-secondary)" }}>
           For Israeli family-owned businesses. NIS 5–50M revenue.
         </p>
 
         <h1
           style={{
-            fontFamily: "var(--font-serif)",
-            fontWeight: 700,
-            fontSize: "clamp(40px, 6vw, 68px)",
+            fontFamily: "var(--font-display)",
+            fontWeight: 800,
+            fontSize: "clamp(60px, 8vw, 72px)",
             color: "var(--color-primary)",
             lineHeight: 1.1,
-            maxWidth: 760,
-            marginBottom: 8,
+            letterSpacing: "-0.01em",
+            marginBottom: 24,
           }}
         >
           Get the most out of your life's work.
         </h1>
 
-        {/* Burgundy underline */}
-        <div
-          style={{
-            width: 60,
-            height: 2,
-            backgroundColor: "var(--color-accent)",
-            marginBottom: 28,
-          }}
-        />
+        {/* Burgundy rule: 1px, 60px wide, centered */}
+        <div className="hero-rule" />
 
         <p
           style={{
             fontFamily: "var(--font-serif)",
             fontWeight: 400,
+            fontStyle: "italic",
             fontSize: "clamp(18px, 2vw, 22px)",
-            color: "var(--color-primary)",
-            marginBottom: 16,
-            letterSpacing: "0.01em",
+            color: "var(--color-secondary)",
+            marginBottom: 24,
           }}
         >
           Small Businesses, Maximum Outcome.
@@ -58,23 +52,22 @@ export default function HeroSection() {
 
         <p
           style={{
-            fontFamily: "var(--font-sans)",
+            fontFamily: "var(--font-serif)",
             fontWeight: 400,
-            fontSize: "clamp(16px, 1.5vw, 19px)",
+            fontSize: "18px",
             color: "var(--color-body)",
-            maxWidth: 580,
             lineHeight: 1.65,
-            marginBottom: 44,
+            marginBottom: 48,
           }}
         >
           An Israeli sell-side advisor for family businesses built by people who have been on your side of the table.
         </p>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
-          <button onClick={scrollToContact} className="g-btn-primary">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "center", justifyContent: "center" }}>
+          <button onClick={scrollToContact} className="btn-solid">
             Talk to us.
           </button>
-          <Link href="/exit-brief" className="g-btn-secondary">
+          <Link href="/exit-brief" className="btn-ghost">
             Get a quick read on your business.
           </Link>
         </div>

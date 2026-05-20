@@ -2,6 +2,7 @@ import Nav from "@/components/Nav";
 import HeroSection from "@/components/HeroSection";
 import StatsSection from "@/components/StatsSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
+import WhereWeOperatedSection from "@/components/WhereWeOperatedSection";
 import FoundersSection from "@/components/FoundersSection";
 import ContactSection from "@/components/ContactSection";
 import Footer from "@/components/Footer";
@@ -14,6 +15,7 @@ export default function Home() {
         <HeroSection />
         <StatsSection />
         <HowItWorksSection />
+        <WhereWeOperatedSection />
         <FoundersSection />
         <ContactSection />
       </main>

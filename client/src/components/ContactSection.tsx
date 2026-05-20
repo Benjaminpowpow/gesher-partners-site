@@ -8,6 +8,16 @@ const stages = [
   { value: "other", label: "Other" },
 ];
 
+const revenueRanges = [
+  { value: "", label: "Select a range" },
+  { value: "less-5m", label: "Less than 5M NIS" },
+  { value: "5-10m", label: "5-10M NIS" },
+  { value: "10-20m", label: "10-20M NIS" },
+  { value: "20-50m", label: "20-50M NIS" },
+  { value: "50m-plus", label: "50M+ NIS" },
+  { value: "prefer-not", label: "Prefer not to say" },
+];
+
 type FormState = "idle" | "submitting" | "success" | "error";
 
 export default function ContactSection() {
@@ -36,18 +46,20 @@ export default function ContactSection() {
       <section id="contact" className="g-section" style={{ backgroundColor: "var(--color-bg)" }}>
         <div className="g-container">
           <div
-            className="g-card g-modal-entry"
             style={{
               maxWidth: 560,
               padding: "56px 48px",
               margin: "0 auto",
               textAlign: "center",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid rgba(12, 27, 46, 0.08)",
+              borderRadius: 6,
             }}
           >
             <h2
               style={{
-                fontFamily: "var(--font-serif)",
-                fontWeight: 600,
+                fontFamily: "var(--font-display)",
+                fontWeight: 700,
                 fontSize: 32,
                 color: "var(--color-primary)",
                 marginBottom: 16,
@@ -77,13 +89,15 @@ export default function ContactSection() {
           className="contact-grid"
         >
           {/* Left: copy */}
-          <div>
-            <p className="g-eyebrow" style={{ marginBottom: 16 }}>Get in touch</p>
+          <div style={{ textAlign: "left" }}>
+            <p className="small-caps" style={{ marginBottom: 16, color: "var(--color-secondary)" }}>
+              Get in touch
+            </p>
             <h2
               style={{
-                fontFamily: "var(--font-serif)",
-                fontWeight: 600,
-                fontSize: "clamp(28px, 3.5vw, 44px)",
+                fontFamily: "var(--font-display)",
+                fontWeight: 700,
+                fontSize: "clamp(38px, 5vw, 44px)",
                 color: "var(--color-primary)",
                 marginBottom: 20,
               }}
@@ -92,8 +106,8 @@ export default function ContactSection() {
             </h2>
             <p
               style={{
-                fontFamily: "var(--font-sans)",
-                fontSize: 18,
+                fontFamily: "var(--font-serif)",
+                fontSize: 16,
                 color: "var(--color-body)",
                 lineHeight: 1.65,
                 marginBottom: 40,
@@ -111,7 +125,7 @@ export default function ContactSection() {
                 style={{
                   fontFamily: "var(--font-sans)",
                   fontSize: 15,
-                  color: "var(--color-subtext)",
+                  color: "var(--color-secondary)",
                   lineHeight: 1.6,
                 }}
               >
@@ -126,7 +140,7 @@ export default function ContactSection() {
               <div>
                 <label
                   htmlFor="contact-name"
-                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-subtext)", marginBottom: 6 }}
+                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-secondary)", marginBottom: 6 }}
                 >
                   Your name *
                 </label>
@@ -137,13 +151,22 @@ export default function ContactSection() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="Moshe Cohen"
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    borderBottom: "1px solid var(--color-hairline)",
+                    padding: "12px 0",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 16,
+                    backgroundColor: "transparent",
+                  }}
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="contact-email"
-                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-subtext)", marginBottom: 6 }}
+                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-secondary)", marginBottom: 6 }}
                 >
                   Email *
                 </label>
@@ -154,13 +177,22 @@ export default function ContactSection() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="moshe@company.co.il"
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    borderBottom: "1px solid var(--color-hairline)",
+                    padding: "12px 0",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 16,
+                    backgroundColor: "transparent",
+                  }}
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="contact-company"
-                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-subtext)", marginBottom: 6 }}
+                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-secondary)", marginBottom: 6 }}
                 >
                   Company name
                 </label>
@@ -170,23 +202,47 @@ export default function ContactSection() {
                   value={company}
                   onChange={e => setCompany(e.target.value)}
                   placeholder="Cohen Industries Ltd."
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    borderBottom: "1px solid var(--color-hairline)",
+                    padding: "12px 0",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 16,
+                    backgroundColor: "transparent",
+                  }}
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="contact-revenue"
-                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-subtext)", marginBottom: 6 }}
+                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-secondary)", marginBottom: 6 }}
                 >
                   Annual revenue (NIS, approximate)
                 </label>
-                <input
+                <select
                   id="contact-revenue"
-                  type="text"
                   value={revenue}
                   onChange={e => setRevenue(e.target.value)}
-                  placeholder="e.g. 15M"
-                />
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    borderBottom: "1px solid var(--color-hairline)",
+                    padding: "12px 0",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 16,
+                    backgroundColor: "transparent",
+                    color: revenue ? "var(--color-body)" : "var(--color-secondary)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {revenueRanges.map(r => (
+                    <option key={r.value} value={r.value} style={{ color: "var(--color-body)" }}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -195,7 +251,7 @@ export default function ContactSection() {
                     fontFamily: "var(--font-sans)",
                     fontWeight: 500,
                     fontSize: 14,
-                    color: "var(--color-subtext)",
+                    color: "var(--color-secondary)",
                     marginBottom: 10,
                   }}
                 >
@@ -232,7 +288,7 @@ export default function ContactSection() {
               <div>
                 <label
                   htmlFor="contact-message"
-                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-subtext)", marginBottom: 6 }}
+                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-secondary)", marginBottom: 6 }}
                 >
                   Anything else you want us to know
                 </label>
@@ -242,7 +298,17 @@ export default function ContactSection() {
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   placeholder="Tell us about your business or what prompted you to reach out."
-                  style={{ resize: "vertical" }}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    borderBottom: "1px solid var(--color-hairline)",
+                    padding: "12px 0",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 16,
+                    backgroundColor: "transparent",
+                    resize: "vertical",
+                    color: "var(--color-body)",
+                  }}
                 />
               </div>
 
@@ -254,9 +320,9 @@ export default function ContactSection() {
 
               <button
                 type="submit"
-                className="g-btn-primary"
+                className="btn-solid"
                 disabled={formState === "submitting"}
-                style={{ opacity: formState === "submitting" ? 0.7 : 1 }}
+                style={{ opacity: formState === "submitting" ? 0.7 : 1, textAlign: "left" }}
               >
                 {formState === "submitting" ? "Sending..." : "Send message"}
               </button>

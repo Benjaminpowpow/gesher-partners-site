@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
@@ -24,8 +24,32 @@ interface BriefResult {
   valuation: string;
 }
 
+// Mapping dropdown values to midpoint numbers
+const REVENUE_MIDPOINTS: Record<string, number | undefined> = {
+  "less-5m": 2500000,
+  "5-10m": 7500000,
+  "10-20m": 15000000,
+  "20-50m": 35000000,
+  "50m-plus": 60000000,
+};
+
+const EBITDA_MIDPOINTS: Record<string, number | undefined> = {
+  "less-500k": 250000,
+  "500k-1m": 750000,
+  "1m-2-5m": 1750000,
+  "2-5m-5m": 3750000,
+  "5m-plus": 6000000,
+};
+
+const SALARY_MIDPOINTS: Record<string, number | undefined> = {
+  "less-300k": 200000,
+  "300k-400k": 350000,
+  "400k-500k": 450000,
+  "500k-600k": 550000,
+  "600k-plus": 700000,
+};
+
 function parseTabContent(fullMarkdown: string): { market: string; drivers: string; valuation: string } {
-  // Split on the three section headers
   const marketMatch = fullMarkdown.match(/## Step 1[\s\S]*?(?=## Step 2|$)/);
   const driversMatch = fullMarkdown.match(/## Step 2[\s\S]*?(?=## Step 3|$)/);
   const valuationMatch = fullMarkdown.match(/## Step 3[\s\S]*/);
@@ -42,7 +66,7 @@ export default function ExitBrief() {
   const [url, setUrl] = useState("");
   const [revenue, setRevenue] = useState("");
   const [ebitda, setEbitda] = useState("");
-  const [sde, setSde] = useState("");
+  const [salary, setSalary] = useState("");
   const [urlError, setUrlError] = useState("");
 
   const [statusIdx, setStatusIdx] = useState(0);
@@ -56,7 +80,6 @@ export default function ExitBrief() {
 
   const abortRef = useRef<AbortController | null>(null);
 
-  // Rotate status messages during generation
   useEffect(() => {
     if (screen === "generating") {
       setStatusIdx(0);
@@ -103,14 +126,19 @@ export default function ExitBrief() {
     abortRef.current = ctrl;
 
     try {
+      // Convert dropdown selections to midpoint values
+      const revenueValue = revenue ? REVENUE_MIDPOINTS[revenue] : undefined;
+      const ebitdaValue = ebitda ? EBITDA_MIDPOINTS[ebitda] : undefined;
+      const salaryValue = salary ? SALARY_MIDPOINTS[salary] : undefined;
+
       const resp = await fetch("/api/exit-brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: cleanUrl.startsWith("http") ? cleanUrl : `https://${cleanUrl}`,
-          revenue: revenue || undefined,
-          ebitda: ebitda || undefined,
-          sde: sde || undefined,
+          revenue: revenueValue,
+          ebitda: ebitdaValue,
+          sde: salaryValue,
         }),
         signal: ctrl.signal,
       });
@@ -120,7 +148,6 @@ export default function ExitBrief() {
         throw new Error((err as { error?: string }).error || `Server error ${resp.status}`);
       }
 
-      // Handle streaming response (newline-delimited JSON)
       const reader = resp.body?.getReader();
       if (!reader) throw new Error("No response body");
 
@@ -136,7 +163,6 @@ export default function ExitBrief() {
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
 
-        // Process complete lines
         for (let i = 0; i < lines.length - 1; i++) {
           const line = lines[i].trim();
           if (!line) continue;
@@ -153,11 +179,9 @@ export default function ExitBrief() {
           }
         }
 
-        // Keep incomplete line in buffer
         buffer = lines[lines.length - 1] ?? "";
       }
 
-      // Process any remaining buffer
       if (buffer.trim()) {
         try {
           const event = JSON.parse(buffer) as { type: string; data?: string; briefId?: string };
@@ -187,7 +211,7 @@ export default function ExitBrief() {
     setUrl("");
     setRevenue("");
     setEbitda("");
-    setSde("");
+    setSalary("");
     setBriefResult(null);
     setActiveTab("market");
     setStreamError("");
@@ -211,36 +235,49 @@ export default function ExitBrief() {
           <section className="g-section">
             <div className="g-container">
               <div style={{ maxWidth: 680, margin: "0 auto" }} className="g-fade-in">
-                <p className="g-eyebrow" style={{ marginBottom: 20 }}>Free tool</p>
+                <p className="small-caps" style={{ marginBottom: 20, color: "var(--color-secondary)", textAlign: "left" }}>
+                  Free tool
+                </p>
                 <h1
                   style={{
-                    fontFamily: "var(--font-serif)",
-                    fontWeight: 700,
-                    fontSize: "clamp(32px, 5vw, 56px)",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: "clamp(60px, 8vw, 72px)",
                     color: "var(--color-primary)",
-                    marginBottom: 20,
+                    marginBottom: 24,
                     lineHeight: 1.1,
+                    letterSpacing: "-0.01em",
+                    textAlign: "left",
                   }}
                 >
                   Get a quick read on your business.
                 </h1>
                 <p
                   style={{
-                    fontFamily: "var(--font-sans)",
-                    fontSize: 18,
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 16,
                     color: "var(--color-body)",
-                    lineHeight: 1.65,
+                    lineHeight: 1.75,
                     marginBottom: 48,
+                    textAlign: "left",
                   }}
                 >
-                  Paste your company website. We read it, pull comparable Israeli transactions, and return a three-part brief: market context, value drivers, and an estimated valuation range.
+                  What is your business worth? We pull comparable Israeli transactions and walk you through what a serious buyer would pay. Three sections: market context, value drivers, and a valuation range. Backed by real data.
                 </p>
 
                 <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                  <div>
+                  {/* URL Input Box */}
+                  <div
+                    style={{
+                      backgroundColor: "#FFFFFF",
+                      border: "1px solid rgba(12, 27, 46, 0.12)",
+                      borderRadius: 6,
+                      padding: 24,
+                    }}
+                  >
                     <label
                       htmlFor="brief-url"
-                      style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 15, color: "var(--color-body)", marginBottom: 8 }}
+                      style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 15, color: "var(--color-secondary)", marginBottom: 12 }}
                     >
                       Company website URL
                     </label>
@@ -251,10 +288,18 @@ export default function ExitBrief() {
                       value={url}
                       onChange={e => { setUrl(e.target.value); setUrlError(""); }}
                       placeholder="https://your-company.co.il"
-                      style={{ fontSize: 17 }}
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        borderBottom: "1px solid var(--color-hairline)",
+                        padding: "12px 0",
+                        fontFamily: "var(--font-sans)",
+                        fontSize: 16,
+                        backgroundColor: "transparent",
+                      }}
                     />
                     {urlError && (
-                      <p style={{ fontFamily: "var(--font-sans)", fontSize: 13, color: "var(--color-accent)", marginTop: 6 }}>
+                      <p style={{ fontFamily: "var(--font-sans)", fontSize: 13, color: "var(--color-accent)", marginTop: 8 }}>
                         {urlError}
                       </p>
                     )}
@@ -263,10 +308,10 @@ export default function ExitBrief() {
                   {/* Optional financial intake */}
                   <div
                     style={{
-                      backgroundColor: "var(--color-white)",
-                      border: "1px solid rgba(27,58,92,0.12)",
-                      borderRadius: 8,
-                      padding: "24px 24px 20px",
+                      backgroundColor: "#FFFFFF",
+                      border: "1px solid rgba(12, 27, 46, 0.12)",
+                      borderRadius: 6,
+                      padding: 24,
                     }}
                   >
                     <p
@@ -274,74 +319,119 @@ export default function ExitBrief() {
                         fontFamily: "var(--font-sans)",
                         fontWeight: 500,
                         fontSize: 14,
-                        color: "var(--color-subtext)",
-                        marginBottom: 4,
+                        color: "var(--color-secondary)",
+                        marginBottom: 8,
                         textTransform: "uppercase",
-                        letterSpacing: "0.07em",
+                        letterSpacing: "0.15em",
                       }}
                     >
-                      Optional — sharpen your range
+                      Optional. Sharpen your range.
                     </p>
                     <p
                       style={{
                         fontFamily: "var(--font-sans)",
                         fontSize: 14,
-                        color: "var(--color-subtext)",
+                        color: "var(--color-secondary)",
                         lineHeight: 1.55,
                         marginBottom: 20,
                       }}
                     >
-                      Financial figures sharpen the valuation range from [low] to [high] confidence. We never share them.
+                      Numbers sharpen the valuation range. We never share them.
                     </p>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }} className="intake-grid">
                       <div>
                         <label
                           htmlFor="brief-revenue"
-                          style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 13, color: "var(--color-subtext)", marginBottom: 6 }}
+                          style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 13, color: "var(--color-secondary)", marginBottom: 6 }}
                         >
                           Annual revenue (NIS)
                         </label>
-                        <input
+                        <select
                           id="brief-revenue"
-                          type="text"
                           value={revenue}
                           onChange={e => setRevenue(e.target.value)}
-                          placeholder="e.g. 12,000,000"
-                          style={{ fontSize: 15 }}
-                        />
+                          style={{
+                            width: "100%",
+                            border: "none",
+                            borderBottom: "1px solid var(--color-hairline)",
+                            padding: "12px 0",
+                            fontFamily: "var(--font-sans)",
+                            fontSize: 15,
+                            backgroundColor: "transparent",
+                            color: revenue ? "var(--color-body)" : "var(--color-secondary)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <option value="">Select a range</option>
+                          <option value="less-5m">Less than 5M NIS</option>
+                          <option value="5-10m">5-10M NIS</option>
+                          <option value="10-20m">10-20M NIS</option>
+                          <option value="20-50m">20-50M NIS</option>
+                          <option value="50m-plus">50M+ NIS</option>
+                        </select>
                       </div>
                       <div>
                         <label
                           htmlFor="brief-ebitda"
-                          style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 13, color: "var(--color-subtext)", marginBottom: 6 }}
+                          style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 13, color: "var(--color-secondary)", marginBottom: 6 }}
                         >
                           EBITDA or net profit (NIS)
                         </label>
-                        <input
+                        <select
                           id="brief-ebitda"
-                          type="text"
                           value={ebitda}
                           onChange={e => setEbitda(e.target.value)}
-                          placeholder="e.g. 2,400,000"
-                          style={{ fontSize: 15 }}
-                        />
+                          style={{
+                            width: "100%",
+                            border: "none",
+                            borderBottom: "1px solid var(--color-hairline)",
+                            padding: "12px 0",
+                            fontFamily: "var(--font-sans)",
+                            fontSize: 15,
+                            backgroundColor: "transparent",
+                            color: ebitda ? "var(--color-body)" : "var(--color-secondary)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <option value="">Select a range</option>
+                          <option value="less-500k">Less than 500K NIS</option>
+                          <option value="500k-1m">500K-1M NIS</option>
+                          <option value="1m-2-5m">1M-2.5M NIS</option>
+                          <option value="2-5m-5m">2.5M-5M NIS</option>
+                          <option value="5m-plus">5M+ NIS</option>
+                        </select>
                       </div>
                       <div>
                         <label
-                          htmlFor="brief-sde"
-                          style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 13, color: "var(--color-subtext)", marginBottom: 6 }}
+                          htmlFor="brief-salary"
+                          style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 13, color: "var(--color-secondary)", marginBottom: 6 }}
                         >
-                          Owner salary + net profit (NIS)
+                          Owner salary (NIS)
                         </label>
-                        <input
-                          id="brief-sde"
-                          type="text"
-                          value={sde}
-                          onChange={e => setSde(e.target.value)}
-                          placeholder="e.g. 3,200,000"
-                          style={{ fontSize: 15 }}
-                        />
+                        <select
+                          id="brief-salary"
+                          value={salary}
+                          onChange={e => setSalary(e.target.value)}
+                          style={{
+                            width: "100%",
+                            border: "none",
+                            borderBottom: "1px solid var(--color-hairline)",
+                            padding: "12px 0",
+                            fontFamily: "var(--font-sans)",
+                            fontSize: 15,
+                            backgroundColor: "transparent",
+                            color: salary ? "var(--color-body)" : "var(--color-secondary)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <option value="">Select a range</option>
+                          <option value="less-300k">Less than 300K NIS</option>
+                          <option value="300k-400k">300K-400K NIS</option>
+                          <option value="400k-500k">400K-500K NIS</option>
+                          <option value="500k-600k">500K-600K NIS</option>
+                          <option value="600k-plus">600K+ NIS</option>
+                        </select>
                       </div>
                     </div>
                   </div>
@@ -353,14 +443,14 @@ export default function ExitBrief() {
                   )}
 
                   <div>
-                    <button type="submit" className="g-btn-primary" style={{ fontSize: 17, padding: "18px 40px" }}>
+                    <button type="submit" className="btn-solid" style={{ fontSize: 17, padding: "18px 40px" }}>
                       Generate my Exit Brief
                     </button>
                     <p
                       style={{
                         fontFamily: "var(--font-sans)",
                         fontSize: 13,
-                        color: "var(--color-subtext)",
+                        color: "var(--color-secondary)",
                         marginTop: 12,
                         lineHeight: 1.5,
                       }}
@@ -398,51 +488,35 @@ export default function ExitBrief() {
                         height: 8,
                         borderRadius: "50%",
                         backgroundColor: "var(--color-primary)",
-                        animation: `dotPulse 1.4s ease-in-out ${i * 0.2}s infinite`,
-                        opacity: 0.3,
+                        animation: `pulse 1.5s ease-in-out ${i * 0.3}s infinite`,
                       }}
                     />
                   ))}
                 </div>
 
-                <h2
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontWeight: 600,
-                    fontSize: 32,
-                    color: "var(--color-primary)",
-                    marginBottom: 24,
-                  }}
-                >
-                  Reading your business.
-                </h2>
-
                 <p
                   key={statusKey}
-                  className="g-status-text"
                   style={{
-                    fontFamily: "var(--font-sans)",
-                    fontSize: 17,
-                    color: "var(--color-subtext)",
-                    lineHeight: 1.6,
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 18,
+                    color: "var(--color-body)",
+                    lineHeight: 1.65,
+                    animation: "fadeIn 0.4s ease-out",
                   }}
                 >
                   {STATUS_MESSAGES[statusIdx]}
                 </p>
 
-                <p
-                  style={{
-                    fontFamily: "var(--font-sans)",
-                    fontSize: 13,
-                    color: "var(--color-subtext)",
-                    marginTop: 40,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  This typically takes 30 to 90 seconds.
-                  <br />
-                  We are searching Israeli M&A databases and reading your site.
-                </p>
+                <style>{`
+                  @keyframes pulse {
+                    0%, 100% { opacity: 0.4; }
+                    50% { opacity: 1; }
+                  }
+                  @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                  }
+                `}</style>
               </div>
             </div>
           </section>
@@ -450,153 +524,85 @@ export default function ExitBrief() {
 
         {/* ── RESULT SCREEN ── */}
         {screen === "result" && briefResult && (
-          <section style={{ paddingTop: 48, paddingBottom: 80 }}>
+          <section className="g-section">
             <div className="g-container">
-              {/* Header */}
-              <div style={{ marginBottom: 40 }} className="g-fade-in">
-                <p className="g-eyebrow" style={{ marginBottom: 12 }}>Your Exit Brief</p>
-                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
-                  <h1
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontWeight: 700,
-                      fontSize: "clamp(28px, 4vw, 44px)",
-                      color: "var(--color-primary)",
-                    }}
-                  >
-                    Your business, read.
-                  </h1>
-                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 48, alignItems: "start" }} className="result-grid">
+                {/* Main content */}
+                <div>
+                  {/* Tab buttons */}
+                  <div style={{ display: "flex", gap: 16, marginBottom: 40, borderBottom: "1px solid var(--color-hairline)", paddingBottom: 20 }}>
+                    {(["market", "drivers", "valuation"] as TabId[]).map(tab => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          fontFamily: "var(--font-sans)",
+                          fontSize: 15,
+                          fontWeight: activeTab === tab ? 600 : 400,
+                          color: activeTab === tab ? "var(--color-primary)" : "var(--color-secondary)",
+                          cursor: "pointer",
+                          paddingBottom: 8,
+                          borderBottom: activeTab === tab ? "2px solid var(--color-primary)" : "none",
+                          transition: "color 150ms",
+                        }}
+                      >
+                        {tab === "market" && "Market Snapshot"}
+                        {tab === "drivers" && "Value Drivers"}
+                        {tab === "valuation" && "Valuation and Buyers"}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Tab content */}
+                  <BriefMarkdown content={tabContent} />
+
+                  {/* PDF button */}
+                  <div style={{ marginTop: 40 }}>
                     <button
                       onClick={() => setShowPdfModal(true)}
-                      className="g-btn-secondary"
-                      style={{ fontSize: 14, padding: "10px 20px" }}
+                      className="btn-solid"
                     >
                       Download as PDF
                     </button>
-                    <button
-                      onClick={handleReset}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontFamily: "var(--font-sans)",
-                        fontSize: 14,
-                        color: "var(--color-subtext)",
-                        padding: "10px 0",
-                        transition: "color 150ms",
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.color = "var(--color-primary)")}
-                      onMouseLeave={e => (e.currentTarget.style.color = "var(--color-subtext)")}
-                    >
-                      Start a new brief
-                    </button>
                   </div>
-                </div>
-                <p
-                  style={{
-                    fontFamily: "var(--font-sans)",
-                    fontSize: 13,
-                    color: "var(--color-subtext)",
-                    marginTop: 8,
-                  }}
-                >
-                  Strictly private. Built from public sources. Not an offer or a valuation opinion.
-                </p>
-              </div>
-
-              {/* Tab bar */}
-              <div
-                style={{
-                  display: "flex",
-                  borderBottom: "2px solid rgba(27,58,92,0.12)",
-                  marginBottom: 40,
-                  gap: 0,
-                }}
-              >
-                {(["market", "drivers", "valuation"] as TabId[]).map(tab => {
-                  const labels: Record<TabId, string> = {
-                    market: "Market Snapshot",
-                    drivers: "Value Drivers",
-                    valuation: "Valuation and Buyers",
-                  };
-                  const isActive = activeTab === tab;
-                  return (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontFamily: "var(--font-sans)",
-                        fontWeight: isActive ? 600 : 400,
-                        fontSize: 15,
-                        color: isActive ? "var(--color-primary)" : "var(--color-subtext)",
-                        padding: "12px 24px 14px",
-                        borderBottom: isActive ? "2px solid var(--color-primary)" : "2px solid transparent",
-                        marginBottom: -2,
-                        transition: "color 150ms, border-color 150ms",
-                      }}
-                    >
-                      {labels[tab]}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Content + sidebar */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 300px",
-                  gap: 48,
-                  alignItems: "start",
-                }}
-                className="result-grid"
-              >
-                {/* Main content */}
-                <div key={activeTab} className="g-fade-in">
-                  {tabContent ? (
-                    <BriefMarkdown content={tabContent} />
-                  ) : (
-                    <p style={{ fontFamily: "var(--font-sans)", color: "var(--color-subtext)", fontStyle: "italic" }}>
-                      This section was not generated. Start a new brief to try again.
-                    </p>
-                  )}
                 </div>
 
                 {/* Ofir sidebar */}
                 <OfirSidebar />
               </div>
+
+              {/* Reset button */}
+              <div style={{ marginTop: 60, textAlign: "center" }}>
+                <button
+                  onClick={handleReset}
+                  className="btn-ghost"
+                >
+                  Generate another brief
+                </button>
+              </div>
             </div>
+
+            <style>{`
+              @media (max-width: 1024px) {
+                .result-grid {
+                  grid-template-columns: 1fr !important;
+                }
+              }
+            `}</style>
           </section>
         )}
 
+        {/* PDF Modal */}
+        {showPdfModal && briefResult && (
+          <PdfModal
+            briefId={briefResult.briefId}
+            onClose={() => setShowPdfModal(false)}
+          />
+        )}
       </main>
       <Footer />
-
-      {/* PDF Modal */}
-      {showPdfModal && briefResult && (
-        <PdfModal briefId={briefResult.briefId} onClose={() => setShowPdfModal(false)} />
-      )}
-
-      <style>{`
-        @keyframes dotPulse {
-          0%, 80%, 100% { opacity: 0.15; transform: scale(0.9); }
-          40% { opacity: 1; transform: scale(1.1); }
-        }
-        @media (max-width: 900px) {
-          .result-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-        @media (max-width: 640px) {
-          .intake-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

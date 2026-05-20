@@ -57,3 +57,16 @@
 - [ ] Point custom domain at Vercel (see README for steps)
 - [ ] Review all copy in messages/en.json and edit as needed
 - [ ] Add Hebrew translations to messages/he.json (Phase 2)
+
+
+## Visual Redesign (1955 Zurich Private-Bank Aesthetic)
+- [ ] Update color palette: parchment cream, deep navy, dark sepia, warm taupe, burgundy, antique gold
+- [ ] Load new fonts: Playfair Display (700, 800), Source Serif Pro (400, 600), Inter (400, 500)
+- [ ] Redesign Hero: center-align, ghost buttons, 1px burgundy rule between H1 and tagline
+- [ ] Redesign Stats: Bloomberg-style financial table (4 columns, hairline dividers, no boxes)
+- [ ] Redesign How It Works: Roman numerals, hairline rules, centered narrow column
+- [ ] Redesign Founders: portrait frames (1px taupe + faint gold inset), centered story
+- [ ] Redesign Contact form: baseline-only inputs, burgundy focus border, ghost button
+- [ ] Add ornamental elements: section dividers with burgundy diamonds, nav wordmark diamond
+- [ ] Remove all em-dashes from codebase (replace with periods, commas, middle dots)
+- [ ] Test all sections and verify no copy/logic changes
