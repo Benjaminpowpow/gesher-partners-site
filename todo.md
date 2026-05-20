@@ -87,10 +87,10 @@
 ## Round 3: Exit Brief Result Page Render & Scrub
 
 ### Scrub Rules (Global)
-- [ ] Rule A: Strip `## Internal:` blocks (server-side or client-side)
-- [ ] Rule B: Strip confidence flags `[high]`, `[medium]`, `[low]`, `[confidence: ...]`
-- [ ] Rule C: Strip `## Sources used` block
-- [ ] Rule D: Render hidden teaser as designed overlay (frosted glass, lock icon, CTA pill)
+- [x] Rule A: Strip `## Internal:` blocks (implemented in BriefMarkdown.tsx)
+- [x] Rule B: Strip confidence flags `[high]`, `[medium]`, `[low]`, `[confidence: ...]` (implemented in BriefMarkdown.tsx)
+- [x] Rule C: Strip `## Sources used` block (implemented in BriefMarkdown.tsx)
+- [x] Rule D: Render hidden teaser as designed overlay (HiddenRiskTeaser component created)
 
 ### Result Page Sections
 - [ ] Section 1: Result page header (H1 + blockquote typography)
@@ -101,10 +101,10 @@
 - [ ] Section 6: Next Step section (navy background, founder cards, CTA pills)
 
 ### PDF Lead-Capture Flow
-- [ ] PDF button (secondary pill, 80px below last callout)
-- [ ] PDF modal (Name + Email + Phone fields, submit button)
-- [ ] /api/exit-brief/pdf-request endpoint (validate, store lead, email Ben, Slack webhook)
-- [ ] Confirmation panel (success message, Done button)
+- [x] PDF button (secondary pill, 80px below last callout) - implemented in ExitBrief.tsx
+- [x] PDF modal (Name + Email + Phone fields, submit button) - PdfModal.tsx redesigned
+- [x] /api/exit-brief/pdf-request endpoint (validate, store lead, email Ben, Slack webhook) - implemented in server/routes/exitBrief.ts
+- [x] Confirmation panel (success message, Done button) - implemented in PdfModal.tsx
 
 ### Testing & QA
 - [ ] Run test URL through Exit Brief tool

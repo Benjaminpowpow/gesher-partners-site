@@ -559,13 +559,39 @@ export default function ExitBrief() {
                   {/* Tab content */}
                   <BriefMarkdown content={tabContent} />
 
-                  {/* PDF button */}
-                  <div style={{ marginTop: 40 }}>
+                  {/* Hidden risk teaser on drivers tab */}
+                  {activeTab === "drivers" && (
+                    <div style={{ marginTop: 32 }}>
+                      <HiddenRiskTeaser />
+                    </div>
+                  )}
+
+                  {/* PDF button - secondary pill, 80px below last content */}
+                  <div style={{ marginTop: 80 }}>
                     <button
                       onClick={() => setShowPdfModal(true)}
-                      className="btn-solid"
+                      style={{
+                        background: "none",
+                        border: "1px solid var(--color-primary)",
+                        color: "var(--color-primary)",
+                        fontFamily: "var(--font-sans)",
+                        fontWeight: 600,
+                        fontSize: 14,
+                        padding: "12px 28px",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        transition: "all 150ms",
+                      }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLButtonElement).style.background = "var(--color-primary)";
+                        (e.currentTarget as HTMLButtonElement).style.color = "white";
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLButtonElement).style.background = "none";
+                        (e.currentTarget as HTMLButtonElement).style.color = "var(--color-primary)";
+                      }}
                     >
-                      Download as PDF
+                      Get the PDF.
                     </button>
                   </div>
                 </div>

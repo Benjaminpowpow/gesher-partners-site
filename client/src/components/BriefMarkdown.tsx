@@ -13,8 +13,10 @@ function scrubbedContent(raw: string): string {
   let result = raw;
 
   // Rule A: Strip `## Internal:` blocks
-  // Skip mode: from `## Internal:` to next `## ` heading of same depth
-  result = result.replace(/^## Internal:.*?(?=^## |\Z)/gms, "");
+  // Match from `## Internal:` to end of string or next `##` heading
+  result = result.replace(/^## Internal:.*?(?=^##|$)/gms, "");
+  // Clean up trailing newlines
+  result = result.replace(/\n\n+/g, "\n\n").trim();
 
   // Rule B: Strip confidence flags
   // Match: [high], [medium], [low], [confidence: ...], [high, seller-reported], etc.
@@ -22,6 +24,7 @@ function scrubbedContent(raw: string): string {
 
   // Rule C: Strip `## Sources used` block (and everything after it)
   result = result.replace(/^## Sources used.*$/gms, "");
+  result = result.trim();
 
   // Rule D: Detect hidden teaser and mark it for custom rendering
   // The teaser will be rendered as an overlay by the result page component
