@@ -106,7 +106,7 @@ export default function WhereWeOperatedSection() {
             fontFamily: "var(--font-sans)",
             fontSize: 14,
             color: "var(--color-secondary)",
-            textAlign: "center",
+            textAlign: "left",
           }}
         >
           Operators and advisors before founders.

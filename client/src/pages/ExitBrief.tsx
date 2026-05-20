@@ -472,7 +472,7 @@ export default function ExitBrief() {
                 style={{
                   maxWidth: 560,
                   margin: "0 auto",
-                  textAlign: "center",
+                  textAlign: "left",
                   paddingTop: 40,
                 }}
                 className="g-fade-in"
@@ -574,7 +574,7 @@ export default function ExitBrief() {
               </div>
 
               {/* Reset button */}
-              <div style={{ marginTop: 60, textAlign: "center" }}>
+              <div style={{ marginTop: 60, textAlign: "left" }}>
                 <button
                   onClick={handleReset}
                   className="btn-ghost"

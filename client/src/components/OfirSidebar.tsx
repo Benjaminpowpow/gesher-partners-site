@@ -23,7 +23,7 @@ export default function OfirSidebar() {
             borderRadius: "50%",
             marginBottom: 20,
           }}
-          aria-label="Photo of Ofir Ben Haim — placeholder"
+          aria-label="Photo of Ofir Ben Haim. Placeholder."
         />
 
         <p

@@ -17,7 +17,7 @@ export default function HeroSection() {
     >
       <div className="g-container" style={{ maxWidth: 800 }}>
         <p className="small-caps" style={{ marginBottom: 24, color: "var(--color-secondary)" }}>
-          For Israeli family-owned businesses. NIS 5–50M revenue.
+          For Israeli family-owned businesses. NIS 5-50M revenue.
         </p>
 
         <h1

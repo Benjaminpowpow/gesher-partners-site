@@ -59,14 +59,17 @@
 - [ ] Add Hebrew translations to messages/he.json (Phase 2)
 
 
-## Visual Redesign (1955 Zurich Private-Bank Aesthetic)
-- [ ] Update color palette: parchment cream, deep navy, dark sepia, warm taupe, burgundy, antique gold
-- [ ] Load new fonts: Playfair Display (700, 800), Source Serif Pro (400, 600), Inter (400, 500)
-- [ ] Redesign Hero: center-align, ghost buttons, 1px burgundy rule between H1 and tagline
-- [ ] Redesign Stats: Bloomberg-style financial table (4 columns, hairline dividers, no boxes)
-- [ ] Redesign How It Works: Roman numerals, hairline rules, centered narrow column
-- [ ] Redesign Founders: portrait frames (1px taupe + faint gold inset), centered story
-- [ ] Redesign Contact form: baseline-only inputs, burgundy focus border, ghost button
-- [ ] Add ornamental elements: section dividers with burgundy diamonds, nav wordmark diamond
-- [ ] Remove all em-dashes from codebase (replace with periods, commas, middle dots)
-- [ ] Test all sections and verify no copy/logic changes
+## Visual Redesign (1955 Zurich Private-Bank Aesthetic) — V2 Round 2 Complete
+- [x] Update color palette: cream, navy, burgundy, gold, taupe
+- [x] Load new fonts: Playfair Display, Source Serif Pro, Inter
+- [x] Redesign Hero: center-align, ghost buttons, burgundy rule
+- [x] Redesign Stats: white cards on cream with navy borders
+- [x] Redesign How It Works: locked copy, 4 cards, left-aligned
+- [x] Add Where We Operated section with logo placeholders
+- [x] Redesign Founders: left-column cards + right-column story
+- [x] Redesign Contact form: baseline inputs, revenue dropdown
+- [x] Update Footer: new tagline, address placeholder, dynamic year
+- [x] Redesign Exit Brief: boxed URL, dropdown fields, new copy
+- [x] Remove all em-dashes from codebase
+- [x] Left-align all text except CTA buttons
+- [x] Test all sections and verify no copy/logic changes
