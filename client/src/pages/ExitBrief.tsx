@@ -55,6 +55,12 @@ function parseTabContent(fullMarkdown: string): { market: string; drivers: strin
   const driversMatch = fullMarkdown.match(/## Step 2[\s\S]*?(?=## Step 3|$)/);
   const valuationMatch = fullMarkdown.match(/## Step 3[\s\S]*/);
 
+  // Debug logging
+  console.log("[parseTabContent] fullMarkdown length:", fullMarkdown.length);
+  console.log("[parseTabContent] marketMatch:", marketMatch ? "found" : "not found");
+  console.log("[parseTabContent] driversMatch:", driversMatch ? "found" : "not found");
+  console.log("[parseTabContent] valuationMatch:", valuationMatch ? "found" : "not found");
+
   return {
     market: marketMatch ? marketMatch[0].trim() : fullMarkdown,
     drivers: driversMatch ? driversMatch[0].trim() : "",
@@ -183,28 +189,44 @@ export default function ExitBrief() {
               const json = JSON.parse(line);
               if (json.type === "chunk" && json.data) {
                 fullMarkdown += json.data;
+              } else if (json.type === "done") {
+                // Brief generation complete, briefId is in json.briefId
               }
-            } catch {
-              // Ignore parse errors for malformed lines
+            } catch (e) {
+              console.warn("[ExitBrief] Failed to parse NDJSON line:", line.substring(0, 100), e);
             }
           }
         }
       }
       
-      // Process any remaining content in buffer
+      // Process any remaining content in buffer (including final line without newline)
       if (buffer.trim()) {
         try {
           const json = JSON.parse(buffer);
           if (json.type === "chunk" && json.data) {
             fullMarkdown += json.data;
+          } else if (json.type === "done") {
+            // Brief generation complete
           }
-        } catch {
-          // Ignore parse errors
+        } catch (e) {
+          console.warn("[ExitBrief] Failed to parse final NDJSON buffer:", buffer.substring(0, 100), e);
         }
+      }
+      
+      // Debug: Log the markdown length to verify content was received
+      console.log("[ExitBrief] Received markdown length:", fullMarkdown.length);
+      if (fullMarkdown.length < 100) {
+        console.warn("[ExitBrief] Warning: Very short markdown received. Content may not have streamed properly.");
       }
 
       const parsed = parseTabContent(fullMarkdown);
       const briefId = Math.random().toString(36).substring(7);
+      
+      // Debug: Log the parsed content
+      console.log("[ExitBrief] Parsed market length:", parsed.market.length);
+      console.log("[ExitBrief] Parsed drivers length:", parsed.drivers.length);
+      console.log("[ExitBrief] Parsed valuation length:", parsed.valuation.length);
+      console.log("[ExitBrief] First 200 chars of market:", parsed.market.substring(0, 200));
 
       setBriefResult({
         briefId,
