@@ -123,3 +123,49 @@
 - [x] Section 6: Next Step section (navy background, founder cards, CTA pills) - ResultPageRenderer
 - [x] ResultPageRenderer wired into ExitBrief.tsx (replaces BriefMarkdown for result rendering)
 - [x] All scrub rules implemented and tested (15 tests passing)
+
+
+## Round 4: Exit Brief Redesign (Tab System, Sidebar Removal, Scrub Extensions)
+
+### Phase 1: Logos
+- [ ] Add real KPMG logo to Where We've Operated section
+- [ ] Add real JFrog logo to Where We've Operated section
+
+### Phase 2: Tab System
+- [ ] Show only active tab content (hide inactive steps entirely)
+- [ ] Implement navy underline active tab indicator (2px, 4px below text)
+- [ ] Make tab bar sticky (position: sticky, top: 0, z-index: 50)
+- [ ] Reduce empty space between tab bar and Step heading to 48px
+
+### Phase 3: Sidebar Removal
+- [ ] Delete OfirSidebar component from codebase
+- [ ] Remove Ofir sidebar from all three tabs
+- [ ] Verify no sidebar renders on any tab
+
+### Phase 4: Scrub Rules Extensions
+- [ ] Implement Rule D extension: match both "1 more" and "2 more" risk teaser patterns
+- [ ] Rule D: render only ONE overlay using the higher count
+- [ ] Implement Rule E: hide markdown renderer copy/download icons
+- [ ] Implement Rule F: persistent footer (PDF button + Next step block below tab content)
+
+### Phase 5: Generating Screen Rebuild
+- [ ] Create animated three-dot pulsing indicator (navy, 8px, 0.4s stagger)
+- [ ] Add heading: "Reading your business." (Playfair 700, 28-32px)
+- [ ] Implement status line cycling through 5 phases (200ms crossfade)
+- [ ] Add stall fallback after 25 seconds: "This one is taking a little longer than usual. Stay with us."
+- [ ] Add divider + footnote: "Average run time: about 2 minutes 30 seconds."
+
+### Phase 6: Container & Layout
+- [ ] Update main content max width to 1200px (centered, 32px padding)
+- [ ] Implement Step 1 two-column layout: 58% left, 42% right
+- [ ] Make Step 1 right column sticky (top: 96px)
+- [ ] Stack to single column below 1024px
+
+### Phase 7: Testing & Verification
+- [ ] Test tab system (active/inactive, underline styling, sticky)
+- [ ] Test sidebar removal (no Ofir block anywhere)
+- [ ] Test scrub rules (risk teasers, markdown icons hidden, persistent footer)
+- [ ] Test generating screen (dots, phases, stall fallback)
+- [ ] Test responsive widths (375px, 768px, 1280px)
+- [ ] Verify no em-dashes, no "AI" word, no banned words
+- [ ] Save checkpoint

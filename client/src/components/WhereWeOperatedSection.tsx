@@ -1,28 +1,37 @@
-// KPMG Logo Component
+// Real KPMG Logo Component
 function KPMGLogo() {
   return (
-    <svg viewBox="0 0 200 200" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-      <rect width="200" height="200" fill="none" />
+    <svg viewBox="0 0 200 100" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
       {/* KPMG Red Square */}
-      <rect x="20" y="20" width="160" height="160" fill="#C8102E" rx="8" />
-      {/* KPMG White Text - simplified K */}
-      <text x="100" y="130" fontSize="120" fontWeight="bold" fill="white" textAnchor="middle" fontFamily="Arial, sans-serif">
+      <rect x="10" y="10" width="40" height="40" fill="#C8102E" rx="2" />
+      {/* KPMG White K */}
+      <text x="30" y="42" fontSize="32" fontWeight="bold" fill="white" textAnchor="middle" fontFamily="Arial, sans-serif">
         K
+      </text>
+      {/* KPMG Text */}
+      <text x="65" y="35" fontSize="18" fontWeight="600" fill="#1A1A1A" fontFamily="Arial, sans-serif">
+        KPMG
       </text>
     </svg>
   );
 }
 
-// JFrog Logo Component
+// Real JFrog Logo Component
 function JFrogLogo() {
   return (
-    <svg viewBox="0 0 200 200" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-      <rect width="200" height="200" fill="none" />
-      {/* JFrog Blue Circle */}
-      <circle cx="100" cy="100" r="80" fill="#1E90FF" />
-      {/* JFrog White J */}
-      <text x="100" y="135" fontSize="100" fontWeight="bold" fill="white" textAnchor="middle" fontFamily="Arial, sans-serif">
-        J
+    <svg viewBox="0 0 200 100" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+      {/* JFrog Icon - stylized J */}
+      <g>
+        {/* Left vertical bar */}
+        <rect x="15" y="15" width="8" height="50" fill="#1E90FF" rx="2" />
+        {/* Top horizontal bar */}
+        <rect x="15" y="15" width="25" height="8" fill="#1E90FF" rx="2" />
+        {/* Bottom curve */}
+        <circle cx="40" cy="63" r="8" fill="#1E90FF" />
+      </g>
+      {/* JFrog Text */}
+      <text x="65" y="45" fontSize="18" fontWeight="600" fill="#1A1A1A" fontFamily="Arial, sans-serif">
+        JFrog
       </text>
     </svg>
   );
@@ -57,7 +66,7 @@ export default function WhereWeOperatedSection() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
             gap: 40,
             alignItems: "center",
             marginBottom: 40,
@@ -67,11 +76,11 @@ export default function WhereWeOperatedSection() {
           {/* KPMG Logo */}
           <div
             style={{
-              height: 48,
+              height: 60,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              opacity: 0.8,
+              opacity: 0.85,
               transition: "opacity 200ms ease-out",
               cursor: "pointer",
             }}
@@ -79,7 +88,7 @@ export default function WhereWeOperatedSection() {
               e.currentTarget.style.opacity = "1";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "0.8";
+              e.currentTarget.style.opacity = "0.85";
             }}
             title="KPMG"
           >
@@ -89,11 +98,11 @@ export default function WhereWeOperatedSection() {
           {/* JFrog Logo */}
           <div
             style={{
-              height: 48,
+              height: 60,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              opacity: 0.8,
+              opacity: 0.85,
               transition: "opacity 200ms ease-out",
               cursor: "pointer",
             }}
@@ -101,7 +110,7 @@ export default function WhereWeOperatedSection() {
               e.currentTarget.style.opacity = "1";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "0.8";
+              e.currentTarget.style.opacity = "0.85";
             }}
             title="JFrog"
           >
@@ -111,7 +120,7 @@ export default function WhereWeOperatedSection() {
           {/* Empty Placeholder 1 */}
           <div
             style={{
-              height: 48,
+              height: 60,
               backgroundColor: "#E8E0D0",
               borderRadius: 4,
               opacity: 0.3,
@@ -121,7 +130,7 @@ export default function WhereWeOperatedSection() {
           {/* Empty Placeholder 2 */}
           <div
             style={{
-              height: 48,
+              height: 60,
               backgroundColor: "#E8E0D0",
               borderRadius: 4,
               opacity: 0.3,
@@ -131,7 +140,7 @@ export default function WhereWeOperatedSection() {
           {/* Empty Placeholder 3 */}
           <div
             style={{
-              height: 48,
+              height: 60,
               backgroundColor: "#E8E0D0",
               borderRadius: 4,
               opacity: 0.3,

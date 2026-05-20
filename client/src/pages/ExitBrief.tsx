@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import OfirSidebar from "@/components/OfirSidebar";
 import BriefMarkdown from "@/components/BriefMarkdown";
 import PdfModal from "@/components/PdfModal";
 import HiddenRiskTeaser from "@/components/HiddenRiskTeaser";
@@ -104,10 +103,10 @@ export default function ExitBrief() {
     };
   }, [screen]);
 
-  const validateUrl = (val: string) => {
+  const validateUrl = (urlStr: string): boolean => {
     try {
-      const u = new URL(val.startsWith("http") ? val : `https://${val}`);
-      return u.hostname.includes(".");
+      const parsed = new URL(urlStr);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
     } catch {
       return false;
     }
@@ -115,353 +114,345 @@ export default function ExitBrief() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanUrl = url.trim();
-    if (!validateUrl(cleanUrl)) {
-      setUrlError("Please enter a valid website URL, e.g. https://your-company.co.il");
-      return;
-    }
     setUrlError("");
-    setScreen("generating");
     setStreamError("");
 
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
+    if (!url.trim()) {
+      setUrlError("Please enter a website URL");
+      return;
+    }
+
+    if (!validateUrl(url)) {
+      setUrlError("Please enter a valid URL (e.g., https://example.com)");
+      return;
+    }
+
+    setScreen("generating");
+    abortRef.current = new AbortController();
 
     try {
-      // Convert dropdown selections to midpoint values
-      const revenueValue = revenue ? REVENUE_MIDPOINTS[revenue] : undefined;
-      const ebitdaValue = ebitda ? EBITDA_MIDPOINTS[ebitda] : undefined;
-      const salaryValue = salary ? SALARY_MIDPOINTS[salary] : undefined;
-
-      const resp = await fetch("/api/exit-brief", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: cleanUrl.startsWith("http") ? cleanUrl : `https://${cleanUrl}`,
-          revenue: revenueValue,
-          ebitda: ebitdaValue,
-          sde: salaryValue,
-        }),
-        signal: ctrl.signal,
+      const params = new URLSearchParams({
+        url: url.trim(),
+        ...(revenue && { revenue: String(REVENUE_MIDPOINTS[revenue] || 0) }),
+        ...(ebitda && { ebitda: String(EBITDA_MIDPOINTS[ebitda] || 0) }),
+        ...(salary && { salary: String(SALARY_MIDPOINTS[salary] || 0) }),
       });
 
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || `Server error ${resp.status}`);
+      const response = await fetch(`/api/exit-brief?${params}`, {
+        signal: abortRef.current.signal,
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        setStreamError(error || "Failed to generate brief");
+        setScreen("input");
+        return;
       }
 
-      const reader = resp.body?.getReader();
-      if (!reader) throw new Error("No response body");
+      const reader = response.body?.getReader();
+      if (!reader) {
+        setStreamError("Failed to read response");
+        setScreen("input");
+        return;
+      }
 
+      let fullMarkdown = "";
       const decoder = new TextDecoder();
-      let buffer = "";
-      let collectedMarkdown = "";
-      let resultBriefId = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-
-        for (let i = 0; i < lines.length - 1; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
-
-          try {
-            const event = JSON.parse(line) as { type: string; data?: string; briefId?: string };
-            if (event.type === "chunk" && event.data) {
-              collectedMarkdown += event.data;
-            } else if (event.type === "done" && event.briefId) {
-              resultBriefId = event.briefId;
-            }
-          } catch (e) {
-            // Skip unparseable lines
-          }
-        }
-
-        buffer = lines[lines.length - 1] ?? "";
+        fullMarkdown += decoder.decode(value, { stream: true });
       }
 
-      if (buffer.trim()) {
-        try {
-          const event = JSON.parse(buffer) as { type: string; data?: string; briefId?: string };
-          if (event.type === "chunk" && event.data) {
-            collectedMarkdown += event.data;
-          } else if (event.type === "done" && event.briefId) {
-            resultBriefId = event.briefId;
-          }
-        } catch (e) {
-          // Skip unparseable lines
-        }
-      }
+      const parsed = parseTabContent(fullMarkdown);
+      const briefId = Math.random().toString(36).substring(7);
 
-      const tabs = parseTabContent(collectedMarkdown);
-      setBriefResult({ briefId: resultBriefId, ...tabs });
+      setBriefResult({
+        briefId,
+        market: parsed.market,
+        drivers: parsed.drivers,
+        valuation: parsed.valuation,
+      });
+
       setScreen("result");
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
-      setStreamError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setActiveTab("market");
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        setStreamError(err.message || "An error occurred");
+      }
       setScreen("input");
     }
   };
 
   const handleReset = () => {
-    abortRef.current?.abort();
     setScreen("input");
     setUrl("");
     setRevenue("");
     setEbitda("");
     setSalary("");
+    setUrlError("");
+    setStreamError("");
     setBriefResult(null);
     setActiveTab("market");
-    setStreamError("");
+    setShowPdfModal(false);
+    if (abortRef.current) abortRef.current.abort();
   };
 
-  const tabContent = briefResult
-    ? activeTab === "market"
-      ? briefResult.market
-      : activeTab === "drivers"
-      ? briefResult.drivers
-      : briefResult.valuation
-    : "";
-
   return (
-    <div style={{ backgroundColor: "var(--color-bg)", minHeight: "100vh" }}>
+    <div className="min-h-screen flex flex-col bg-background">
       <Nav />
-      <main style={{ paddingTop: 64 }}>
-
+      <main className="flex-1">
         {/* ── INPUT SCREEN ── */}
         {screen === "input" && (
           <section className="g-section">
-            <div className="g-container">
-              <div style={{ maxWidth: 680, margin: "0 auto" }} className="g-fade-in">
-                <p className="small-caps" style={{ marginBottom: 20, color: "var(--color-secondary)", textAlign: "left" }}>
-                  Free tool
-                </p>
-                <h1
+            <div className="g-container" style={{ maxWidth: 600 }}>
+              <h1
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: "clamp(32px, 6vw, 44px)",
+                  fontWeight: 700,
+                  color: "var(--color-primary)",
+                  marginBottom: 16,
+                  textAlign: "left",
+                }}
+              >
+                What is your business worth?
+              </h1>
+
+              <p
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 18,
+                  color: "var(--color-body)",
+                  lineHeight: 1.65,
+                  marginBottom: 40,
+                  textAlign: "left",
+                }}
+              >
+                Paste your website URL. We'll analyze your business, Israeli M&A transactions in your vertical, and build a valuation range in about 2.5 minutes.
+              </p>
+
+              <form onSubmit={handleSubmit} style={{ marginBottom: 40 }}>
+                {/* URL Input - boxed */}
+                <div
                   style={{
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 800,
-                    fontSize: "clamp(60px, 8vw, 72px)",
-                    color: "var(--color-primary)",
+                    border: "1px solid rgba(27, 58, 92, 0.15)",
+                    borderRadius: 8,
+                    padding: 24,
                     marginBottom: 24,
-                    lineHeight: 1.1,
-                    letterSpacing: "-0.01em",
-                    textAlign: "left",
+                    backgroundColor: "white",
                   }}
                 >
-                  Get a quick read on your business.
-                </h1>
-                <p
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontSize: 16,
-                    color: "var(--color-body)",
-                    lineHeight: 1.75,
-                    marginBottom: 48,
-                    textAlign: "left",
-                  }}
-                >
-                  What is your business worth? We pull comparable Israeli transactions and walk you through what a serious buyer would pay. Three sections: market context, value drivers, and a valuation range. Backed by real data.
-                </p>
-
-                <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                  {/* URL Input Box */}
-                  <div
+                  <label
                     style={{
-                      backgroundColor: "#FFFFFF",
-                      border: "1px solid rgba(12, 27, 46, 0.12)",
-                      borderRadius: 6,
-                      padding: 24,
+                      display: "block",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "var(--color-primary)",
+                      marginBottom: 8,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
                     }}
                   >
-                    <label
-                      htmlFor="brief-url"
-                      style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 15, color: "var(--color-secondary)", marginBottom: 12 }}
-                    >
-                      Company website URL
-                    </label>
-                    <input
-                      id="brief-url"
-                      type="text"
-                      required
-                      value={url}
-                      onChange={e => { setUrl(e.target.value); setUrlError(""); }}
-                      placeholder="https://your-company.co.il"
-                      style={{
-                        width: "100%",
-                        border: "none",
-                        borderBottom: "1px solid var(--color-hairline)",
-                        padding: "12px 0",
-                        fontFamily: "var(--font-sans)",
-                        fontSize: 16,
-                        backgroundColor: "transparent",
-                      }}
-                    />
-                    {urlError && (
-                      <p style={{ fontFamily: "var(--font-sans)", fontSize: 13, color: "var(--color-accent)", marginTop: 8 }}>
-                        {urlError}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Optional financial intake */}
-                  <div
-                    style={{
-                      backgroundColor: "#FFFFFF",
-                      border: "1px solid rgba(12, 27, 46, 0.12)",
-                      borderRadius: 6,
-                      padding: 24,
+                    Your website
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com"
+                    value={url}
+                    onChange={(e) => {
+                      setUrl(e.target.value);
+                      setUrlError("");
                     }}
-                  >
-                    <p
-                      style={{
-                        fontFamily: "var(--font-sans)",
-                        fontWeight: 500,
-                        fontSize: 14,
-                        color: "var(--color-secondary)",
-                        marginBottom: 8,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.15em",
-                      }}
-                    >
-                      Optional. Sharpen your range.
-                    </p>
-                    <p
-                      style={{
-                        fontFamily: "var(--font-sans)",
-                        fontSize: 14,
-                        color: "var(--color-secondary)",
-                        lineHeight: 1.55,
-                        marginBottom: 20,
-                      }}
-                    >
-                      Numbers sharpen the valuation range. We never share them.
-                    </p>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }} className="intake-grid">
-                      <div>
-                        <label
-                          htmlFor="brief-revenue"
-                          style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 13, color: "var(--color-secondary)", marginBottom: 6 }}
-                        >
-                          Annual revenue (NIS)
-                        </label>
-                        <select
-                          id="brief-revenue"
-                          value={revenue}
-                          onChange={e => setRevenue(e.target.value)}
-                          style={{
-                            width: "100%",
-                            border: "none",
-                            borderBottom: "1px solid var(--color-hairline)",
-                            padding: "12px 0",
-                            fontFamily: "var(--font-sans)",
-                            fontSize: 15,
-                            backgroundColor: "transparent",
-                            color: revenue ? "var(--color-body)" : "var(--color-secondary)",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <option value="">Select a range</option>
-                          <option value="less-5m">Less than 5M NIS</option>
-                          <option value="5-10m">5-10M NIS</option>
-                          <option value="10-20m">10-20M NIS</option>
-                          <option value="20-50m">20-50M NIS</option>
-                          <option value="50m-plus">50M+ NIS</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label
-                          htmlFor="brief-ebitda"
-                          style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 13, color: "var(--color-secondary)", marginBottom: 6 }}
-                        >
-                          EBITDA (NIS)
-                        </label>
-                        <select
-                          id="brief-ebitda"
-                          value={ebitda}
-                          onChange={e => setEbitda(e.target.value)}
-                          style={{
-                            width: "100%",
-                            border: "none",
-                            borderBottom: "1px solid var(--color-hairline)",
-                            padding: "12px 0",
-                            fontFamily: "var(--font-sans)",
-                            fontSize: 15,
-                            backgroundColor: "transparent",
-                            color: ebitda ? "var(--color-body)" : "var(--color-secondary)",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <option value="">Select a range</option>
-                          <option value="less-500k">Less than 500K NIS</option>
-                          <option value="500k-1m">500K-1M NIS</option>
-                          <option value="1m-2-5m">1M-2.5M NIS</option>
-                          <option value="2-5m-5m">2.5M-5M NIS</option>
-                          <option value="5m-plus">5M+ NIS</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label
-                          htmlFor="brief-salary"
-                          style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 13, color: "var(--color-secondary)", marginBottom: 6 }}
-                        >
-                          Owner salary (NIS)
-                        </label>
-                        <select
-                          id="brief-salary"
-                          value={salary}
-                          onChange={e => setSalary(e.target.value)}
-                          style={{
-                            width: "100%",
-                            border: "none",
-                            borderBottom: "1px solid var(--color-hairline)",
-                            padding: "12px 0",
-                            fontFamily: "var(--font-sans)",
-                            fontSize: 15,
-                            backgroundColor: "transparent",
-                            color: salary ? "var(--color-body)" : "var(--color-secondary)",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <option value="">Select a range</option>
-                          <option value="less-300k">Less than 300K NIS</option>
-                          <option value="300k-400k">300K-400K NIS</option>
-                          <option value="400k-500k">400K-500K NIS</option>
-                          <option value="500k-600k">500K-600K NIS</option>
-                          <option value="600k-plus">600K+ NIS</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {streamError && (
-                    <p style={{ fontFamily: "var(--font-sans)", fontSize: 14, color: "var(--color-accent)" }}>
-                      {streamError}
+                    style={{
+                      width: "100%",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: 16,
+                      padding: "12px 0",
+                      border: "none",
+                      borderBottom: "1px solid var(--color-hairline)",
+                      outline: "none",
+                      backgroundColor: "transparent",
+                      color: "var(--color-body)",
+                    }}
+                  />
+                  {urlError && (
+                    <p style={{ color: "#C8102E", fontSize: 14, marginTop: 8 }}>
+                      {urlError}
                     </p>
                   )}
+                </div>
 
-                  <div>
-                    <button type="submit" className="btn-solid" style={{ fontSize: 17, padding: "18px 40px" }}>
-                      Generate my Exit Brief
-                    </button>
-                    <p
-                      style={{
-                        fontFamily: "var(--font-sans)",
-                        fontSize: 13,
-                        color: "var(--color-secondary)",
-                        marginTop: 12,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      Strictly private. Built from public sources. Not an offer or a valuation opinion.
-                    </p>
-                  </div>
-                </form>
-              </div>
+                {/* Optional section */}
+                <div
+                  style={{
+                    border: "1px solid rgba(27, 58, 92, 0.15)",
+                    borderRadius: 8,
+                    padding: 24,
+                    marginBottom: 24,
+                    backgroundColor: "white",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "var(--color-primary)",
+                      marginBottom: 8,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    Optional. Sharpen your range.
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      fontSize: 13,
+                      color: "var(--color-secondary)",
+                      marginBottom: 20,
+                    }}
+                  >
+                    Numbers sharpen the valuation range. We never share them.
+                  </p>
+
+                  {/* Revenue Dropdown */}
+                  <label
+                    style={{
+                      display: "block",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--color-primary)",
+                      marginBottom: 6,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    Annual revenue (NIS)
+                  </label>
+                  <select
+                    value={revenue}
+                    onChange={(e) => setRevenue(e.target.value)}
+                    style={{
+                      width: "100%",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: 14,
+                      padding: "10px 0",
+                      border: "none",
+                      borderBottom: "1px solid var(--color-hairline)",
+                      outline: "none",
+                      backgroundColor: "transparent",
+                      color: "var(--color-body)",
+                      marginBottom: 20,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <option value="">Select...</option>
+                    <option value="less-5m">Less than 5M</option>
+                    <option value="5-10m">5M - 10M</option>
+                    <option value="10-20m">10M - 20M</option>
+                    <option value="20-50m">20M - 50M</option>
+                    <option value="50m-plus">50M+</option>
+                  </select>
+
+                  {/* EBITDA Dropdown */}
+                  <label
+                    style={{
+                      display: "block",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--color-primary)",
+                      marginBottom: 6,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    EBITDA (NIS)
+                  </label>
+                  <select
+                    value={ebitda}
+                    onChange={(e) => setEbitda(e.target.value)}
+                    style={{
+                      width: "100%",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: 14,
+                      padding: "10px 0",
+                      border: "none",
+                      borderBottom: "1px solid var(--color-hairline)",
+                      outline: "none",
+                      backgroundColor: "transparent",
+                      color: "var(--color-body)",
+                      marginBottom: 20,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <option value="">Select...</option>
+                    <option value="less-500k">Less than 500K</option>
+                    <option value="500k-1m">500K - 1M</option>
+                    <option value="1m-2-5m">1M - 2.5M</option>
+                    <option value="2-5m-5m">2.5M - 5M</option>
+                    <option value="5m-plus">5M+</option>
+                  </select>
+
+                  {/* Salary Dropdown */}
+                  <label
+                    style={{
+                      display: "block",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--color-primary)",
+                      marginBottom: 6,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    Owner salary (NIS)
+                  </label>
+                  <select
+                    value={salary}
+                    onChange={(e) => setSalary(e.target.value)}
+                    style={{
+                      width: "100%",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: 14,
+                      padding: "10px 0",
+                      border: "none",
+                      borderBottom: "1px solid var(--color-hairline)",
+                      outline: "none",
+                      backgroundColor: "transparent",
+                      color: "var(--color-body)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <option value="">Select...</option>
+                    <option value="less-300k">Less than 300K</option>
+                    <option value="300k-400k">300K - 400K</option>
+                    <option value="400k-500k">400K - 500K</option>
+                    <option value="500k-600k">500K - 600K</option>
+                    <option value="600k-plus">600K+</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ width: "100%" }}
+                >
+                  Get a quick read
+                </button>
+              </form>
+
+              {streamError && (
+                <div style={{ color: "#C8102E", fontSize: 14, padding: 16, backgroundColor: "#FFF0F0", borderRadius: 6 }}>
+                  {streamError}
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -469,57 +460,65 @@ export default function ExitBrief() {
         {/* ── GENERATING SCREEN ── */}
         {screen === "generating" && (
           <section className="g-section">
-            <div className="g-container">
-              <div
-                style={{
-                  maxWidth: 560,
-                  margin: "0 auto",
-                  textAlign: "left",
-                  paddingTop: 40,
-                }}
-                className="g-fade-in"
-              >
-                {/* Animated dots */}
-                <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 48 }}>
-                  {[0, 1, 2].map(i => (
-                    <span
-                      key={i}
-                      style={{
-                        display: "inline-block",
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        backgroundColor: "var(--color-primary)",
-                        animation: `pulse 1.5s ease-in-out ${i * 0.3}s infinite`,
-                      }}
-                    />
-                  ))}
-                </div>
-
-                <p
-                  key={statusKey}
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontSize: 18,
-                    color: "var(--color-body)",
-                    lineHeight: 1.65,
-                    animation: "fadeIn 0.4s ease-out",
-                  }}
-                >
-                  {STATUS_MESSAGES[statusIdx]}
-                </p>
-
-                <style>{`
-                  @keyframes pulse {
-                    0%, 100% { opacity: 0.4; }
-                    50% { opacity: 1; }
-                  }
-                  @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                  }
-                `}</style>
+            <div style={{ maxWidth: 600, margin: "120px auto 200px", textAlign: "center" }}>
+              {/* Animated three dots */}
+              <div style={{ marginBottom: 40, display: "flex", justifyContent: "center", gap: 8 }}>
+                {[0, 1, 2].map(i => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      backgroundColor: "#1B3A5C",
+                      animation: `pulse 1.2s ease-in-out infinite`,
+                      animationDelay: `${i * 0.4}s`,
+                    }}
+                  />
+                ))}
               </div>
+
+              <h2
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 700,
+                  fontSize: "clamp(22px, 4vw, 32px)",
+                  color: "var(--color-primary)",
+                  marginBottom: 16,
+                }}
+              >
+                Reading your business.
+              </h2>
+
+              <p
+                key={statusKey}
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 18,
+                  color: "var(--color-body)",
+                  lineHeight: 1.65,
+                  animation: "fadeIn 0.4s ease-out",
+                }}
+              >
+                {STATUS_MESSAGES[statusIdx]}
+              </p>
+
+              <div style={{ marginTop: 40, borderTop: "1px solid rgba(27, 58, 92, 0.08)", paddingTop: 16 }}>
+                <p style={{ fontFamily: "var(--font-sans)", fontSize: 14, color: "#6B6B6B" }}>
+                  Average run time: about 2 minutes 30 seconds.
+                </p>
+              </div>
+
+              <style>{`
+                @keyframes pulse {
+                  0%, 100% { opacity: 0.4; }
+                  50% { opacity: 1; }
+                }
+                @keyframes fadeIn {
+                  from { opacity: 0; }
+                  to { opacity: 1; }
+                }
+              `}</style>
             </div>
           </section>
         )}
@@ -527,78 +526,144 @@ export default function ExitBrief() {
         {/* ── RESULT SCREEN ── */}
         {screen === "result" && briefResult && (
           <section className="g-section">
-            <div className="g-container">
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 48, alignItems: "start" }} className="result-grid">
-                {/* Main content */}
-                <div>
-                  {/* Tab buttons */}
-                  <div style={{ display: "flex", gap: 16, marginBottom: 40, borderBottom: "1px solid var(--color-hairline)", paddingBottom: 20 }}>
-                    {(["market", "drivers", "valuation"] as TabId[]).map(tab => (
-                      <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          fontFamily: "var(--font-sans)",
-                          fontSize: 15,
-                          fontWeight: activeTab === tab ? 600 : 400,
-                          color: activeTab === tab ? "var(--color-primary)" : "var(--color-secondary)",
-                          cursor: "pointer",
-                          paddingBottom: 8,
-                          borderBottom: activeTab === tab ? "2px solid var(--color-primary)" : "none",
-                          transition: "color 150ms",
-                        }}
-                      >
-                        {tab === "market" && "Market Snapshot"}
-                        {tab === "drivers" && "Value Drivers"}
-                        {tab === "valuation" && "Valuation and Buyers"}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Tab content */}
-                  <ResultPageRenderer content={tabContent} />
-
-                  {/* Hidden risk teaser on drivers tab */}
-                  {activeTab === "drivers" && (
-                    <div style={{ marginTop: 32 }}>
-                      <HiddenRiskTeaser />
-                    </div>
-                  )}
-
-                  {/* PDF button - secondary pill, 80px below last content */}
-                  <div style={{ marginTop: 80 }}>
+            <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%", padding: "0 32px" }}>
+              {/* Sticky tab bar */}
+              <div
+                style={{
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 50,
+                  background: "white",
+                  borderBottom: "1px solid rgba(27, 58, 92, 0.08)",
+                  paddingTop: 20,
+                  paddingBottom: 20,
+                  marginBottom: 48,
+                }}
+              >
+                <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
+                  {(["market", "drivers", "valuation"] as TabId[]).map(tab => (
                     <button
-                      onClick={() => setShowPdfModal(true)}
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
                       style={{
                         background: "none",
-                        border: "1px solid var(--color-primary)",
-                        color: "var(--color-primary)",
+                        border: "none",
                         fontFamily: "var(--font-sans)",
-                        fontWeight: 600,
                         fontSize: 14,
-                        padding: "12px 28px",
-                        borderRadius: 6,
+                        fontWeight: 600,
+                        color: activeTab === tab ? "#1B3A5C" : "#1A1A1A",
                         cursor: "pointer",
-                        transition: "all 150ms",
+                        padding: 0,
+                        paddingBottom: 4,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        borderBottom: activeTab === tab ? "2px solid #1B3A5C" : "none",
+                        transition: "color 150ms",
+                        opacity: activeTab === tab ? 1 : 0.6,
                       }}
                       onMouseEnter={e => {
-                        (e.currentTarget as HTMLButtonElement).style.background = "var(--color-primary)";
-                        (e.currentTarget as HTMLButtonElement).style.color = "white";
+                        if (activeTab !== tab) {
+                          (e.currentTarget as HTMLButtonElement).style.color = "#1B3A5C";
+                          (e.currentTarget as HTMLButtonElement).style.opacity = "0.8";
+                        }
                       }}
                       onMouseLeave={e => {
-                        (e.currentTarget as HTMLButtonElement).style.background = "none";
-                        (e.currentTarget as HTMLButtonElement).style.color = "var(--color-primary)";
+                        if (activeTab !== tab) {
+                          (e.currentTarget as HTMLButtonElement).style.color = "#1A1A1A";
+                          (e.currentTarget as HTMLButtonElement).style.opacity = "0.6";
+                        }
                       }}
                     >
-                      Get the PDF.
+                      {tab === "market" && "Market Snapshot"}
+                      {tab === "drivers" && "Value Drivers"}
+                      {tab === "valuation" && "Valuation and Buyers"}
                     </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tab content - only show active tab */}
+              {activeTab === "market" && <ResultPageRenderer content={briefResult.market} />}
+              {activeTab === "drivers" && (
+                <>
+                  <ResultPageRenderer content={briefResult.drivers} />
+                  <div style={{ marginTop: 32 }}>
+                    <HiddenRiskTeaser />
                   </div>
+                </>
+              )}
+              {activeTab === "valuation" && <ResultPageRenderer content={briefResult.valuation} />}
+
+              {/* Persistent footer: PDF button + Next step block */}
+              <div style={{ marginTop: 80, paddingBottom: 80 }}>
+                {/* PDF button - secondary pill */}
+                <div style={{ marginBottom: 40 }}>
+                  <button
+                    onClick={() => setShowPdfModal(true)}
+                    style={{
+                      background: "none",
+                      border: "1px solid var(--color-primary)",
+                      color: "var(--color-primary)",
+                      fontFamily: "var(--font-sans)",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      padding: "12px 28px",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      transition: "all 150ms",
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.background = "var(--color-primary)";
+                      (e.currentTarget as HTMLButtonElement).style.color = "white";
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.background = "none";
+                      (e.currentTarget as HTMLButtonElement).style.color = "var(--color-primary)";
+                    }}
+                  >
+                    Get the PDF.
+                  </button>
                 </div>
 
-                {/* Ofir sidebar */}
-                <OfirSidebar />
+                {/* Next step block (navy background) */}
+                <div
+                  style={{
+                    background: "#1B3A5C",
+                    color: "white",
+                    padding: "40px",
+                    borderRadius: 8,
+                    fontFamily: "var(--font-sans)",
+                  }}
+                >
+                  <p style={{ fontSize: 16, lineHeight: 1.6, marginBottom: 20 }}>
+                    Want the full overview. Book a 30 minute call with Ofir Ben Haim.
+                  </p>
+                  <a
+                    href="https://cal.com/ofir"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-block",
+                      background: "white",
+                      color: "#1B3A5C",
+                      padding: "12px 28px",
+                      borderRadius: 6,
+                      fontWeight: 600,
+                      fontSize: 14,
+                      textDecoration: "none",
+                      cursor: "pointer",
+                      transition: "opacity 150ms",
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLAnchorElement).style.opacity = "0.9";
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLAnchorElement).style.opacity = "1";
+                    }}
+                  >
+                    Book a call
+                  </a>
+                </div>
               </div>
 
               {/* Reset button */}
@@ -611,14 +676,6 @@ export default function ExitBrief() {
                 </button>
               </div>
             </div>
-
-            <style>{`
-              @media (max-width: 1024px) {
-                .result-grid {
-                  grid-template-columns: 1fr !important;
-                }
-              }
-            `}</style>
           </section>
         )}
 
