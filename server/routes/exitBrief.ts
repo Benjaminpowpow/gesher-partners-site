@@ -11,6 +11,16 @@ const briefStore = new Map<string, string>();
 // IP -> last request timestamp (ms)
 const rateLimitStore = new Map<string, number>();
 
+// Lead requests
+interface LeadRequest {
+  name: string;
+  email: string;
+  phone: string;
+  briefId: string;
+  requestedAt: Date;
+}
+const leadStore = new Map<string, LeadRequest>();
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function getClientIp(req: Request): string {
   const forwarded = req.headers["x-forwarded-for"];
@@ -283,9 +293,126 @@ async function handleContact(req: Request, res: Response) {
   }
 }
 
+// ─── Route: POST /api/exit-brief/pdf-request ───────────────────────────────
+async function handlePdfRequest(req: Request, res: Response) {
+  const { name, email, phone, briefId } = req.body as {
+    name?: string;
+    email?: string;
+    phone?: string;
+    briefId?: string;
+  };
+
+  if (!name || !email || !briefId) {
+    res.status(400).json({ message: "Name, email, and briefId are required." });
+    return;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    res.status(400).json({ message: "Invalid email address." });
+    return;
+  }
+
+  const fullMarkdown = briefStore.get(briefId);
+  if (!fullMarkdown) {
+    res.status(404).json({ message: "Brief not found. Please generate a new one." });
+    return;
+  }
+
+  const leadId = nanoid();
+  const lead: LeadRequest = {
+    name,
+    email,
+    phone: phone || "",
+    briefId,
+    requestedAt: new Date(),
+  };
+  leadStore.set(leadId, lead);
+
+  const resendKey = process.env.RESEND_API_KEY;
+  const notifyEmail = process.env.LEAD_NOTIFICATION_EMAIL ?? "hello@gesher-partners.com";
+
+  if (!resendKey) {
+    res.status(500).json({ message: "Email delivery is not configured." });
+    return;
+  }
+
+  const resend = new Resend(resendKey);
+
+  try {
+    const briefUrl = `${req.protocol}://${req.get("host")}/exit-brief?briefId=${briefId}`;
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 20px;">
+        <h2 style="color: #1B3A5C; margin-bottom: 24px;">New Exit Brief PDF Request</h2>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 100px;">Name</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${name}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Email</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${email}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Phone</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${phone || "(not provided)"}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Brief ID</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${briefId}</td>
+          </tr>
+        </table>
+        <p style="margin-bottom: 16px;">
+          <a href="${briefUrl}" style="display: inline-block; background: #1B3A5C; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">View Brief</a>
+        </p>
+        <p style="font-size: 13px; color: #666; margin-top: 32px; border-top: 1px solid #eee; padding-top: 16px;">
+          Send the PDF to ${email} within 24 hours.
+        </p>
+      </div>
+    `;
+
+    await resend.emails.send({
+      from: "Gesher <hello@gesher-partners.com>",
+      to: notifyEmail,
+      subject: `PDF Request: ${name} (${email})`,
+      html: emailHtml,
+    });
+
+    const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
+    if (slackWebhookUrl) {
+      try {
+        await fetch(slackWebhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: `New Exit Brief PDF Request from ${name}`,
+            blocks: [
+              {
+                type: "section",
+                text: {
+                  type: "mrkdwn",
+                  text: `*New Exit Brief PDF Request*\n*Name:* ${name}\n*Email:* ${email}\n*Phone:* ${phone || "(not provided)"}\n*Brief ID:* ${briefId}`,
+                },
+              },
+            ],
+          }),
+        });
+      } catch (err) {
+        console.warn("[pdf-request] Slack webhook failed (non-blocking):", err);
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[pdf-request] Error:", err);
+    res.status(500).json({ message: "Failed to process request. Please try again." });
+  }
+}
+
 // ─── Register all routes ─────────────────────────────────────────────────────
 export function registerApiRoutes(app: Express) {
   app.post("/api/exit-brief", handleExitBrief);
   app.post("/api/exit-brief/pdf", handleExitBriefPdf);
+  app.post("/api/exit-brief/pdf-request", handlePdfRequest);
   app.post("/api/contact", handleContact);
 }

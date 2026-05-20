@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import OfirSidebar from "@/components/OfirSidebar";
 import BriefMarkdown from "@/components/BriefMarkdown";
 import PdfModal from "@/components/PdfModal";
+import HiddenRiskTeaser from "@/components/HiddenRiskTeaser";
 
 type ScreenState = "input" | "generating" | "result";
 type TabId = "market" | "drivers" | "valuation";

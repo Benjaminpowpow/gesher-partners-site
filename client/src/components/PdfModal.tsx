@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { trpc } from "@/lib/trpc";
+import { X } from "lucide-react";
 
 interface PdfModalProps {
   briefId: string;
@@ -11,18 +11,36 @@ type ModalState = "idle" | "submitting" | "success" | "error";
 export default function PdfModal({ briefId, onClose }: PdfModalProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [state, setState] = useState<ModalState>("idle");
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const pdfMutation = trpc.exitBrief.requestPdf.useMutation({
-    onSuccess: () => setState("success"),
-    onError: () => setState("error"),
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email) return;
+
     setState("submitting");
-    pdfMutation.mutate({ briefId, name, email });
+    setErrorMsg("");
+
+    try {
+      const response = await fetch("/api/exit-brief/pdf-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, phone, briefId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        setErrorMsg(error.message || "Something went wrong. Please try again.");
+        setState("error");
+        return;
+      }
+
+      setState("success");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Network error. Please try again.");
+      setState("error");
+    }
   };
 
   return (
@@ -32,7 +50,7 @@ export default function PdfModal({ briefId, onClose }: PdfModalProps) {
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(27,58,92,0.45)",
+        backgroundColor: "rgba(27, 58, 92, 0.4)",
         zIndex: 200,
         display: "flex",
         alignItems: "center",
@@ -42,80 +60,119 @@ export default function PdfModal({ briefId, onClose }: PdfModalProps) {
     >
       {/* Modal card */}
       <div
-        className="g-modal-entry"
         onClick={e => e.stopPropagation()}
         style={{
-          backgroundColor: "var(--color-white)",
+          backgroundColor: "white",
           borderRadius: 8,
-          padding: "48px 40px",
+          padding: 32,
           width: "100%",
           maxWidth: 480,
-          boxShadow: "0 8px 40px rgba(27,58,92,0.18)",
+          boxShadow: "0 8px 40px rgba(27, 58, 92, 0.18)",
         }}
       >
         {state === "success" ? (
-          <div style={{ textAlign: "center" }}>
+          <div>
             <h2
               style={{
-                fontFamily: "var(--font-serif)",
-                fontWeight: 600,
+                fontFamily: "var(--font-display)",
+                fontWeight: 700,
                 fontSize: 28,
                 color: "var(--color-primary)",
                 marginBottom: 16,
               }}
             >
-              PDF sent.
+              Got it.
             </h2>
-            <p style={{ fontFamily: "var(--font-sans)", fontSize: 17, color: "var(--color-body)", marginBottom: 28 }}>
-              Check your inbox. The brief is on its way.
+            <p
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: 16,
+                color: "var(--color-body)",
+                lineHeight: 1.55,
+                marginBottom: 32,
+              }}
+            >
+              Your PDF is on the way. Expect it in your inbox within 24 hours.
             </p>
-            <button onClick={onClose} className="g-btn-primary" style={{ width: "100%" }}>
-              Close
+            <button
+              onClick={onClose}
+              style={{
+                background: "var(--color-primary)",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                fontFamily: "var(--font-sans)",
+                fontWeight: 600,
+                fontSize: 14,
+                padding: "14px 32px",
+                cursor: "pointer",
+                transition: "opacity 150ms",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = "0.9")}
+              onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+            >
+              Done.
             </button>
           </div>
         ) : (
           <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
-              <h2
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontWeight: 600,
-                  fontSize: 26,
-                  color: "var(--color-primary)",
-                  lineHeight: 1.2,
-                }}
-              >
-                Get your Exit Brief as a PDF.
-              </h2>
-              <button
-                onClick={onClose}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: 22,
-                  color: "var(--color-subtext)",
-                  padding: "0 0 0 16px",
-                  lineHeight: 1,
-                  flexShrink: 0,
-                }}
-                aria-label="Close"
-              >
-                &times;
-              </button>
-            </div>
+            {/* Close button */}
+            <button
+              onClick={onClose}
+              style={{
+                position: "absolute",
+                top: 32,
+                right: 32,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              aria-label="Close modal"
+            >
+              <X size={24} color="var(--color-primary)" />
+            </button>
 
-            <p style={{ fontFamily: "var(--font-sans)", fontSize: 16, color: "var(--color-body)", lineHeight: 1.6, marginBottom: 28 }}>
-              Enter your name and email. We will send the PDF directly to your inbox.
+            <h2
+              style={{
+                fontFamily: "var(--font-display)",
+                fontWeight: 700,
+                fontSize: 28,
+                color: "var(--color-primary)",
+                marginBottom: 8,
+              }}
+            >
+              Get the PDF.
+            </h2>
+            <p
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: 15,
+                color: "#6B6B6B",
+                marginBottom: 24,
+              }}
+            >
+              Three fields. We email it within 24 hours.
             </p>
 
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Name */}
               <div>
                 <label
                   htmlFor="pdf-name"
-                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-subtext)", marginBottom: 6 }}
+                  style={{
+                    display: "block",
+                    fontFamily: "var(--font-sans)",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    color: "var(--color-body)",
+                    marginBottom: 4,
+                  }}
                 >
-                  Your name
+                  Name
                 </label>
                 <input
                   id="pdf-name"
@@ -124,13 +181,34 @@ export default function PdfModal({ briefId, onClose }: PdfModalProps) {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="Moshe Cohen"
+                  style={{
+                    width: "100%",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 16,
+                    color: "var(--color-body)",
+                    padding: 12,
+                    border: "1px solid rgba(27, 58, 92, 0.2)",
+                    borderRadius: 6,
+                    boxSizing: "border-box",
+                    transition: "border-color 150ms",
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "var(--color-primary)")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(27, 58, 92, 0.2)")}
                 />
               </div>
 
+              {/* Email */}
               <div>
                 <label
                   htmlFor="pdf-email"
-                  style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 14, color: "var(--color-subtext)", marginBottom: 6 }}
+                  style={{
+                    display: "block",
+                    fontFamily: "var(--font-sans)",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    color: "var(--color-body)",
+                    marginBottom: 4,
+                  }}
                 >
                   Email
                 </label>
@@ -141,22 +219,93 @@ export default function PdfModal({ briefId, onClose }: PdfModalProps) {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="moshe@company.co.il"
+                  style={{
+                    width: "100%",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 16,
+                    color: "var(--color-body)",
+                    padding: 12,
+                    border: "1px solid rgba(27, 58, 92, 0.2)",
+                    borderRadius: 6,
+                    boxSizing: "border-box",
+                    transition: "border-color 150ms",
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "var(--color-primary)")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(27, 58, 92, 0.2)")}
                 />
               </div>
 
+              {/* Phone */}
+              <div>
+                <label
+                  htmlFor="pdf-phone"
+                  style={{
+                    display: "block",
+                    fontFamily: "var(--font-sans)",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    color: "var(--color-body)",
+                    marginBottom: 4,
+                  }}
+                >
+                  Phone
+                </label>
+                <input
+                  id="pdf-phone"
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="+972 50 123 4567"
+                  style={{
+                    width: "100%",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 16,
+                    color: "var(--color-body)",
+                    padding: 12,
+                    border: "1px solid rgba(27, 58, 92, 0.2)",
+                    borderRadius: 6,
+                    boxSizing: "border-box",
+                    transition: "border-color 150ms",
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "var(--color-primary)")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(27, 58, 92, 0.2)")}
+                />
+              </div>
+
+              {/* Error message */}
               {state === "error" && (
-                <p style={{ fontFamily: "var(--font-sans)", fontSize: 14, color: "var(--color-accent)" }}>
-                  Something went wrong. Please try again.
+                <p
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 14,
+                    color: "var(--color-accent)",
+                    margin: "8px 0 0 0",
+                  }}
+                >
+                  {errorMsg}
                 </p>
               )}
 
+              {/* Submit button */}
               <button
                 type="submit"
-                className="g-btn-primary"
                 disabled={state === "submitting"}
-                style={{ opacity: state === "submitting" ? 0.7 : 1, marginTop: 4 }}
+                style={{
+                  background: "var(--color-primary)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 6,
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 600,
+                  fontSize: 16,
+                  padding: "14px 32px",
+                  cursor: state === "submitting" ? "not-allowed" : "pointer",
+                  opacity: state === "submitting" ? 0.7 : 1,
+                  transition: "opacity 150ms",
+                  marginTop: 8,
+                }}
               >
-                {state === "submitting" ? "Sending..." : "Send me the PDF"}
+                {state === "submitting" ? "Sending..." : "Send to my email."}
               </button>
             </form>
           </>

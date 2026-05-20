@@ -82,3 +82,32 @@
 - [x] Update Nav wordmark to use bridge icon + "gesher" lowercase text
 - [x] Create favicon using bridge icon
 - [x] Tests passing (9 tests)
+
+
+## Round 3: Exit Brief Result Page Render & Scrub
+
+### Scrub Rules (Global)
+- [ ] Rule A: Strip `## Internal:` blocks (server-side or client-side)
+- [ ] Rule B: Strip confidence flags `[high]`, `[medium]`, `[low]`, `[confidence: ...]`
+- [ ] Rule C: Strip `## Sources used` block
+- [ ] Rule D: Render hidden teaser as designed overlay (frosted glass, lock icon, CTA pill)
+
+### Result Page Sections
+- [ ] Section 1: Result page header (H1 + blockquote typography)
+- [ ] Section 2: Step 1 Market Snapshot (2-column desktop, 1-column mobile, comp table, company card sticky)
+- [ ] Section 3: Step 2 Value Drivers (driver cards, hidden teaser overlay, callout)
+- [ ] Section 4: Step 3 Valuation (big value range, approach table with EBITDA emphasis, buyers list)
+- [ ] Section 5: Path B engagement block (update text in exitBriefSkill.ts)
+- [ ] Section 6: Next Step section (navy background, founder cards, CTA pills)
+
+### PDF Lead-Capture Flow
+- [ ] PDF button (secondary pill, 80px below last callout)
+- [ ] PDF modal (Name + Email + Phone fields, submit button)
+- [ ] /api/exit-brief/pdf-request endpoint (validate, store lead, email Ben, Slack webhook)
+- [ ] Confirmation panel (success message, Done button)
+
+### Testing & QA
+- [ ] Run test URL through Exit Brief tool
+- [ ] Verify all 20 checklist items pass
+- [ ] Test on 375px, 768px, 1280px widths
+- [ ] No em-dashes, no "AI" word, no trace leaks
