@@ -128,44 +128,44 @@
 ## Round 4: Exit Brief Redesign (Tab System, Sidebar Removal, Scrub Extensions)
 
 ### Phase 1: Logos
-- [ ] Add real KPMG logo to Where We've Operated section
-- [ ] Add real JFrog logo to Where We've Operated section
+- [x] Add real KPMG logo to Where We've Operated section
+- [x] Add real JFrog logo to Where We've Operated section
 
 ### Phase 2: Tab System
-- [ ] Show only active tab content (hide inactive steps entirely)
-- [ ] Implement navy underline active tab indicator (2px, 4px below text)
-- [ ] Make tab bar sticky (position: sticky, top: 0, z-index: 50)
-- [ ] Reduce empty space between tab bar and Step heading to 48px
+- [x] Show only active tab content (hide inactive steps entirely)
+- [x] Implement navy underline active tab indicator (2px, 4px below text)
+- [x] Make tab bar sticky (position: sticky, top: 0, z-index: 50)
+- [x] Reduce empty space between tab bar and Step heading to 48px
 
 ### Phase 3: Sidebar Removal
-- [ ] Delete OfirSidebar component from codebase
-- [ ] Remove Ofir sidebar from all three tabs
-- [ ] Verify no sidebar renders on any tab
+- [x] Delete OfirSidebar component from codebase (removed from ExitBrief.tsx)
+- [x] Remove Ofir sidebar from all three tabs
+- [x] Verify no sidebar renders on any tab
 
 ### Phase 4: Scrub Rules Extensions
-- [ ] Implement Rule D extension: match both "1 more" and "2 more" risk teaser patterns
-- [ ] Rule D: render only ONE overlay using the higher count
-- [ ] Implement Rule E: hide markdown renderer copy/download icons
-- [ ] Implement Rule F: persistent footer (PDF button + Next step block below tab content)
+- [x] Implement Rule D extension: match both "1 more" and "2 more" risk teaser patterns (in BriefMarkdown)
+- [x] Rule D: render only ONE overlay using the higher count (in HiddenRiskTeaser)
+- [x] Implement Rule E: hide markdown renderer copy/download icons (in ResultPageRenderer)
+- [x] Implement Rule F: persistent footer (PDF button + Next step block below tab content) (in ExitBrief)
 
 ### Phase 5: Generating Screen Rebuild
-- [ ] Create animated three-dot pulsing indicator (navy, 8px, 0.4s stagger)
-- [ ] Add heading: "Reading your business." (Playfair 700, 28-32px)
-- [ ] Implement status line cycling through 5 phases (200ms crossfade)
-- [ ] Add stall fallback after 25 seconds: "This one is taking a little longer than usual. Stay with us."
-- [ ] Add divider + footnote: "Average run time: about 2 minutes 30 seconds."
+- [x] Create animated three-dot pulsing indicator (navy, 8px, 0.4s stagger)
+- [x] Add heading: "Reading your business." (Playfair 700, 28-32px)
+- [x] Implement status line cycling through 5 phases (200ms crossfade)
+- [x] Add stall fallback after 25 seconds: "This one is taking a little longer than usual. Stay with us."
+- [x] Add divider + footnote: "Average run time: about 2 minutes 30 seconds."
 
 ### Phase 6: Container & Layout
-- [ ] Update main content max width to 1200px (centered, 32px padding)
-- [ ] Implement Step 1 two-column layout: 58% left, 42% right
-- [ ] Make Step 1 right column sticky (top: 96px)
-- [ ] Stack to single column below 1024px
+- [x] Update main content max width to 1200px (centered, 32px padding)
+- [x] Implement Step 1 two-column layout: 58% left, 42% right (in ResultPageRenderer)
+- [x] Make Step 1 right column sticky (top: 96px) (in ResultPageRenderer)
+- [x] Stack to single column below 1024px (in ResultPageRenderer)
 
 ### Phase 7: Testing & Verification
-- [ ] Test tab system (active/inactive, underline styling, sticky)
-- [ ] Test sidebar removal (no Ofir block anywhere)
-- [ ] Test scrub rules (risk teasers, markdown icons hidden, persistent footer)
-- [ ] Test generating screen (dots, phases, stall fallback)
-- [ ] Test responsive widths (375px, 768px, 1280px)
-- [ ] Verify no em-dashes, no "AI" word, no banned words
-- [ ] Save checkpoint
+- [x] Test tab system (active/inactive, underline styling, sticky)
+- [x] Test sidebar removal (no Ofir block anywhere)
+- [x] Test scrub rules (risk teasers, markdown icons hidden, persistent footer)
+- [x] Test generating screen (dots, phases, stall fallback)
+- [x] Test responsive widths (375px, 768px, 1280px)
+- [x] Verify no em-dashes, no "AI" word, no banned words
+- [x] Save checkpoint (version: 5e50555a)
