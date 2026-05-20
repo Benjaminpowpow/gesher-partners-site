@@ -1,3 +1,33 @@
+// KPMG Logo Component
+function KPMGLogo() {
+  return (
+    <svg viewBox="0 0 200 200" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+      <rect width="200" height="200" fill="none" />
+      {/* KPMG Red Square */}
+      <rect x="20" y="20" width="160" height="160" fill="#C8102E" rx="8" />
+      {/* KPMG White Text - simplified K */}
+      <text x="100" y="130" fontSize="120" fontWeight="bold" fill="white" textAnchor="middle" fontFamily="Arial, sans-serif">
+        K
+      </text>
+    </svg>
+  );
+}
+
+// JFrog Logo Component
+function JFrogLogo() {
+  return (
+    <svg viewBox="0 0 200 200" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+      <rect width="200" height="200" fill="none" />
+      {/* JFrog Blue Circle */}
+      <circle cx="100" cy="100" r="80" fill="#1E90FF" />
+      {/* JFrog White J */}
+      <text x="100" y="135" fontSize="100" fontWeight="bold" fill="white" textAnchor="middle" fontFamily="Arial, sans-serif">
+        J
+      </text>
+    </svg>
+  );
+}
+
 export default function WhereWeOperatedSection() {
   return (
     <section
@@ -34,41 +64,49 @@ export default function WhereWeOperatedSection() {
           }}
           className="logos-grid"
         >
-          {/* KPMG Logo Placeholder */}
+          {/* KPMG Logo */}
           <div
             style={{
               height: 48,
-              backgroundColor: "#D8D0BF",
-              borderRadius: 4,
-              opacity: 0.6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: 0.8,
               transition: "opacity 200ms ease-out",
+              cursor: "pointer",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = "1";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "0.6";
+              e.currentTarget.style.opacity = "0.8";
             }}
             title="KPMG"
-          />
+          >
+            <KPMGLogo />
+          </div>
 
-          {/* JFrog Logo Placeholder */}
+          {/* JFrog Logo */}
           <div
             style={{
               height: 48,
-              backgroundColor: "#D8D0BF",
-              borderRadius: 4,
-              opacity: 0.6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: 0.8,
               transition: "opacity 200ms ease-out",
+              cursor: "pointer",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = "1";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "0.6";
+              e.currentTarget.style.opacity = "0.8";
             }}
             title="JFrog"
-          />
+          >
+            <JFrogLogo />
+          </div>
 
           {/* Empty Placeholder 1 */}
           <div

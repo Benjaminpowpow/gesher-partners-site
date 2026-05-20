@@ -6,6 +6,7 @@ import OfirSidebar from "@/components/OfirSidebar";
 import BriefMarkdown from "@/components/BriefMarkdown";
 import PdfModal from "@/components/PdfModal";
 import HiddenRiskTeaser from "@/components/HiddenRiskTeaser";
+import ResultPageRenderer from "@/components/ResultPageRenderer";
 
 type ScreenState = "input" | "generating" | "result";
 type TabId = "market" | "drivers" | "valuation";

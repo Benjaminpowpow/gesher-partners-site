@@ -1179,7 +1179,7 @@ Based on: Business Details, Similar Israeli Deals, Market Trends. Confidence: [l
 
 ### What would sharpen your number
 
-We could not infer revenue from public sources. Share 2025 revenue, pre-tax profit, and owner's salary, and we sharpen this range from [low] to [high] confidence within 24 hours.
+We built this range from public sources. Share your 2025 revenue, pre-tax profit, and owner's salary and we tighten it within 24 hours.
 
 We also could not answer from your site:
 

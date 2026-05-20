@@ -111,3 +111,13 @@
 - [ ] Verify all 20 checklist items pass
 - [ ] Test on 375px, 768px, 1280px widths
 - [ ] No em-dashes, no "AI" word, no trace leaks
+
+
+## Round 3 Continued: Result Page Sections & Logos
+- [ ] Add KPMG and JFrog logos to Where We've Operated section (with placeholder cards)
+- [ ] Section 1: Result page header with custom H1 and blockquote typography
+- [ ] Section 2: Market Snapshot with 2-column layout, comp table, sticky company card
+- [ ] Section 3: Value Drivers with driver cards and callout
+- [ ] Section 4: Valuation with value range display, approach table, buyers list
+- [ ] Section 5: Path B engagement block (update exitBriefSkill.ts text)
+- [ ] Section 6: Next Step section (navy background, founder cards, CTA pills)
