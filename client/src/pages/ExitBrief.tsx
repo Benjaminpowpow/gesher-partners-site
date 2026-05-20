@@ -131,20 +131,28 @@ export default function ExitBrief() {
     abortRef.current = new AbortController();
 
     try {
-      const params = new URLSearchParams({
+      const body = {
         url: url.trim(),
         ...(revenue && { revenue: String(REVENUE_MIDPOINTS[revenue] || 0) }),
         ...(ebitda && { ebitda: String(EBITDA_MIDPOINTS[ebitda] || 0) }),
         ...(salary && { salary: String(SALARY_MIDPOINTS[salary] || 0) }),
-      });
+      };
 
-      const response = await fetch(`/api/exit-brief?${params}`, {
+      const response = await fetch(`/api/exit-brief`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
         signal: abortRef.current.signal,
       });
 
       if (!response.ok) {
         const error = await response.text();
-        setStreamError(error || "Failed to generate brief");
+        try {
+          const json = JSON.parse(error);
+          setStreamError(json.error || "Failed to generate brief");
+        } catch {
+          setStreamError(error || "Failed to generate brief");
+        }
         setScreen("input");
         return;
       }
