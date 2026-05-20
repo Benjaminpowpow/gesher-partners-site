@@ -1,4 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" rx="4" fill="#F8F4ED"/>
-  <text x="16" y="23" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="22" fill="#1B3A5C">G</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="32" height="32">
+  <!-- Background -->
+  <rect width="200" height="200" fill="#F8F4ED"/>
+  
+  <!-- Left pillar -->
+  <rect x="30" y="60" width="20" height="100" fill="#0C1B2E"/>
+  
+  <!-- Right pillar -->
+  <rect x="150" y="60" width="20" height="100" fill="#0C1B2E"/>
+  
+  <!-- Top left beam -->
+  <rect x="30" y="60" width="90" height="12" fill="#0C1B2E"/>
+  
+  <!-- Top right beam -->
+  <rect x="80" y="60" width="90" height="12" fill="#0C1B2E"/>
+  
+  <!-- Arch (curved bridge) -->
+  <path
+    d="M 50 75 Q 100 30 150 75"
+    stroke="#0C1B2E"
+    strokeWidth="18"
+    fill="none"
+    strokeLinecap="round"
+  />
 </svg>

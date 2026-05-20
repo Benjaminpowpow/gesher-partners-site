@@ -73,3 +73,12 @@
 - [x] Remove all em-dashes from codebase
 - [x] Left-align all text except CTA buttons
 - [x] Test all sections and verify no copy/logic changes
+
+
+## V2 Round 2 Bug Fixes
+- [x] Fix Hero section: left-align all content (currently centered)
+- [x] Remove "+net profits" from EBITDA field label
+- [x] Create bridge icon logo (arch design in navy)
+- [x] Update Nav wordmark to use bridge icon + "gesher" lowercase text
+- [x] Create favicon using bridge icon
+- [x] Tests passing (9 tests)

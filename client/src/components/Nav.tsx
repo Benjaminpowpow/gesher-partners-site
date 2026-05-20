@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
+import BridgeIcon from "./BridgeIcon";
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -33,18 +34,19 @@ export default function Nav() {
     >
       <div className="g-container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
         {/* Wordmark */}
-        <Link href="/" style={{ textDecoration: "none" }}>
+        <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 12 }}>
+          <BridgeIcon width={28} height={28} />
           <span
             style={{
               fontFamily: "var(--font-serif)",
-              fontWeight: 600,
-              fontSize: 24,
+              fontWeight: 400,
+              fontSize: 20,
               color: "var(--color-primary)",
               letterSpacing: "0.02em",
               lineHeight: 1,
             }}
           >
-            Gesher
+            gesher
           </span>
         </Link>
 

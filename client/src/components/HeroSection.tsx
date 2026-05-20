@@ -12,7 +12,6 @@ export default function HeroSection() {
         backgroundColor: "var(--color-bg)",
         paddingTop: 160,
         paddingBottom: 120,
-        textAlign: "center",
       }}
     >
       <div className="g-container" style={{ maxWidth: 800 }}>
@@ -34,8 +33,8 @@ export default function HeroSection() {
           Get the most out of your life's work.
         </h1>
 
-        {/* Burgundy rule: 1px, 60px wide, centered */}
-        <div className="hero-rule" />
+        {/* Burgundy rule: 1px, 60px wide */}
+        <div className="hero-rule" style={{ marginLeft: 0 }} />
 
         <p
           style={{
@@ -63,7 +62,7 @@ export default function HeroSection() {
           An Israeli sell-side advisor for family businesses built by people who have been on your side of the table.
         </p>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "center", justifyContent: "flex-start" }}>
           <button onClick={scrollToContact} className="btn-solid">
             Talk to us.
           </button>

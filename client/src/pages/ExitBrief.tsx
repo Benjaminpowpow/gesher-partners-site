@@ -376,7 +376,7 @@ export default function ExitBrief() {
                           htmlFor="brief-ebitda"
                           style={{ display: "block", fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 13, color: "var(--color-secondary)", marginBottom: 6 }}
                         >
-                          EBITDA or net profit (NIS)
+                          EBITDA (NIS)
                         </label>
                         <select
                           id="brief-ebitda"
