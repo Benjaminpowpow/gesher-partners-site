@@ -45,12 +45,12 @@
 - [x] Verification checklist (10-point QA)
 
 ## Ben's Post-Launch Checklist (for after deployment)
-- [ ] Add real photos (Founders section, Ofir sidebar) — use manus-upload-file --webdev
+- [ ] Add real photos (Founders section only, Ofir sidebar removed in Round 4) — use manus-upload-file --webdev
 - [ ] Set ANTHROPIC_API_KEY in Vercel environment settings
 - [ ] Set RESEND_API_KEY in Vercel environment settings
 - [ ] Set LEAD_NOTIFICATION_EMAIL in Vercel environment settings
 - [ ] Update office address in Footer (replace placeholder)
-- [ ] Update Cal.com booking URL (hero CTA, contact section, Ofir sidebar)
+- [ ] Update Cal.com booking URL (hero CTA, contact section)
 - [ ] Update LinkedIn company URL (footer)
 - [ ] Test Exit Brief generation end-to-end with a real company URL
 - [ ] Test contact form end-to-end and verify email delivery
