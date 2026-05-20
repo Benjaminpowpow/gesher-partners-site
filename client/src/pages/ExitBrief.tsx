@@ -166,11 +166,41 @@ export default function ExitBrief() {
 
       let fullMarkdown = "";
       const decoder = new TextDecoder();
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        fullMarkdown += decoder.decode(value, { stream: true });
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Process complete lines (NDJSON format)
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || ""; // Keep incomplete line in buffer
+        
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const json = JSON.parse(line);
+              if (json.type === "chunk" && json.data) {
+                fullMarkdown += json.data;
+              }
+            } catch {
+              // Ignore parse errors for malformed lines
+            }
+          }
+        }
+      }
+      
+      // Process any remaining content in buffer
+      if (buffer.trim()) {
+        try {
+          const json = JSON.parse(buffer);
+          if (json.type === "chunk" && json.data) {
+            fullMarkdown += json.data;
+          }
+        } catch {
+          // Ignore parse errors
+        }
       }
 
       const parsed = parseTabContent(fullMarkdown);
