@@ -331,8 +331,8 @@ export default function ExitBrief() {
                     Your website
                   </label>
                   <input
-                    type="url"
-                    placeholder="https://example.com"
+                    type="text"
+                    placeholder="https://example.com or example.com"
                     value={url}
                     onChange={(e) => {
                       setUrl(e.target.value);
