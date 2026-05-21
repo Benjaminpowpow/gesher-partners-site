@@ -77,7 +77,7 @@ export default function Nav() {
             Contact
           </button>
           <Link href="/exit-brief" className="g-btn-primary" style={{ padding: "10px 22px", fontSize: 14 }}>
-            Get a quick read
+            Quick valuation
           </Link>
         </nav>
 
@@ -111,7 +111,7 @@ export default function Nav() {
             </button>
           ))}
           <Link href="/exit-brief" className="g-btn-primary" style={{ marginTop: 16, width: "100%", textAlign: "center" }} onClick={() => setMenuOpen(false)}>
-            Get a quick read
+            Quick valuation
           </Link>
         </div>
       )}

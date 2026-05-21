@@ -62,13 +62,24 @@ export default function HeroSection() {
           An Israeli sell-side advisor for family businesses built by people who have been on your side of the table.
         </p>
 
+        {/* FEATURE-3: Replace CTA copy with "Quick valuation" */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "center", justifyContent: "flex-start" }}>
           <button onClick={scrollToContact} className="btn-solid">
             Talk to us.
           </button>
-          <Link href="/exit-brief" className="btn-ghost">
-            Get a quick read on your business.
-          </Link>
+          <div>
+            <Link href="/exit-brief" className="btn-ghost">
+              Quick valuation
+            </Link>
+            {/* FEATURE-3: Add tagline below button */}
+            <p style={{
+              font: "400 14px Inter, sans-serif",
+              color: "#6B6B6B",
+              marginTop: "8px",
+            }}>
+              Quick, accurate, free.
+            </p>
+          </div>
         </div>
       </div>
     </section>

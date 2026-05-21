@@ -109,6 +109,15 @@ export default function ExitBrief() {
     };
   }, [screen]);
 
+  // FEATURE-1: Normalize URL by adding https:// if no protocol
+  const normalizeUrl = (urlStr: string): string => {
+    const trimmed = urlStr.trim();
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      return `https://${trimmed}`;
+    }
+    return trimmed;
+  };
+
   const validateUrl = (urlStr: string): boolean => {
     try {
       const parsed = new URL(urlStr);
@@ -122,13 +131,16 @@ export default function ExitBrief() {
     e.preventDefault();
     setUrlError("");
     setStreamError("");
+    
+    // FEATURE-1: Normalize URL at the start
+    const normalizedUrl = normalizeUrl(url);
 
     if (!url.trim()) {
       setUrlError("Please enter a website URL");
       return;
     }
-
-    if (!validateUrl(url)) {
+    
+    if (!validateUrl(normalizedUrl)) {
       setUrlError("Please enter a valid URL (e.g., https://example.com)");
       return;
     }
@@ -138,7 +150,7 @@ export default function ExitBrief() {
 
     try {
       const body = {
-        url: url.trim(),
+        url: normalizedUrl,
         ...(revenue && { revenue: String(REVENUE_MIDPOINTS[revenue] || 0) }),
         ...(ebitda && { ebitda: String(EBITDA_MIDPOINTS[ebitda] || 0) }),
         ...(salary && { salary: String(SALARY_MIDPOINTS[salary] || 0) }),
@@ -499,12 +511,25 @@ export default function ExitBrief() {
                   </select>
                 </div>
 
+                {/* FEATURE-2: Restyle button with navy background and improved contrast */}
                 <button
                   type="submit"
                   className="btn-primary"
-                  style={{ width: "100%" }}
+                  style={{
+                    width: "100%",
+                    background: "#1B3A5C",
+                    color: "#FFFFFF",
+                    borderRadius: "6px",
+                    padding: "14px 32px",
+                    font: "600 16px Inter, sans-serif",
+                    border: "none",
+                    cursor: "pointer",
+                    transition: "background 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#0f2438")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#1B3A5C")}
                 >
-                  Get a quick read
+                  Quick valuation
                 </button>
               </form>
 
@@ -587,50 +612,50 @@ export default function ExitBrief() {
         {screen === "result" && briefResult && (
           <section className="g-section">
             <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%", padding: "0 32px" }}>
-              {/* Sticky tab bar */}
+              {/* FEATURE-4: Folder-style tab bar */}
               <div
                 style={{
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 50,
-                  background: "white",
-                  borderBottom: "1px solid rgba(27, 58, 92, 0.08)",
-                  paddingTop: 20,
-                  paddingBottom: 20,
-                  marginBottom: 48,
+                  background: "#F8F4ED",
+                  padding: "48px 0 0 0",
+                  marginBottom: 0,
+                  display: "flex",
+                  gap: "8px",
                 }}
               >
-                <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
-                  {(["market", "drivers", "valuation"] as TabId[]).map(tab => (
+                {(["market", "drivers", "valuation"] as TabId[]).map(tab => {
+                  const isActive = activeTab === tab;
+                  return (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
                       style={{
-                        background: "none",
-                        border: "none",
+                        padding: "16px 32px",
+                        borderTopLeftRadius: "6px",
+                        borderTopRightRadius: "6px",
+                        borderBottomLeftRadius: "0",
+                        borderBottomRightRadius: "0",
                         fontFamily: "var(--font-sans)",
-                        fontSize: 14,
+                        fontSize: "14px",
                         fontWeight: 600,
-                        color: activeTab === tab ? "#1B3A5C" : "#1A1A1A",
-                        cursor: "pointer",
-                        padding: 0,
-                        paddingBottom: 4,
-                        textTransform: "uppercase",
                         letterSpacing: "0.06em",
-                        borderBottom: activeTab === tab ? "2px solid #1B3A5C" : "none",
-                        transition: "color 150ms",
-                        opacity: activeTab === tab ? 1 : 0.6,
+                        textTransform: "uppercase",
+                        cursor: "pointer",
+                        border: isActive ? "none" : "1px solid rgba(27, 58, 92, 0.12)",
+                        borderTop: isActive ? "none" : "1px solid rgba(27, 58, 92, 0.12)",
+                        borderLeft: isActive ? "none" : "1px solid rgba(27, 58, 92, 0.12)",
+                        borderRight: isActive ? "none" : "1px solid rgba(27, 58, 92, 0.12)",
+                        background: isActive ? "#1B3A5C" : "white",
+                        color: isActive ? "white" : "#1B3A5C",
+                        transition: "all 150ms ease",
                       }}
                       onMouseEnter={e => {
-                        if (activeTab !== tab) {
-                          (e.currentTarget as HTMLButtonElement).style.color = "#1B3A5C";
-                          (e.currentTarget as HTMLButtonElement).style.opacity = "0.8";
+                        if (!isActive) {
+                          (e.currentTarget as HTMLButtonElement).style.background = "#f0f0f0";
                         }
                       }}
                       onMouseLeave={e => {
-                        if (activeTab !== tab) {
-                          (e.currentTarget as HTMLButtonElement).style.color = "#1A1A1A";
-                          (e.currentTarget as HTMLButtonElement).style.opacity = "0.6";
+                        if (!isActive) {
+                          (e.currentTarget as HTMLButtonElement).style.background = "white";
                         }
                       }}
                     >
@@ -638,21 +663,31 @@ export default function ExitBrief() {
                       {tab === "drivers" && "Value Drivers"}
                       {tab === "valuation" && "Valuation and Buyers"}
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
+              
+              {/* Tab content area with border */}
+              <div
+                style={{
+                  borderTop: "1px solid rgba(27, 58, 92, 0.12)",
+                  paddingTop: "32px",
+                  marginBottom: 48,
+                }}
+              >
 
-              {/* Tab content - only show active tab */}
-              {activeTab === "market" && <ResultPageRenderer content={briefResult.market} />}
-              {activeTab === "drivers" && (
-                <>
-                  <ResultPageRenderer content={briefResult.drivers} />
-                  <div style={{ marginTop: 32 }}>
-                    <HiddenRiskTeaser />
-                  </div>
-                </>
-              )}
-              {activeTab === "valuation" && <ResultPageRenderer content={briefResult.valuation} />}
+                {/* Tab content - only show active tab */}
+                {activeTab === "market" && <ResultPageRenderer content={briefResult.market} />}
+                {activeTab === "drivers" && (
+                  <>
+                    <ResultPageRenderer content={briefResult.drivers} />
+                    <div style={{ marginTop: 32 }}>
+                      <HiddenRiskTeaser />
+                    </div>
+                  </>
+                )}
+                {activeTab === "valuation" && <ResultPageRenderer content={briefResult.valuation} />}
+              </div>
 
               {/* Persistent footer: PDF button + Next step block */}
               <div style={{ marginTop: 80, paddingBottom: 80 }}>
