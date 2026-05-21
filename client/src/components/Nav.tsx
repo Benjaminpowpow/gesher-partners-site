@@ -36,6 +36,7 @@ export default function Nav() {
         {/* Wordmark */}
         <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 12 }}>
           <img src="/manus-storage/e56b5bc97_logo_96a7475d.png" alt="Gesher Logo" style={{ width: 28, height: 28 }} />
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: 18, fontWeight: 600, color: "var(--color-primary)", letterSpacing: "-0.5px" }}>gesher</span>
         </Link>
 
         {/* Desktop nav */}

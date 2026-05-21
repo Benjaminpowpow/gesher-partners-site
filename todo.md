@@ -196,3 +196,13 @@
 - [x] Update Benjamin Aronson's role to "VICE PRESIDENT"
 - [x] Remove whitish rectangle housing Market Snapshot/Value Drivers tabs
 - [x] Update meta description for SEO - sell-side advisory for small businesses in Israel
+
+
+## Round 8: Final Polish - Button Corners, Logo Text, Social Sharing
+- [x] Fix "Generate Another Brief" button - add soft rounded corners (border-radius: 6px already applied via .btn-ghost class)
+- [x] Add lowercase "gesher" text next to logo in nav
+- [x] Add Open Graph meta tags for social sharing (og:image, og:description, og:title, og:url)
+- [x] Add Twitter meta tags for social sharing
+- [x] Update og:image and twitter:image to use absolute URLs for social crawlers
+- [x] All 18 tests passing
+- [x] Save checkpoint (version: pending)
