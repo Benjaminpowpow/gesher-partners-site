@@ -1,39 +1,30 @@
 // Real KPMG Logo Component
 function KPMGLogo() {
   return (
-    <svg viewBox="0 0 200 100" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-      {/* KPMG Red Square */}
-      <rect x="10" y="10" width="40" height="40" fill="#C8102E" rx="2" />
-      {/* KPMG White K */}
-      <text x="30" y="42" fontSize="32" fontWeight="bold" fill="white" textAnchor="middle" fontFamily="Arial, sans-serif">
-        K
-      </text>
-      {/* KPMG Text */}
-      <text x="65" y="35" fontSize="18" fontWeight="600" fill="#1A1A1A" fontFamily="Arial, sans-serif">
-        KPMG
-      </text>
-    </svg>
+    <img
+      src="/manus-storage/pasted_file_8navXy_image_1e3dab6a.png"
+      alt="KPMG Logo"
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+      }}
+    />
   );
 }
 
 // Real JFrog Logo Component
 function JFrogLogo() {
   return (
-    <svg viewBox="0 0 200 100" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-      {/* JFrog Icon - stylized J */}
-      <g>
-        {/* Left vertical bar */}
-        <rect x="15" y="15" width="8" height="50" fill="#1E90FF" rx="2" />
-        {/* Top horizontal bar */}
-        <rect x="15" y="15" width="25" height="8" fill="#1E90FF" rx="2" />
-        {/* Bottom curve */}
-        <circle cx="40" cy="63" r="8" fill="#1E90FF" />
-      </g>
-      {/* JFrog Text */}
-      <text x="65" y="45" fontSize="18" fontWeight="600" fill="#1A1A1A" fontFamily="Arial, sans-serif">
-        JFrog
-      </text>
-    </svg>
+    <img
+      src="/manus-storage/pasted_file_SfoJwA_image_04e8e579.png"
+      alt="JFrog Logo"
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+      }}
+    />
   );
 }
 
