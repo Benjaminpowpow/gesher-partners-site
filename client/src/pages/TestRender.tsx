@@ -68,7 +68,7 @@ export default function TestRender() {
       </div>
 
       {/* Content Renderer */}
-      <div>
+      <div style={{ background: "transparent" }}>
         {activeTab === "market" && <ResultPageRenderer content={marketContent} />}
         {activeTab === "drivers" && <ResultPageRenderer content={driversContent} />}
         {activeTab === "valuation" && <ResultPageRenderer content={valuationContent} />}

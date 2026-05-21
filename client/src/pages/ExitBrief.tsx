@@ -667,12 +667,13 @@ export default function ExitBrief() {
                 })}
               </div>
               
-              {/* Tab content area with border */}
+              {/* Tab content area */}
               <div
                 style={{
                   borderTop: "1px solid rgba(27, 58, 92, 0.12)",
                   paddingTop: "32px",
                   marginBottom: 48,
+                  background: "transparent",
                 }}
               >
 

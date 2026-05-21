@@ -35,19 +35,7 @@ export default function Nav() {
       <div className="g-container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
         {/* Wordmark */}
         <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 12 }}>
-          <BridgeIcon width={28} height={28} />
-          <span
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontWeight: 400,
-              fontSize: 20,
-              color: "var(--color-primary)",
-              letterSpacing: "0.02em",
-              lineHeight: 1,
-            }}
-          >
-            gesher
-          </span>
+          <img src="/manus-storage/e56b5bc97_logo_96a7475d.png" alt="Gesher Logo" style={{ width: 28, height: 28 }} />
         </Link>
 
         {/* Desktop nav */}

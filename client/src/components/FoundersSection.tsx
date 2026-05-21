@@ -75,7 +75,7 @@ export default function FoundersSection() {
                   lineHeight: 1.65,
                 }}
               >
-                40 years advising Israeli business owners as a CPA. Built and sold OB&H in [YEAR]. Thousands of clients across industrial, distribution, and services verticals. He has seen every deal structure that works in the Israeli market and several that do not.
+                40 years advising Israeli business owners as a CPA. Built and sold OB&H in 2022. Thousands of clients across industrial, distribution, and services verticals. He has seen every deal structure that works in the Israeli market and several that do not.
               </p>
             </div>
 
@@ -91,7 +91,7 @@ export default function FoundersSection() {
                 }}
               />
               <p className="small-caps" style={{ marginBottom: 8, color: "var(--color-secondary)" }}>
-                Managing Partner
+                Vice President
               </p>
               <h3
                 style={{
