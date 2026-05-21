@@ -169,23 +169,25 @@
     color: var(--color-white);
   }
 
-  /* Solid button: navy fill */
+  /* Solid button: lighter blue with rounded corners */
   .btn-solid {
-    background: var(--color-primary);
-    border: 1px solid var(--color-primary);
+    background: rgb(27, 58, 92);
+    border: 1px solid rgb(27, 58, 92);
     color: var(--color-white);
     padding: 14px 32px;
+    border-radius: 6px;
   }
   .btn-solid:hover {
     opacity: 0.9;
   }
 
-  /* Primary button: navy fill (unified style) */
+  /* Primary button: lighter blue with rounded corners (unified style) */
   .g-btn-primary {
-    background: var(--color-primary);
-    border: 1px solid var(--color-primary);
+    background: rgb(27, 58, 92);
+    border: 1px solid rgb(27, 58, 92);
     color: var(--color-white);
     padding: 14px 32px;
+    border-radius: 6px;
     font-family: var(--font-sans);
     font-size: 13px;
     font-weight: 500;
@@ -197,6 +199,25 @@
     text-decoration: none;
   }
   .g-btn-primary:hover {
+    opacity: 0.9;
+  }
+
+  /* Primary button class for form submit buttons */
+  .btn-primary {
+    background: rgb(27, 58, 92);
+    border: 1px solid rgb(27, 58, 92);
+    color: var(--color-white);
+    padding: 14px 32px;
+    border-radius: 6px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 150ms var(--ease-out);
+  }
+  .btn-primary:hover {
     opacity: 0.9;
   }
 

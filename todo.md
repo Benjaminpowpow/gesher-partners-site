@@ -169,3 +169,12 @@
 - [x] Test responsive widths (375px, 768px, 1280px)
 - [x] Verify no em-dashes, no "AI" word, no banned words
 - [x] Save checkpoint (version: 5e50555a)
+
+
+## Round 5: Final Polish & Bug Fixes
+- [x] BUG-1 Fix: Update Rule A to strip both ## and ### Internal: headers
+- [x] Replace placeholder KPMG and JFrog logos with real images from S3
+- [x] Unify homepage button styling: add .g-btn-primary CSS class
+- [x] Remove cream box wrapper from test render page
+- [x] All 18 tests passing
+- [x] Save checkpoint (version: 4cf44838)

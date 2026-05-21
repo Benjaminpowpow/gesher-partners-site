@@ -2,7 +2,7 @@
 function KPMGLogo() {
   return (
     <img
-      src="/manus-storage/pasted_file_8navXy_image_1e3dab6a.png"
+      src="/manus-storage/cGj33NPOnF0D_d0b584f4.jpeg"
       alt="KPMG Logo"
       style={{
         width: "100%",
@@ -17,7 +17,7 @@ function KPMGLogo() {
 function JFrogLogo() {
   return (
     <img
-      src="/manus-storage/pasted_file_SfoJwA_image_04e8e579.png"
+      src="/manus-storage/ZEEpgUsPcX1h_2909ce33.png"
       alt="JFrog Logo"
       style={{
         width: "100%",
