@@ -63,11 +63,11 @@ export default function HeroSection() {
         </p>
 
         {/* FEATURE-3: Replace CTA copy with "Quick valuation" */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "center", justifyContent: "flex-start" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 40, alignItems: "flex-start", justifyContent: "flex-start" }}>
           <button onClick={scrollToContact} className="btn-solid">
             Talk to us.
           </button>
-          <div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
             <Link href="/exit-brief" className="btn-ghost">
               Quick valuation
             </Link>
@@ -76,6 +76,7 @@ export default function HeroSection() {
               font: "400 14px Inter, sans-serif",
               color: "#6B6B6B",
               marginTop: "8px",
+              marginBottom: 0,
             }}>
               Quick, accurate, free.
             </p>

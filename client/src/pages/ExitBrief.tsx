@@ -132,13 +132,13 @@ export default function ExitBrief() {
     setUrlError("");
     setStreamError("");
     
-    // FEATURE-1: Normalize URL at the start
-    const normalizedUrl = normalizeUrl(url);
-
     if (!url.trim()) {
       setUrlError("Please enter a website URL");
       return;
     }
+    
+    // FEATURE-1: Normalize URL at the start
+    const normalizedUrl = normalizeUrl(url);
     
     if (!validateUrl(normalizedUrl)) {
       setUrlError("Please enter a valid URL (e.g., https://example.com)");
