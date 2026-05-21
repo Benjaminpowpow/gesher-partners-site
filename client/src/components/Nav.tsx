@@ -34,9 +34,8 @@ export default function Nav() {
     >
       <div className="g-container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
         {/* Wordmark */}
-        <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 12 }}>
-          <img src="/manus-storage/e56b5bc97_logo_96a7475d.png" alt="Gesher Logo" style={{ width: 28, height: 28 }} />
-          <span style={{ fontFamily: "var(--font-sans)", fontSize: 18, fontWeight: 600, color: "var(--color-primary)", letterSpacing: "-0.5px" }}>gesher</span>
+        <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
+          <span style={{ fontFamily: "var(--font-serif)", fontSize: 20, fontWeight: 400, color: "var(--color-primary)", letterSpacing: "-0.3px" }}>gesher</span>
         </Link>
 
         {/* Desktop nav */}
