@@ -126,7 +126,7 @@ export default function Footer() {
             </p>
             <nav style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <Link
-                href="/exit-brief"
+                href="/valuation"
                 style={{
                   fontFamily: "var(--font-sans)",
                   fontSize: 15,
@@ -136,7 +136,7 @@ export default function Footer() {
                 onMouseEnter={e => ((e.target as HTMLElement).style.color = "var(--color-primary)")}
                 onMouseLeave={e => ((e.target as HTMLElement).style.color = "var(--color-secondary)")}
               >
-                Exit Brief
+                Valuation Snapshot
               </Link>
               <Link
                 href="/privacy"

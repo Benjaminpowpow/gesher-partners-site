@@ -34,10 +34,10 @@ export default function Terms() {
                 }}
               >
                 <p>
-                  These terms of service will be published before the Gesher website launches publicly. They will govern your use of this site, including the Exit Brief tool and any advisory services offered by Gesher.
+                  These terms of service will be published before the Gesher website launches publicly. They will govern your use of this site, including the Valuation Snapshot tool and any advisory services offered by Gesher.
                 </p>
                 <p style={{ marginTop: 20 }}>
-                  The Exit Brief tool is provided for informational purposes only. It is not an offer, a valuation opinion, or financial advice. It is built from public sources and is strictly private.
+                  The Valuation Snapshot tool is provided for informational purposes only. It is not an offer, a valuation opinion, or financial advice. It is built from public sources and is strictly private.
                 </p>
                 <p style={{ marginTop: 20 }}>
                   If you have questions, contact us at{" "}

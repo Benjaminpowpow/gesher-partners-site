@@ -46,9 +46,9 @@ export default function NotFound() {
                   marginBottom: 40,
                 }}
               >
-                If you were looking for the Exit Brief tool, it is at{" "}
-                <Link href="/exit-brief" style={{ color: "var(--color-primary)", fontWeight: 500 }}>
-                  /exit-brief
+                If you were looking for the Valuation Snapshot tool, it is at{" "}
+                <Link href="/valuation" style={{ color: "var(--color-primary)", fontWeight: 500 }}>
+                  /valuation
                 </Link>
                 . If you were looking for something else, start from the home page.
               </p>

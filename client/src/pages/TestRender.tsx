@@ -1,39 +1,33 @@
 import { useState } from "react";
 import ResultPageRenderer from "@/components/ResultPageRenderer";
-import maromBrief from "../__tests__/fixtures/marom-brief.md?raw";
+import sampleBrief from "../__tests__/fixtures/valuation-snapshot-sample.md?raw";
 
 export default function TestRender() {
-  const [activeTab, setActiveTab] = useState<"market" | "drivers" | "valuation">("market");
+  const [activeTab, setActiveTab] = useState<"market" | "value" | "valuation">("market");
 
-  // Parse the markdown into tabs
+  // v7 seller-only headers: ## Market / ## Value / ## Range and call
   const parseTabContent = (markdown: string, section: string): string => {
-    let content = markdown;
-
-    // Extract the specific step section
     if (section === "market") {
-      const match = content.match(/## Step 1\.[\s\S]*?(?=## Step 2|$)/);
-      content = match ? match[0] : "";
-    } else if (section === "drivers") {
-      const match = content.match(/## Step 2\.[\s\S]*?(?=## Step 3|$)/);
-      content = match ? match[0] : "";
-    } else if (section === "valuation") {
-      const match = content.match(/## Step 3\.[\s\S]*?$/);
-      content = match ? match[0] : "";
+      const m = markdown.match(/## Market[\s\S]*?(?=## Value|$)/);
+      return m ? m[0] : "";
+    } else if (section === "value") {
+      const m = markdown.match(/## Value[\s\S]*?(?=## Range and call|$)/);
+      return m ? m[0] : "";
+    } else {
+      const m = markdown.match(/## Range and call[\s\S]*/);
+      return m ? m[0] : "";
     }
-
-    return content;
   };
 
-  const marketContent = parseTabContent(maromBrief, "market");
-  const driversContent = parseTabContent(maromBrief, "drivers");
-  const valuationContent = parseTabContent(maromBrief, "valuation");
+  const marketContent = parseTabContent(sampleBrief, "market");
+  const valueContent = parseTabContent(sampleBrief, "value");
+  const valuationContent = parseTabContent(sampleBrief, "valuation");
 
   return (
     <div style={{ padding: "40px", maxWidth: "1200px", margin: "0 auto" }}>
-      <h1>BUG-1 Verification: Marom Brief Rendering</h1>
+      <h1>v7 render check: Valuation Snapshot</h1>
       <p style={{ color: "#666", marginBottom: "30px" }}>
-        This page renders the Marom fixture markdown through the updated preprocessing pipeline.
-        All trace labels, confidence brackets, and internal sections should be stripped.
+        Renders the seller-only sample through the v7 pipeline. Three cards, no trace, no flags, no tables.
       </p>
 
       {/* Tab Navigation */}
@@ -45,10 +39,10 @@ export default function TestRender() {
           borderBottom: "2px solid #e0e0e0",
         }}
       >
-        {["market", "drivers", "valuation"].map((tab) => (
+        {(["market", "value", "valuation"] as const).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab as any)}
+            onClick={() => setActiveTab(tab)}
             style={{
               padding: "12px 20px",
               background: activeTab === tab ? "#1B3A5C" : "transparent",
@@ -60,9 +54,9 @@ export default function TestRender() {
               borderRadius: "4px 4px 0 0",
             }}
           >
-            {tab === "market" && "MARKET SNAPSHOT"}
-            {tab === "drivers" && "VALUE DRIVERS"}
-            {tab === "valuation" && "VALUATION AND BUYERS"}
+            {tab === "market" && "MARKET"}
+            {tab === "value" && "VALUE"}
+            {tab === "valuation" && "VALUATION"}
           </button>
         ))}
       </div>
@@ -70,31 +64,18 @@ export default function TestRender() {
       {/* Content Renderer */}
       <div style={{ background: "transparent" }}>
         {activeTab === "market" && <ResultPageRenderer content={marketContent} />}
-        {activeTab === "drivers" && <ResultPageRenderer content={driversContent} />}
+        {activeTab === "value" && <ResultPageRenderer content={valueContent} />}
         {activeTab === "valuation" && <ResultPageRenderer content={valuationContent} />}
       </div>
 
       {/* Verification Checklist */}
       <div style={{ marginTop: "40px", padding: "20px", background: "#f0f0f0", borderRadius: "8px" }}>
-        <h3>Verification Checklist</h3>
+        <h3>Check</h3>
         <ul style={{ lineHeight: "1.8" }}>
-          <li>✓ Zero "## Internal:" sections visible</li>
-          <li>✓ Zero `[high]`, `[medium]`, `[low]`, `[confidence:...]` brackets</li>
-          <li>✓ Zero "## Sources used" section</li>
-          <li>✓ Zero "Classification:" block</li>
-          <li>✓ Zero "Sources confirming overview:" block</li>
-          <li>✓ Zero "Positive:" / "Negative:" summary lines (after driver cards)</li>
-          <li>✓ Zero "Comp table (for audit...):" block</li>
-          <li>✓ Zero "Sentiment overlay:" block</li>
-          <li>✓ Zero "Israeli adjustment applied:" block</li>
-          <li>✓ Zero "Foreign-principal exemption check:" block</li>
-          <li>✓ Zero "Range width:" block</li>
-          <li>✓ Zero "All 5 buyer lanes walked:" block</li>
-          <li>✓ Zero "Cross-check vs acquirer-map-compact:" block</li>
-          <li>✓ Zero "Yad2/ranin check:" block</li>
-          <li>✓ "### Positive Impact" and "### Negative Impact" H3 headings ARE visible</li>
-          <li>✓ "What this means for you" rendered as callout box</li>
-          <li>✓ No copy/download buttons visible</li>
+          <li>Three cards: Market, Value, Range and call</li>
+          <li>Each card under 100 words</li>
+          <li>No confidence flags, no tables, no buyer names, no trace</li>
+          <li>No copy or download buttons</li>
         </ul>
       </div>
     </div>

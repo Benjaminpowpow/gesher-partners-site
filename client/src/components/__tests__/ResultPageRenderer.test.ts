@@ -1,111 +1,66 @@
 import { describe, it, expect } from "vitest";
+import { lightScrub } from "../ResultPageRenderer";
 
 /**
- * Tests for ResultPageRenderer scrub rules (Rules A-D)
- * Verifies that Internal blocks, confidence flags, and Sources are stripped
+ * Tests for the v7 seller-only renderer backstop (lightScrub).
+ *
+ * v7 outputs clean three-card markdown (## Market / ## Value / ## Range and call)
+ * with no trace, no sources, no confidence flags. So lightScrub only needs to
+ * catch a stray internal block, sources list, or confidence flag if the model
+ * ever slips. The heavy v6 scrubber is gone.
  */
+describe("lightScrub (v7 seller-only backstop)", () => {
+  it("passes clean three-card markdown through untouched", () => {
+    const clean = `## Market
 
-describe("ResultPageRenderer Scrub Rules", () => {
-  it("Rule A: Strips ## Internal: blocks", () => {
-    const content = `# Market Analysis
-## Internal: This is confidential
-Some market content
-## Step 1
-Market snapshot`;
+You: an Israeli importer of widgets.
 
-    // Simulate the scrub logic
-    const lines = content.split("\n");
-    let inInternalBlock = false;
-    const filtered = lines.filter(line => {
-      if (line.match(/^## Internal:/)) {
-        inInternalBlock = true;
-        return false;
-      }
-      if (inInternalBlock && line.match(/^## /)) {
-        inInternalBlock = false;
-      }
-      if (inInternalBlock) return false;
-      return true;
-    });
+## Value
 
-    const result = filtered.join("\n");
-    expect(result).not.toContain("## Internal:");
-    expect(result).not.toContain("This is confidential");
-    expect(result).toContain("## Step 1");
+Your customer book is deep.
+
+## Range and call
+
+# ₪5M to ₪8M
+
+Book 30 minutes with Ofir Ben Haim.`;
+    const result = lightScrub(clean);
+    expect(result).toContain("## Market");
+    expect(result).toContain("## Value");
+    expect(result).toContain("## Range and call");
+    expect(result).toContain("Book 30 minutes with Ofir Ben Haim.");
   });
 
-  it("Rule B: Strips confidence flags [high], [medium], [low]", () => {
-    const content = `This is a positive driver [high confidence].
-Another driver [medium].
-Risk factor [low].`;
-
-    // Simulate confidence flag stripping
-    const stripped = content
-      .replace(/\[high\s*confidence?\]/gi, "")
-      .replace(/\[medium\]/gi, "")
-      .replace(/\[low\]/gi, "")
-      .replace(/\[confidence:\s*[^\]]+\]/gi, "");
-
-    expect(stripped).not.toContain("[high");
-    expect(stripped).not.toContain("[medium");
-    expect(stripped).not.toContain("[low");
-    expect(stripped).toContain("This is a positive driver");
+  it("strips a stray ## Internal block", () => {
+    const content = `## Market
+Market content
+## Internal: do not share
+secret reasoning
+## Value
+Value content`;
+    const result = lightScrub(content);
+    expect(result).not.toContain("Internal:");
+    expect(result).not.toContain("secret reasoning");
+    expect(result).toContain("## Value");
   });
 
-  it("Rule C: Strips ## Sources used block", () => {
-    const content = `# Brief
-
-## Step 1
-Content here
-
-## Sources used
-- Source 1
-- Source 2
-
-## Step 2
-More content`;
-
-    // Simulate Sources stripping
-    const lines = content.split("\n");
-    let inSourcesBlock = false;
-    const filtered = lines.filter(line => {
-      if (line.match(/^## Sources used/)) {
-        inSourcesBlock = true;
-        return false;
-      }
-      if (inSourcesBlock && line.match(/^## /)) {
-        inSourcesBlock = false;
-      }
-      if (inSourcesBlock) return false;
-      return true;
-    });
-
-    const result = filtered.join("\n");
-    expect(result).not.toContain("## Sources used");
-    expect(result).not.toContain("Source 1");
-    expect(result).toContain("## Step 1");
-    expect(result).toContain("## Step 2");
+  it("strips a stray ## Sources block", () => {
+    const content = `## Range and call
+The range is solid.
+## Sources
+- https://example.com`;
+    const result = lightScrub(content);
+    expect(result).not.toContain("## Sources");
+    expect(result).not.toContain("example.com");
+    expect(result).toContain("The range is solid.");
   });
 
-  it("Rule D: HiddenRiskTeaser renders without placeholder content", () => {
-    // This test verifies the teaser component exists and is not showing placeholder text
-    const teaserContent = "Hidden risks revealed in full 15-page brief";
-    expect(teaserContent).not.toContain("[placeholder");
-    expect(teaserContent).not.toContain("TBD");
-  });
-
-  it("Strips all em-dashes and en-dashes", () => {
-    const content = `Value range: ₪5M – ₪10M. This is a test — with dashes.`;
-    const stripped = content.replace(/[–—]/g, "-");
-    expect(stripped).not.toContain("–");
-    expect(stripped).not.toContain("—");
-    expect(stripped).toContain("₪5M - ₪10M");
-  });
-
-  it("Does not contain word 'AI' anywhere", () => {
-    const content = `This brief was generated using advanced analysis.
-No artificial intelligence here. Just data and research.`;
-    expect(content.toLowerCase()).not.toContain(" ai ");
-    expect(content.toLowerCase()).not.toContain("ai.");
+  it("strips stray confidence flags", () => {
+    const content = `Your margin is strong [high]. Revenue is steady [medium]. Risk noted [confidence: low].`;
+    const result = lightScrub(content);
+    expect(result).not.toContain("[high]");
+    expect(result).not.toContain("[medium]");
+    expect(result).not.toContain("[confidence");
+    expect(result).toContain("Your margin is strong");
   });
 });

@@ -64,7 +64,7 @@ export default function Nav() {
           >
             Contact
           </button>
-          <Link href="/exit-brief" className="g-btn-primary" style={{ padding: "10px 22px", fontSize: 14 }}>
+          <Link href="/valuation" className="g-btn-primary" style={{ padding: "10px 22px", fontSize: 14 }}>
             Quick valuation
           </Link>
         </nav>
@@ -98,7 +98,7 @@ export default function Nav() {
               {item.label}
             </button>
           ))}
-          <Link href="/exit-brief" className="g-btn-primary" style={{ marginTop: 16, width: "100%", textAlign: "center" }} onClick={() => setMenuOpen(false)}>
+          <Link href="/valuation" className="g-btn-primary" style={{ marginTop: 16, width: "100%", textAlign: "center" }} onClick={() => setMenuOpen(false)}>
             Quick valuation
           </Link>
         </div>

@@ -51,15 +51,10 @@ const SALARY_MIDPOINTS: Record<string, number | undefined> = {
 };
 
 function parseTabContent(fullMarkdown: string): { market: string; drivers: string; valuation: string } {
-  const marketMatch = fullMarkdown.match(/## Step 1[\s\S]*?(?=## Step 2|$)/);
-  const driversMatch = fullMarkdown.match(/## Step 2[\s\S]*?(?=## Step 3|$)/);
-  const valuationMatch = fullMarkdown.match(/## Step 3[\s\S]*/);
-
-  // Debug logging
-  console.log("[parseTabContent] fullMarkdown length:", fullMarkdown.length);
-  console.log("[parseTabContent] marketMatch:", marketMatch ? "found" : "not found");
-  console.log("[parseTabContent] driversMatch:", driversMatch ? "found" : "not found");
-  console.log("[parseTabContent] valuationMatch:", valuationMatch ? "found" : "not found");
+  // v7 seller-only headers: ## Market / ## Value / ## Range and call
+  const marketMatch = fullMarkdown.match(/## Market[\s\S]*?(?=## Value|$)/);
+  const driversMatch = fullMarkdown.match(/## Value[\s\S]*?(?=## Range and call|$)/);
+  const valuationMatch = fullMarkdown.match(/## Range and call[\s\S]*/);
 
   return {
     market: marketMatch ? marketMatch[0].trim() : fullMarkdown,
@@ -153,7 +148,7 @@ export default function ExitBrief() {
         url: normalizedUrl,
         ...(revenue && { revenue: String(REVENUE_MIDPOINTS[revenue] || 0) }),
         ...(ebitda && { ebitda: String(EBITDA_MIDPOINTS[ebitda] || 0) }),
-        ...(salary && { salary: String(SALARY_MIDPOINTS[salary] || 0) }),
+        ...(salary && { sde: String(SALARY_MIDPOINTS[salary] || 0) }),
       };
 
       const response = await fetch(`/api/exit-brief`, {
@@ -659,9 +654,9 @@ export default function ExitBrief() {
                         }
                       }}
                     >
-                      {tab === "market" && "Market Snapshot"}
-                      {tab === "drivers" && "Value Drivers"}
-                      {tab === "valuation" && "Valuation and Buyers"}
+                      {tab === "market" && "Market"}
+                      {tab === "drivers" && "Value"}
+                      {tab === "valuation" && "Valuation"}
                     </button>
                   );
                 })}

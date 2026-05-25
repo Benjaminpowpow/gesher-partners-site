@@ -1,0 +1,6 @@
+# Only the home page and /valuation are public landing pages.
+# The old/internal tool routes are kept reachable but not indexed.
+User-agent: *
+Disallow: /exit-brief
+Disallow: /test-render
+Allow: /

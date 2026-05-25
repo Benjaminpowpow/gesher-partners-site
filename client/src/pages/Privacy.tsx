@@ -34,7 +34,7 @@ export default function Privacy() {
                 }}
               >
                 <p>
-                  This privacy policy will be published before the Gesher website launches publicly. It will cover how we collect, use, and protect information submitted through this site, including the Exit Brief tool and contact form.
+                  This privacy policy will be published before the Gesher website launches publicly. It will cover how we collect, use, and protect information submitted through this site, including the Valuation Snapshot tool and contact form.
                 </p>
                 <p style={{ marginTop: 20 }}>
                   In the meantime, if you have questions about how your information is handled, please contact us at{" "}

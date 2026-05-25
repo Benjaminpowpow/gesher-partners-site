@@ -1,11 +1,13 @@
 import type { Express, Request, Response } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
+import { createHash } from "node:crypto";
 import { EXIT_BRIEF_SYSTEM_PROMPT } from "../lib/exitBriefSkill";
+import { insertValuationLead, markValuationLeadPdfRequested } from "../db";
 import { nanoid } from "nanoid";
 
 // ─── In-memory stores ───────────────────────────────────────────────────────
-// briefId -> full markdown (including thinking traces)
+// briefId -> the seller brief markdown (v7 is seller-only, no trace)
 const briefStore = new Map<string, string>();
 
 // IP -> last request timestamp (ms)
@@ -26,6 +28,20 @@ function getClientIp(req: Request): string {
   const forwarded = req.headers["x-forwarded-for"];
   if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
   return req.socket.remoteAddress ?? "unknown";
+}
+
+// Store the IP hashed, abuse only. We never keep the raw IP. Matches the firm's
+// "we never share your numbers" promise.
+function hashIp(ip: string): string {
+  return createHash("sha256").update(ip).digest("hex").slice(0, 64);
+}
+
+function domainFromUrl(url: string): string | undefined {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return undefined;
+  }
 }
 
 function stripThinkingTraces(markdown: string): string {
@@ -52,6 +68,47 @@ function stripThinkingTraces(markdown: string): string {
     .trim();
 }
 
+// v7 page-mode meta block. The model returns a fenced ```json block first, then the
+// three cards. Pull the meta fields out, and treat everything after the block as the
+// seller-facing markdown. The seller (page, email, PDF) never sees the JSON.
+interface BriefMeta {
+  company_name?: string;
+  company_oneliner?: string;
+  range_variant?: string; // "number" | "by_hand"
+  range_text?: string;
+  buyer_types?: string;
+  vertical_matched?: string; // internal calibration, never shown
+  path_used?: string; // internal calibration, never shown
+}
+
+function parseMetaAndBody(fullMarkdown: string): { meta: BriefMeta; resultMd: string } {
+  // Primary: a fenced ```json ... ``` block (what the bundle asks for).
+  const fenced = fullMarkdown.match(/```json\s*([\s\S]*?)```/i);
+  if (fenced) {
+    let meta: BriefMeta = {};
+    try {
+      meta = JSON.parse(fenced[1].trim());
+    } catch {
+      meta = {};
+    }
+    const resultMd = fullMarkdown.slice((fenced.index ?? 0) + fenced[0].length).trim();
+    return { meta, resultMd };
+  }
+  // Fallback: a bare leading { ... } object before the first heading.
+  const bare = fullMarkdown.match(/^\s*(\{[\s\S]*?\})\s*(?=\n#|\n##|$)/);
+  if (bare) {
+    try {
+      const meta = JSON.parse(bare[1]) as BriefMeta;
+      const resultMd = fullMarkdown.slice((bare.index ?? 0) + bare[0].length).trim();
+      return { meta, resultMd };
+    } catch {
+      // not JSON, fall through
+    }
+  }
+  // No meta found. Hand back the markdown untouched so the page can still render cards.
+  return { meta: {}, resultMd: fullMarkdown.trim() };
+}
+
 // ─── Route: POST /api/exit-brief ────────────────────────────────────────────
 async function handleExitBrief(req: Request, res: Response) {
   const ip = getClientIp(req);
@@ -66,12 +123,18 @@ async function handleExitBrief(req: Request, res: Response) {
     return;
   }
 
-  const { url, revenue, ebitda, sde } = req.body as {
+  const body = req.body as {
     url?: string;
     revenue?: string;
+    pretax_profit?: string;
+    owner_salary?: string;
+    // Tolerate the old field names during the transition.
     ebitda?: string;
     sde?: string;
   };
+  const { url, revenue } = body;
+  const pretaxProfit = body.pretax_profit ?? body.ebitda;
+  const ownerSalary = body.owner_salary ?? body.sde;
 
   if (!url) {
     res.status(400).json({ error: "A company website URL is required." });
@@ -99,30 +162,43 @@ async function handleExitBrief(req: Request, res: Response) {
 
   // Build user message
   let userMessage = `URL: ${url}`;
-  if (revenue || ebitda || sde) {
+  if (revenue || pretaxProfit || ownerSalary) {
     const parts: string[] = [];
     if (revenue) parts.push(`revenue NIS ${revenue}`);
-    if (ebitda) parts.push(`pre-tax profit NIS ${ebitda}`);
-    if (sde) parts.push(`owner salary NIS ${sde}`);
+    if (pretaxProfit) parts.push(`pre-tax profit NIS ${pretaxProfit}`);
+    if (ownerSalary) parts.push(`owner salary NIS ${ownerSalary}`);
     userMessage += `\nIntake: ${parts.join(", ")}`;
   }
 
   const anthropic = new Anthropic({ apiKey });
   const briefId = nanoid(12);
   let fullMarkdown = "";
+  const startedAt = Date.now();
+  // Token usage, read off the stream for the leads row (cost per valuation).
+  const usage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
 
   try {
     const stream = await anthropic.messages.create({
       model: "claude-opus-4-5",
-      max_tokens: 16000,
-      system: EXIT_BRIEF_SYSTEM_PROMPT,
+      // v7: three short cards, far fewer output tokens than v6's brief + trace.
+      max_tokens: 6000,
+      // v7: cache the ~7k-token bundle so it is billed once, not re-sent every run.
+      // The seller URL + intake stay the dynamic part in the user message.
+      system: [
+        {
+          type: "text",
+          text: EXIT_BRIEF_SYSTEM_PROMPT,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
       messages: [{ role: "user", content: userMessage }],
       stream: true,
       tools: [
         {
+          // v7: light live look only. The deep comp + buyer hunt moved to the cache.
           type: "web_search_20250305",
           name: "web_search",
-          max_uses: 20,
+          max_uses: 6,
         } as unknown as Anthropic.Tool,
       ],
     });
@@ -131,7 +207,11 @@ async function handleExitBrief(req: Request, res: Response) {
     res.setHeader("Content-Type", "application/x-ndjson");
 
     for await (const event of stream) {
-      if (
+      if (event.type === "message_start") {
+        const u = event.message.usage;
+        usage.inputTokens = u.input_tokens ?? 0;
+        usage.cachedInputTokens = u.cache_read_input_tokens ?? 0;
+      } else if (
         event.type === "content_block_delta" &&
         event.delta.type === "text_delta"
       ) {
@@ -139,14 +219,43 @@ async function handleExitBrief(req: Request, res: Response) {
         fullMarkdown += chunk;
         // Send chunk to client as newline-delimited JSON
         res.write(JSON.stringify({ type: "chunk", data: chunk }) + "\n");
+      } else if (event.type === "message_delta") {
+        usage.outputTokens = event.usage.output_tokens ?? usage.outputTokens;
       }
     }
 
-    // Persist full markdown (with traces) for audit
-    briefStore.set(briefId, fullMarkdown);
+    // v7: split the meta block from the seller-facing cards. Store only the clean
+    // markdown so the email and PDF never see the JSON.
+    const { meta, resultMd } = parseMetaAndBody(fullMarkdown);
+    briefStore.set(briefId, resultMd);
 
-    // Send completion signal with briefId
-    res.write(JSON.stringify({ type: "done", briefId }) + "\n");
+    // Save the lead. Fire and forget, and never let a DB hiccup affect the seller.
+    void insertValuationLead({
+      briefId,
+      url,
+      revenue: revenue ?? null,
+      pretaxProfit: pretaxProfit ?? null,
+      ownerSalary: ownerSalary ?? null,
+      companyName: meta.company_name ?? null,
+      companyDomain: domainFromUrl(url) ?? null,
+      rangeVariant: meta.range_variant ?? null,
+      rangeText: meta.range_text ?? null,
+      buyerTypes: meta.buyer_types ?? null,
+      verticalMatched: meta.vertical_matched ?? null,
+      pathUsed: meta.path_used ?? null,
+      resultMd,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      cachedInputTokens: usage.cachedInputTokens,
+      generationMs: Date.now() - startedAt,
+      source: (req.headers["referer"] as string | undefined) ?? null,
+      ipHash: hashIp(ip),
+    });
+
+    // Send completion with the parsed meta so the page renders clean fields.
+    res.write(
+      JSON.stringify({ type: "done", briefId, meta, result_md: resultMd }) + "\n",
+    );
     res.end();
   } catch (err) {
     console.error("[exit-brief] Anthropic error:", err);
@@ -197,11 +306,11 @@ async function handleExitBriefPdf(req: Request, res: Response) {
     await resend.emails.send({
       from: "Gesher <hello@gesher-partners.com>",
       to: email,
-      subject: "Your Exit Brief from Gesher",
+      subject: "Your Valuation Snapshot from Gesher",
       html: `
         <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1B3A5C;">
-          <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 8px;">Your Exit Brief</h1>
-          <p style="font-size: 16px; color: #666; margin-bottom: 32px;">Hi ${name}, here is your Exit Brief from Gesher.</p>
+          <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 8px;">Your Valuation Snapshot</h1>
+          <p style="font-size: 16px; color: #666; margin-bottom: 32px;">Hi ${name}, here is your Valuation Snapshot from Gesher.</p>
           <div style="background: #F8F4ED; padding: 32px; border-radius: 8px; font-family: Georgia, serif; font-size: 15px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word;">${sellerMarkdown.substring(0, 8000)}</div>
           <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #ddd;">
             <p style="font-size: 15px; color: #333;">Want to go deeper? Book a 30-minute call with Ofir Ben Haim.</p>
@@ -216,16 +325,16 @@ async function handleExitBriefPdf(req: Request, res: Response) {
     await resend.emails.send({
       from: "Gesher Lead <hello@gesher-partners.com>",
       to: notifyEmail,
-      subject: `New Exit Brief lead: ${name} <${email}>`,
+      subject: `New Valuation Snapshot lead: ${name} <${email}>`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 32px 20px;">
-          <h2 style="color: #1B3A5C;">New Exit Brief PDF Request</h2>
+          <h2 style="color: #1B3A5C;">New Valuation Snapshot PDF Request</h2>
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 120px;">Name</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${name}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Email</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${email}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Brief ID</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${briefId}</td></tr>
           </table>
-          <h3 style="color: #1B3A5C;">Full Brief (including thinking traces for audit)</h3>
+          <h3 style="color: #1B3A5C;">Full brief (seller copy)</h3>
           <pre style="background: #f5f5f5; padding: 20px; border-radius: 4px; font-size: 13px; white-space: pre-wrap; overflow-wrap: break-word;">${fullMarkdown}</pre>
         </div>
       `,
@@ -301,6 +410,11 @@ async function handlePdfRequest(req: Request, res: Response) {
     phone?: string;
     briefId?: string;
   };
+  // The lead-capture modal may re-offer the numbers. Tolerate new and old names.
+  const leadRevenue = req.body?.revenue as string | undefined;
+  const leadPretaxProfit = (req.body?.pretax_profit ?? req.body?.profit) as
+    | string
+    | undefined;
 
   if (!name || !email || !briefId) {
     res.status(400).json({ message: "Name, email, and briefId are required." });
@@ -329,6 +443,16 @@ async function handlePdfRequest(req: Request, res: Response) {
   };
   leadStore.set(leadId, lead);
 
+  // Update the same lead row by briefId (non-fatal). Fills in the contact, flips
+  // pdf_requested, and folds in any numbers the modal collected.
+  void markValuationLeadPdfRequested(briefId, {
+    contactName: name,
+    contactEmail: email,
+    contactPhone: phone || null,
+    ...(leadRevenue ? { revenue: leadRevenue } : {}),
+    ...(leadPretaxProfit ? { pretaxProfit: leadPretaxProfit } : {}),
+  });
+
   const resendKey = process.env.RESEND_API_KEY;
   const notifyEmail = process.env.LEAD_NOTIFICATION_EMAIL ?? "hello@gesher-partners.com";
 
@@ -343,7 +467,7 @@ async function handlePdfRequest(req: Request, res: Response) {
     const briefUrl = `${req.protocol}://${req.get("host")}/exit-brief?briefId=${briefId}`;
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 20px;">
-        <h2 style="color: #1B3A5C; margin-bottom: 24px;">New Exit Brief PDF Request</h2>
+        <h2 style="color: #1B3A5C; margin-bottom: 24px;">New Valuation Snapshot PDF Request</h2>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 100px;">Name</td>
@@ -385,13 +509,13 @@ async function handlePdfRequest(req: Request, res: Response) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            text: `New Exit Brief PDF Request from ${name}`,
+            text: `New Valuation Snapshot PDF Request from ${name}`,
             blocks: [
               {
                 type: "section",
                 text: {
                   type: "mrkdwn",
-                  text: `*New Exit Brief PDF Request*\n*Name:* ${name}\n*Email:* ${email}\n*Phone:* ${phone || "(not provided)"}\n*Brief ID:* ${briefId}`,
+                  text: `*New Valuation Snapshot PDF Request*\n*Name:* ${name}\n*Email:* ${email}\n*Phone:* ${phone || "(not provided)"}\n*Brief ID:* ${briefId}`,
                 },
               },
             ],

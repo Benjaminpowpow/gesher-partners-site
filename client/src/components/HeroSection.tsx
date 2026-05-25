@@ -67,7 +67,7 @@ export default function HeroSection() {
           <button onClick={scrollToContact} className="btn-solid">
             Talk to us.
           </button>
-          <Link href="/exit-brief" className="btn-ghost">
+          <Link href="/valuation" className="btn-ghost">
             Quick valuation
           </Link>
         </div>
