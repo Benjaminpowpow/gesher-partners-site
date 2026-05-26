@@ -203,7 +203,7 @@ function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk
           </div>
           <div className="hero-media-frame">
             <div className="hero-media mood-warm" aria-hidden="true">
-              <video className="hero-video" src="/hero.mp4" poster="/hero-poster.png" autoPlay muted loop playsInline preload="metadata" />
+              <video className="hero-video" src="/manus-storage/hero_06053d8a.mp4" poster="/manus-storage/hero-poster_e70d346e.png" autoPlay muted loop playsInline preload="metadata" />
               <div className="hero-wash"></div>
               <div className="hero-overlay"></div>
             </div>
