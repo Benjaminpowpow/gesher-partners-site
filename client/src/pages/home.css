@@ -93,127 +93,62 @@
   font-weight: 400;
 }
 
-/* ---------- Hero (two-column on desktop) ---------- */
+/* ---------- Hero (full-bleed video background) ----------
+   Full-bleed video edge to edge. A cream wash on top keeps the left copy
+   readable. Desktop: copy left, footage as quiet texture on the right.
+   Mobile: same video, copy left, tighter top. */
 .hero {
-  padding: 80px 0 120px;
-}
-.hero-grid {
-  display: grid;
-  grid-template-columns: 55fr 45fr;
-  gap: 64px;
-  align-items: stretch;
-}
-.hero-copy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 16px 0;
-}
-.hero-actions {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-.hero-media-frame {
-  display: flex;
-  align-self: stretch;
-  min-width: 0;
-}
-.hero-media-frame > .hero-media {
-  flex: 1;
-}
-.hero-media {
   position: relative;
-  border-radius: var(--radius);
+  isolation: isolate;
   overflow: hidden;
   background: var(--cream);
-  border: 1px solid var(--hairline);
-  min-height: 520px;
+  min-height: clamp(560px, calc(100svh - 80px), 900px);
+  display: flex;
+  align-items: center;
+  padding: 64px 0 128px;
+  color: var(--near-black);
 }
-.hero-media video,
-.hero-media .hero-media-poster {
+.hero-video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
-  /* Bind the footage to the cream/navy palette: drop saturation,
-     warm-shift slightly, ease contrast so highlights don't punch. */
-  filter: saturate(0.62) sepia(0.18) contrast(0.92) brightness(0.96);
+  z-index: -2;
+  filter: saturate(0.35) sepia(0.20) contrast(0.82) brightness(0.95);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12%, #000 88%, transparent 100%);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 12%, #000 88%, transparent 100%);
 }
-/* Warm cream wash — pulls midtones toward the page's cream. */
-.hero-media .hero-wash {
+.hero-wash {
   position: absolute;
   inset: 0;
-  background: var(--cream);
-  mix-blend-mode: soft-light;
-  opacity: 0.55;
+  z-index: -1;
   pointer-events: none;
+  background: linear-gradient(
+    to right,
+    #F5F0E6 0%,
+    #F5F0E6 38%,
+    rgba(245, 240, 230, 0.92) 52%,
+    rgba(245, 240, 230, 0.55) 78%,
+    rgba(245, 240, 230, 0.28) 100%
+  );
 }
-/* Navy tint sits on top — brand-spec 0.4 navy overlay. */
-.hero-media .hero-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(22, 36, 59, 0.32);
-  pointer-events: none;
-}
-
-/* ---------- Hero — Composition variants ---------- */
-/* Editorial = default 55/45. Cinema bleeds right. Letter insets. */
-.hero-grid.comp-editorial { grid-template-columns: 55fr 45fr; }
-
-.hero-grid.comp-cinema {
-  grid-template-columns: 50fr 50fr;
-  gap: 56px;
-}
-.hero-grid.comp-cinema .hero-media-frame {
-  /* Logical property: bleeds to the inline-end edge — right in LTR,
-     left in RTL. Container content's end edge sits at 50vw + 528. */
-  margin-inline-end: min(0px, calc(528px - 50vw));
-}
-.hero-grid.comp-cinema .hero-media {
-  border-radius: 0;
-  border-width: 0;
-  min-height: 600px;
-}
-
-.hero-grid.comp-letter {
-  grid-template-columns: 58fr 42fr;
-  gap: 80px;
-}
-.hero-grid.comp-letter .hero-media-frame {
-  background: var(--warm-white);
-  border: 1px solid var(--hairline);
-  padding: 18px;
+.hero-container { position: relative; width: 100%; }
+.hero-copy { max-width: 36rem; }
+.hero-actions {
   display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 24px;
 }
-.hero-grid.comp-letter .hero-media {
-  position: relative;
-  min-height: 0;
-  width: 100%;
-  aspect-ratio: 4 / 5;
-  border-width: 0;
-}
-
-/* ---------- Hero — Mood variants ----------
-   Each mood adjusts the cream wash + navy overlay; the video keeps the
-   base palette-binding filter so it never falls out of the page. */
-.hero-media.mood-warm   .hero-wash    { opacity: 0.70; }
-.hero-media.mood-warm   .hero-overlay { background: rgba(22, 36, 59, 0.18); }
-
-.hero-media.mood-calm   .hero-wash    { opacity: 0.55; }
-.hero-media.mood-calm   .hero-overlay { background: rgba(22, 36, 59, 0.32); }
-
-.hero-media.mood-somber .hero-wash    { opacity: 0.30; }
-.hero-media.mood-somber .hero-overlay { background: rgba(22, 36, 59, 0.55); }
-.hero-media.mood-somber video         { filter: saturate(0.45) sepia(0.10) contrast(0.94) brightness(0.88); }
+.hero .eyebrow { margin-bottom: 28px; }
+.hero h1.hero-headline { margin-bottom: 26px; max-width: 18ch; }
+.hero .lede { max-width: 44ch; margin-bottom: 36px; }
 
 /* ---------- Hero — Headline emphasis ---------- */
 .hl-emph { white-space: nowrap; }
 .hl-emph.emph-plain { font-style: normal; color: inherit; }
-.hl-emph.emph-italic {
+.hero .hl-emph.emph-italic {
   font-style: italic;
   font-weight: 400;
   color: var(--taupe);
@@ -225,34 +160,26 @@
   padding-bottom: 4px;
 }
 
-/* ---------- Hero — Mobile stack ---------- */
-@media (max-width: 960px) {
-  .hero { padding: 56px 0 80px; }
-  .hero-grid,
-  .hero-grid.comp-editorial,
-  .hero-grid.comp-cinema,
-  .hero-grid.comp-letter {
-    grid-template-columns: 1fr;
-    gap: 40px;
+/* ---------- Hero — Mobile ---------- */
+@media (max-width: 720px) {
+  .hero {
+    padding: 44px 0 80px;
+    align-items: flex-start;
+    min-height: clamp(520px, calc(100svh - 72px), 720px);
   }
-  .hero-grid .hero-media-frame,
-  .hero-grid.comp-cinema .hero-media-frame,
-  .hero-grid.comp-letter .hero-media-frame {
-    margin-inline-end: 0;
-    padding: 0;
-    background: transparent;
-    border: 0;
-  }
-  .hero-grid .hero-media,
-  .hero-grid.comp-cinema .hero-media,
-  .hero-grid.comp-letter .hero-media {
-    min-height: 0;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    border-width: 1px;
-    border-radius: var(--radius);
-  }
+  .hero-copy { max-width: none; margin: 0; }
   .hl-emph { white-space: normal; }
+  .hero-actions { margin-top: var(--hero-actions-mobile-gap, 40px); }
+  .hero-wash {
+    background: linear-gradient(
+      to bottom,
+      #F5F0E6 0%,
+      #F5F0E6 42%,
+      rgba(245, 240, 230, 0.88) 60%,
+      rgba(245, 240, 230, 0.55) 82%,
+      rgba(245, 240, 230, 0.32) 100%
+    );
+  }
 }
 
 
@@ -604,14 +531,14 @@ p:last-child { margin-bottom: 0; }
 .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
 
 /* ---------- Selectivity callout ---------- */
-.selectivity { text-align: center; padding: 96px 0; }
+.selectivity { text-align: left; padding: 96px 0; }
 .selectivity .quote {
   font-family: var(--font-serif); font-weight: 500;
   font-size: clamp(28px, 3vw, 36px); line-height: 1.3;
-  color: var(--cream); margin: 0 auto 18px; max-width: 22ch;
+  color: var(--cream); margin: 0 0 18px; max-width: 22ch;
   letter-spacing: -0.005em; text-wrap: balance;
 }
-.selectivity .sub { color: rgba(245, 240, 230, 0.75); font-size: 16px; max-width: 48ch; margin: 0 auto; }
+.selectivity .sub { color: rgba(245, 240, 230, 0.75); font-size: 16px; max-width: 48ch; margin: 0; }
 .selectivity .selectivity-eyebrow { color: rgba(245, 240, 230, 0.55); margin-bottom: 28px; }
 
 /* ---------- Contact helpers ---------- */

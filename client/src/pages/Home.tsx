@@ -267,32 +267,36 @@ function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk:
 
 function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk: () => void }) {
   return (
-    <header className="section hero" id="top">
-      <div className="container">
-        <div className="hero-grid comp-letter">
-          <div className="hero-copy">
-            <p className="eyebrow">{S.hero.eyebrow}</p>
-            <h1 className="display">
-              {S.hero.headlineLead}{" "}
-              <span className="hl-emph emph-italic">{S.hero.headlineEmph}</span>
-              {S.hero.headlineTrail}
-            </h1>
-            <p className="lede">{S.hero.lede}</p>
-            <div className="hero-actions">
-              <Button size="lg" onClick={onTalk} arrow>
-                {S.hero.ctaTalk}
-              </Button>
-              <Button size="lg" variant="outline" onClick={onOpenValuation}>
-                {S.hero.ctaValuation}
-              </Button>
-            </div>
-          </div>
-          <div className="hero-media-frame">
-            <div className="hero-media mood-warm" aria-hidden="true">
-              <video className="hero-video" src="/manus-storage/hero_06053d8a.mp4" poster="/manus-storage/hero-poster_e70d346e.png" autoPlay muted loop playsInline preload="metadata" />
-              <div className="hero-wash"></div>
-              <div className="hero-overlay"></div>
-            </div>
+    <header className="hero" id="top">
+      <video
+        className="hero-video"
+        src="/manus-storage/hero_06053d8a.mp4"
+        poster="/manus-storage/hero-poster_e70d346e.png"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-hidden="true"
+      />
+      <div className="hero-wash" aria-hidden="true"></div>
+
+      <div className="container hero-container">
+        <div className="hero-copy">
+          <p className="eyebrow">{S.hero.eyebrow}</p>
+          <h1 className="display hero-headline">
+            {S.hero.headlineLead}{" "}
+            <span className="hl-emph emph-italic">{S.hero.headlineEmph}</span>
+            {S.hero.headlineTrail}
+          </h1>
+          <p className="lede">{S.hero.lede}</p>
+          <div className="hero-actions">
+            <Button size="lg" onClick={onTalk} arrow>
+              {S.hero.ctaTalk}
+            </Button>
+            <Button size="lg" variant="outline" onClick={onOpenValuation}>
+              {S.hero.ctaValuation}
+            </Button>
           </div>
         </div>
       </div>
@@ -302,8 +306,8 @@ function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk
 
 function Problem() {
   return (
-    <section className="section">
-      <div className="container narrow">
+    <section className="section problem">
+      <div className="container">
         <p className="eyebrow">{S.problem.eyebrow}</p>
         <h2 className="display">{S.problem.heading}</h2>
         {S.problem.paras.map((p, i) => (
