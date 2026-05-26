@@ -9,7 +9,7 @@
  * All styling lives in home.css, scoped under .gesher so nothing bleeds to other
  * routes. Copy is inlined from the design's i18n bundle (English; Hebrew parked).
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import "./home.css";
 
@@ -20,6 +20,9 @@ const S = {
     howItWorks: "How it works",
     founders: "Founders",
     quickValuation: "Quick valuation",
+    talkToUs: "Talk to us",
+    menuAriaLabel: "Menu",
+    closeAriaLabel: "Close menu",
   },
   hero: {
     eyebrow: "For Israeli family businesses · NIS 5 to 50M",
@@ -159,13 +162,43 @@ function Button({ variant = "primary", size = "md", children, arrow = false, ...
   );
 }
 
-function Nav({ onOpenValuation }: { onOpenValuation: () => void }) {
+function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk: () => void }) {
+  const [open, setOpen] = useState(false);
+
+  // Lock body scroll while the mobile menu is open. Esc closes it.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  function close() {
+    setOpen(false);
+  }
+  function go(id: string) {
+    close();
+    requestAnimationFrame(() => {
+      const el = document.getElementById(id);
+      if (el) window.scrollTo({ top: el.offsetTop - 24, behavior: "smooth" });
+    });
+  }
+
   return (
     <nav className="nav" aria-label={S.nav.primaryAriaLabel}>
       <a href="#top" aria-label={S.nav.homeAriaLabel} style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
         <img className="brand-mark" src="/brand/gesher-mark.svg" alt="" style={{ height: 28, display: "block" }} />
         <img className="wordmark" src="/brand/gesher-wordmark.svg" alt="gesher" />
       </a>
+
+      {/* Desktop links, hidden on mobile via CSS */}
       <div className="nav-links">
         <a href="#process">{S.nav.howItWorks}</a>
         <a href="#founders">{S.nav.founders}</a>
@@ -173,6 +206,61 @@ function Nav({ onOpenValuation }: { onOpenValuation: () => void }) {
           {S.nav.quickValuation}
         </Button>
       </div>
+
+      {/* Mobile hamburger, hidden on desktop via CSS */}
+      <button
+        type="button"
+        className="nav-toggle"
+        aria-label={S.nav.menuAriaLabel}
+        aria-expanded={open}
+        aria-controls="nav-menu"
+        onClick={() => setOpen(true)}
+      >
+        <svg width="22" height="14" viewBox="0 0 22 14" aria-hidden="true">
+          <path d="M0 1h22M0 7h22M0 13h22" stroke="currentColor" strokeWidth="1.25" fill="none" strokeLinecap="square" />
+        </svg>
+      </button>
+
+      {/* Mobile menu sheet */}
+      {open && (
+        <div id="nav-menu" className="nav-menu" role="dialog" aria-modal="true" aria-label={S.nav.menuAriaLabel}>
+          <div className="nav-menu-bar">
+            <a href="#top" aria-label={S.nav.homeAriaLabel} onClick={close} style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
+              <img className="brand-mark" src="/brand/gesher-mark.svg" alt="" style={{ height: 28, display: "block" }} />
+              <img className="wordmark" src="/brand/gesher-wordmark.svg" alt="gesher" />
+            </a>
+            <button type="button" className="nav-toggle" aria-label={S.nav.closeAriaLabel} onClick={close}>
+              <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M2 2l16 16M18 2L2 18" stroke="currentColor" strokeWidth="1.25" fill="none" strokeLinecap="square" />
+              </svg>
+            </button>
+          </div>
+
+          <ul className="nav-menu-list">
+            <li>
+              <a href="#process" onClick={(e) => { e.preventDefault(); go("process"); }}>
+                {S.nav.howItWorks}
+              </a>
+            </li>
+            <li>
+              <a href="#founders" onClick={(e) => { e.preventDefault(); go("founders"); }}>
+                {S.nav.founders}
+              </a>
+            </li>
+            <li>
+              <button type="button" className="nav-menu-link-btn" onClick={() => { close(); onOpenValuation(); }}>
+                {S.nav.quickValuation}
+              </button>
+            </li>
+          </ul>
+
+          <div className="nav-menu-cta">
+            <Button onClick={() => { close(); onTalk(); }} arrow style={{ width: "100%" }}>
+              {S.nav.talkToUs}
+            </Button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
@@ -505,7 +593,7 @@ export default function Home() {
   return (
     <div className="gesher">
       <div className="container">
-        <Nav onOpenValuation={() => setModalOpen(true)} />
+        <Nav onOpenValuation={() => setModalOpen(true)} onTalk={() => scrollTo("contact")} />
       </div>
       <Hero onOpenValuation={() => setModalOpen(true)} onTalk={() => scrollTo("contact")} />
       <Problem />

@@ -365,6 +365,77 @@ p:last-child { margin-bottom: 0; }
 }
 .nav-links a:hover { color: var(--navy); }
 
+/* ---------- Nav — mobile hamburger + full-screen menu ---------- */
+.nav-toggle {
+  display: none; /* shown only on mobile, below */
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-inline-end: -10px;
+  background: transparent;
+  border: 0;
+  color: var(--navy);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 2px;
+  transition: background var(--dur-quick) var(--ease-quiet);
+}
+.nav-toggle:hover { background: rgba(22, 36, 59, 0.04); }
+.nav-toggle:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.nav-menu {
+  position: fixed;
+  inset: 0;
+  background: var(--cream);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  animation: fade-in var(--dur-fade) var(--ease-quiet);
+}
+.nav-menu-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 20px;
+  border-bottom: 0.5px solid var(--hairline);
+}
+.nav-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 20px 0;
+  display: flex;
+  flex-direction: column;
+}
+.nav-menu-list li { border-bottom: 0.5px solid var(--hairline); }
+.nav-menu-list a,
+.nav-menu-link-btn {
+  display: block;
+  width: 100%;
+  text-align: start;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 22px;
+  color: var(--navy);
+  text-decoration: none;
+  padding: 22px 4px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  letter-spacing: -0.005em;
+}
+.nav-menu-list a:hover,
+.nav-menu-link-btn:hover { color: var(--navy); }
+.nav-menu-cta {
+  margin-top: auto;
+  padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
+}
+.nav-menu-cta .btn { width: 100%; }
+@media (max-width: 720px) {
+  .nav { flex-wrap: nowrap; padding: 18px 0; }
+  .nav-links { display: none; }
+  .nav-toggle { display: inline-flex; }
+}
+
 /* ---------- Stat row ---------- */
 /* Treatment lifted from the design system stat-row preview: value + small
    italic serif unit, one number in burgundy, flex column for vertical rhythm. */
