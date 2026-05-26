@@ -1290,3 +1290,108 @@ a.v-btn {
   .v-container { padding: 0 20px; }
   .v-placeholder { padding: 64px 20px; }
 }
+
+/* ---------- Working screen: three real stages (ported from the design) ----------
+   Fixed-width mark column (28px) so all three labels line up. The middle stage gets
+   a slow three-dot pulse so a long search never looks frozen. */
+.v-stages {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.v-stage {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: var(--font-sans);
+  font-size: 18px;
+  line-height: 1.4;
+  transition: color 700ms var(--ease-quiet), opacity 700ms var(--ease-quiet);
+}
+.v-stage-mark {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  position: relative;
+}
+.v-stage-label { min-width: 0; transition: color 700ms var(--ease-quiet); }
+.v-stage.is-pending { color: var(--fg-muted); opacity: 0.45; }
+.v-stage.is-done { color: var(--fg-muted); }
+.v-stage-check {
+  width: 18px;
+  height: 18px;
+  color: var(--navy, #16243B);
+  opacity: 0.75;
+  animation: vFadeIn var(--dur-fade) var(--ease-quiet) both;
+}
+.v-stage.is-active { color: var(--navy, #16243B); }
+.v-stage.is-active .v-stage-label { font-weight: 500; }
+.v-stage-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--navy, #16243B);
+  animation: vPulseDot 1800ms ease-in-out infinite;
+}
+.v-stage-dots { display: inline-flex; align-items: center; gap: 4px; }
+.v-stage-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--navy, #16243B);
+  opacity: 0.25;
+  animation: vPulseSeq 2200ms ease-in-out infinite;
+}
+.v-stage-dots span:nth-child(2) { animation-delay: 280ms; }
+.v-stage-dots span:nth-child(3) { animation-delay: 560ms; }
+@keyframes vPulseDot {
+  0%, 100% { opacity: 0.35; transform: scale(0.92); }
+  50%      { opacity: 1;    transform: scale(1); }
+}
+@keyframes vPulseSeq {
+  0%, 60%, 100% { opacity: 0.25; }
+  20%           { opacity: 1; }
+}
+
+/* Reassurance line (slow runs only) */
+.v-reassure {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  margin: 0 0 var(--space-7);
+  max-width: 44ch;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 800ms var(--ease-quiet), transform 800ms var(--ease-quiet);
+  pointer-events: none;
+}
+.v-reassure.is-visible { opacity: 1; transform: translateY(0); }
+
+/* Error screen: two actions side by side, stacked on mobile */
+.v-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+@media (max-width: 480px) {
+  .v-error-actions { flex-direction: column; align-items: stretch; }
+}
+
+/* ---------- Value-point icons ----------
+   The brain flags each point positive or watch. Positive = navy up-arrow,
+   watch = burgundy down-arrow. Thin stroke, no fill, no circle, sits left of
+   the first line. No flag means no icon. */
+.v-card .v-point { display: flex; align-items: flex-start; gap: 8px; }
+.v-card .v-point-icon { flex: 0 0 auto; margin-top: 3px; line-height: 1; }
+.v-card .v-point.v-point-positive .v-point-icon { color: var(--navy, #16243B); }
+.v-card .v-point.v-point-watch .v-point-icon { color: var(--burgundy, #6E2B2B); }
+.v-card .v-point-text { min-width: 0; }

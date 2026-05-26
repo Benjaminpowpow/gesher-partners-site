@@ -64,6 +64,9 @@ function stripThinkingTraces(markdown: string): string {
 
   return filtered
     .join("\n")
+    // Drop the page-only Value flags ("positive:" / "watch:") so a seller email never
+    // shows them as raw text. The page reads these flags to draw icons; email does not.
+    .replace(/^[ \t]*(?:positive|watch):[ \t]*/gim, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -141,9 +144,15 @@ async function handleExitBrief(req: Request, res: Response) {
     return;
   }
 
+  // Sellers type bare domains ("manltd.co.il"). Add a scheme so new URL() and the
+  // model's web read both get a real address, instead of rejecting the run.
+  const normalizedUrl = /^https?:\/\//i.test(url.trim())
+    ? url.trim()
+    : "https://" + url.trim();
+
   // Basic URL validation
   try {
-    new URL(url);
+    new URL(normalizedUrl);
   } catch {
     res.status(400).json({ error: "Please enter a valid website URL." });
     return;
@@ -161,7 +170,7 @@ async function handleExitBrief(req: Request, res: Response) {
   rateLimitStore.set(ip, now);
 
   // Build user message
-  let userMessage = `URL: ${url}`;
+  let userMessage = `URL: ${normalizedUrl}`;
   if (revenue || pretaxProfit || ownerSalary) {
     const parts: string[] = [];
     if (revenue) parts.push(`revenue NIS ${revenue}`);
@@ -206,11 +215,25 @@ async function handleExitBrief(req: Request, res: Response) {
     // Stream markdown to client in real time (newline-delimited JSON)
     res.setHeader("Content-Type", "application/x-ndjson");
 
+    // Tell the page when the model starts its web search, so the working screen can
+    // show a real "Learning your size and your story" stage, not a fake timer.
+    let sentSearching = false;
+
     for await (const event of stream) {
       if (event.type === "message_start") {
         const u = event.message.usage;
         usage.inputTokens = u.input_tokens ?? 0;
         usage.cachedInputTokens = u.cache_read_input_tokens ?? 0;
+      } else if (
+        event.type === "content_block_start" &&
+        !sentSearching &&
+        ((event as { content_block?: { type?: string } }).content_block?.type ===
+          "server_tool_use" ||
+          (event as { content_block?: { type?: string } }).content_block?.type ===
+            "web_search_tool_result")
+      ) {
+        sentSearching = true;
+        res.write(JSON.stringify({ type: "phase", phase: "searching" }) + "\n");
       } else if (
         event.type === "content_block_delta" &&
         event.delta.type === "text_delta"
@@ -232,12 +255,12 @@ async function handleExitBrief(req: Request, res: Response) {
     // Save the lead. Fire and forget, and never let a DB hiccup affect the seller.
     void insertValuationLead({
       briefId,
-      url,
+      url: normalizedUrl,
       revenue: revenue ?? null,
       pretaxProfit: pretaxProfit ?? null,
       ownerSalary: ownerSalary ?? null,
       companyName: meta.company_name ?? null,
-      companyDomain: domainFromUrl(url) ?? null,
+      companyDomain: domainFromUrl(normalizedUrl) ?? null,
       rangeVariant: meta.range_variant ?? null,
       rangeText: meta.range_text ?? null,
       buyerTypes: meta.buyer_types ?? null,

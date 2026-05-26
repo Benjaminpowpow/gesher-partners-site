@@ -79,12 +79,11 @@ from the vertical's market read, personalized to them. Under 100 words.]
 
 ## Value
 
-[2 to 4 positive drivers, each 1 to 2 sentences, each tied to an observable fact.]
+[2 to 4 positive drivers, each 1 to 2 sentences, each tied to an observable fact. Start each driver with `positive: ` then a short bold lead-in, then the sentence.]
 
-[One honest negative if visible, or: "Other risks are not visible from public sources.
-We cover those on the call." This line also carries the tease.]
+[One honest negative if visible, started with `watch: ` then a short bold lead-in, then the sentence. Or, if none is visible: "Other risks are not visible from public sources. We cover those on the call." That closing line carries the tease and gets no flag.]
 
-[Under 100 words.]
+[Under 100 words. The `positive:` and `watch:` flags drive a small icon on the page and are stripped before the seller sees the card, so put one on every driver. They are not confidence flags, keep them.]
 
 ## Range and call
 ```
@@ -99,7 +98,7 @@ This range is built on the numbers you shared and what buyers pay for businesses
 yours. It's a tight, real range.
 
 There are real buyers for a business like yours: [buyer types from the vertical, no names].
-We work only for you, the seller, and we only get paid when you do. Our job is to build
+We work only for you, the seller, and most of our fee comes only when you sell. Our job is to build
 real competition, so you're not negotiating alone.
 
 **Book 30 minutes with Ofir Ben Haim.** We name them and show how to push for the top of
@@ -114,7 +113,7 @@ This range comes from what buyers pay for businesses like yours. The big unknown
 real earnings. Share them and the range gets tight.
 
 There are real buyers for a business like yours: [buyer types from the vertical, no names].
-We work only for you, the seller, and we only get paid when you do. Our job is to build
+We work only for you, the seller, and most of our fee comes only when you sell. Our job is to build
 real competition, so you're not negotiating alone.
 
 **Book 30 minutes with Ofir Ben Haim.** We name them and show what would tighten this number.
@@ -129,7 +128,7 @@ your exact industry yet, so your real numbers move this range the most. Share th
 gets tight.
 
 There are real buyers for a business like yours: [honest buyer types for the model]. We work
-only for you, the seller, and we only get paid when you do. Our job is to build real
+only for you, the seller, and most of our fee comes only when you sell. Our job is to build real
 competition, so you're not negotiating alone.
 
 **Book 30 minutes with Ofir Ben Haim.** We sharpen this number and name the buyers.
@@ -141,7 +140,7 @@ Your space is one we price by hand, so we won't throw out a number we can't stan
 Here is what we see: [one line on the market and who buys in this space].
 
 There are real buyers for a business like yours: [honest buyer types]. We work only for you,
-the seller, and we only get paid when you do. Our job is to build real competition, so you're
+the seller, and most of our fee comes only when you sell. Our job is to build real competition, so you're
 not negotiating alone.
 
 **Book 30 minutes with Ofir Ben Haim.** We look at your earnings together, build a real number,
@@ -204,7 +203,7 @@ How to read a digest. **Route / Not** is what sends a seller here and the near-m
 - **Not:** software (that is vertical-saas-vms), a maker of its own product (that is manufacturing or food-production), a pure service firm with no equipment.
 - **Band (EBITDA anchor):** 3.3x to 4.6x EBITDA. A clean, premium case can stretch the ceiling to 5.0x. Cross-checks: revenue 0.27x to 0.37x, SDE 2.3x to 2.9x.
 - **Ceiling:** foreign-principal exemption. If the seller is the sole agent of a foreign brand that buys its own distributors (recent deals, same category, this scale), the top uses US multiples; the floor stays Israeli-adjusted.
-- **Path B helper:** operating margin 8% to 15% (use the middle unless the business looks lean or fat). No revenue-per-employee, it swings too much. Prefer a revenue signal (import scale, named clients, facility size) times the margin. If none surfaces, lean on "share your numbers."
+- **Path B helper:** operating margin 8% to 15% (use the middle unless the business looks lean or fat). No revenue-per-employee, it swings too much. Prefer a revenue signal (import scale, named clients, facility size) times the margin. If none surfaces, lean on "share your numbers." A broad, multi-segment national client base and a real service operation (teams that install, train, and service) point to a mid-sized established distributor, tens of millions in revenue, not a micro-importer. Do not size such a business at the floor.
 - **Buyers line:** "a larger Israeli competitor in your space, the foreign manufacturer whose brand you carry (they often buy their local distributor), and funds that buy founder-owned businesses your size."
 - **Market (active in waste, steady elsewhere):** waste and environmental equipment is consolidating on a government recycling push; elsewhere the foreign principal buying its Israeli channel is the strongest lane. Clean public comps under 50M NIS are thin.
 

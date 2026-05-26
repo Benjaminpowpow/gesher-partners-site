@@ -101,28 +101,31 @@ const SALARY_MIDPOINTS: Record<string, number> = {
   "2m-plus": 2_500_000,
 };
 
-const WORKING_STEPS = [
-  "Reading your website",
-  "Learning your size and your story",
-  "Reading your market in Israel",
-  "Finding what buyers pay up for",
-  "Looking at recent deals like yours",
-  "Counting the buyers for a business like yours",
-  "Building your range and your brief",
-];
+// The three real stages of a run. The page advances them off the live stream
+// (read -> learn when the web search starts -> write when text arrives), not a timer.
+const WORKING_STAGES = [
+  { id: "read", label: "Reading your website" },
+  { id: "learn", label: "Learning your size and your story" },
+  { id: "write", label: "Writing your brief" },
+] as const;
 
 const WORKING_TAGLINES = [
   "We work only for you, the seller.",
-  "We get paid when you do.",
   "We run a real auction, buyers in Israel and abroad.",
   "We tell you the truth, even when it is wait a year.",
 ];
 
+// Working-screen timings.
+const REASSURE_AFTER_MS = 18000; // a stage running this long shows the "still on it" line
+const TAG_MS = 6500; // tagline rotation cadence
+const COMPANY_REVEAL_MS = 2200; // skeleton -> filled company card
+const LEARN_FALLBACK_MS = 5000; // move off "Reading" if no search signal arrives
+const HARD_TIMEOUT_MS = 180000; // never hang: fall back to the calm screen after 3 min
+
 const SUCCESS_STATS = [
-  { lead: "4 decades", body: "working with Israeli business owners" },
-  { lead: "Buyers", body: "we find buyers here and overseas" },
-  { lead: "A real auction", body: "not one buyer at a time" },
-  { lead: "Success fee only", body: "we get paid when you do" },
+  { lead: "Within 24 hours", body: "Ofir or Benjamin reads your note and sends your one-page brief." },
+  { lead: "A short call", body: "We talk through where you are." },
+  { lead: "An honest answer", body: "If we can help, we tell you how. If we cannot, we tell you that too." },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -142,6 +145,49 @@ function deriveName(url: string): string {
   const base = domain.split(".")[0];
   if (!base) return "Your business";
   return base.charAt(0).toUpperCase() + base.slice(1);
+}
+
+// Sellers type bare domains ("manltd.co.il"). The engine needs a real address with
+// a scheme, so add https:// when it is missing. Without this the run fails outright.
+function normalizeUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : "https://" + trimmed;
+}
+
+// Render a safe inline subset of markdown: **bold** becomes <strong>, and a leading
+// bullet marker is dropped. No HTML injection: we only build React text and <strong>.
+function renderInline(text: string): React.ReactNode {
+  const cleaned = text.replace(/^\s*[-*•]\s+/, "");
+  return cleaned
+    .split("**")
+    .map((part, i) => (i % 2 === 1 ? <strong key={i}>{part}</strong> : part));
+}
+
+// A Value point may begin with a flag the brain emits: "positive:" or "watch:".
+// It drives a small arrow icon (navy up = positive, burgundy down = watch) and is
+// stripped before display. No flag means no icon (we never guess).
+function renderValuePoint(line: string, key: number): React.ReactNode {
+  let text = line.replace(/^\s*[-*•]\s+/, "");
+  const m = text.match(/^(positive|watch):\s*/i);
+  const type = m ? (m[1].toLowerCase() as "positive" | "watch") : null;
+  if (m) text = text.slice(m[0].length);
+  return (
+    <p key={key} className={"v-point" + (type ? " has-icon v-point-" + type : "")}>
+      {type && (
+        <span className="v-point-icon" aria-hidden="true">
+          <svg viewBox="0 0 16 16" width="14" height="14">
+            {type === "positive" ? (
+              <path d="M8 13V3.5M4 7.5L8 3.5l4 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            ) : (
+              <path d="M8 3v9.5M4 8.5L8 12.5l4-4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            )}
+          </svg>
+        </span>
+      )}
+      <span className="v-point-text">{renderInline(text)}</span>
+    </p>
+  );
 }
 
 // Section keys the page renders out of result_md. The Range card is built from the
@@ -251,8 +297,9 @@ function FrontDoorState({ ctx, go }: StateProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!url.trim()) return;
-    go("working", { url: url.trim(), revenue, profit, ownerSalary });
+    const normalized = normalizeUrl(url);
+    if (!normalized) return;
+    go("working", { url: normalized, revenue, profit, ownerSalary });
   }
 
   return (
@@ -339,22 +386,21 @@ let lastFiredUrl: string | null = null;
 
 // ─── Working ─────────────────────────────────────────────────────────────────
 function WorkingState({ ctx, go }: StateProps) {
-  const STEP_MS = 4200; // ~30s of checklist; the real run drives the actual move.
-  const TAG_MS = 5000;
-
-  const [progress, setProgress] = useState(0);
+  const [stageIdx, setStageIdx] = useState(0); // 0 read, 1 learn, 2 write, 3 done
+  const [stageStartedAt, setStageStartedAt] = useState(() => Date.now());
   const [tagIdx, setTagIdx] = useState(0);
+  const [companyRevealed, setCompanyRevealed] = useState(false);
+  const [reassure, setReassure] = useState(false);
   const domain = useMemo(() => deriveDomain(ctx.url), [ctx.url]);
   const name = useMemo(() => deriveName(ctx.url), [ctx.url]);
 
-  // Checklist ticker (animation only; transition is driven by the API).
+  // Reset the per-stage timer when the active stage changes (drives the reassurance line).
   useEffect(() => {
-    if (progress >= WORKING_STEPS.length) return;
-    const t = setTimeout(() => setProgress((p) => p + 1), STEP_MS);
-    return () => clearTimeout(t);
-  }, [progress]);
+    setStageStartedAt(Date.now());
+    setReassure(false);
+  }, [stageIdx]);
 
-  // Rotating tagline.
+  // Rotating italic tagline.
   useEffect(() => {
     const t = setInterval(
       () => setTagIdx((i) => (i + 1) % WORKING_TAGLINES.length),
@@ -363,13 +409,41 @@ function WorkingState({ ctx, go }: StateProps) {
     return () => clearInterval(t);
   }, []);
 
-  // The real valuation. Fire once, read the stream, move on "done".
+  // Company card: brief skeleton, then the real logo. Seeing their own logo is the proof.
+  useEffect(() => {
+    const t = setTimeout(() => setCompanyRevealed(true), COMPANY_REVEAL_MS);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Reassurance line, only when a stage runs long (most often the middle one).
+  useEffect(() => {
+    if (stageIdx >= WORKING_STAGES.length) return;
+    const t = setTimeout(() => setReassure(true), REASSURE_AFTER_MS);
+    return () => clearTimeout(t);
+  }, [stageStartedAt, stageIdx]);
+
+  // Fallback so the screen always moves off "Reading" even if the search signal is
+  // missed. The real signals below override this.
+  useEffect(() => {
+    const t = setTimeout(() => setStageIdx((s) => (s < 1 ? 1 : s)), LEARN_FALLBACK_MS);
+    return () => clearTimeout(t);
+  }, []);
+
+  // The real valuation. Fire once, read the stream, advance stages on real signals,
+  // and never hang: a hard stop falls back to the calm screen.
   useEffect(() => {
     if (lastFiredUrl === ctx.url) return; // already running/ran for this URL
     lastFiredUrl = ctx.url;
 
     const controller = new AbortController();
     let active = true;
+    const hardStop = setTimeout(() => {
+      if (active) {
+        active = false;
+        controller.abort();
+        go("error");
+      }
+    }, HARD_TIMEOUT_MS);
 
     async function run() {
       try {
@@ -409,7 +483,13 @@ function WorkingState({ ctx, go }: StateProps) {
             if (!line.trim()) continue;
             try {
               const msg = JSON.parse(line);
-              if (msg.type === "done") done = msg;
+              if (msg.type === "phase" && msg.phase === "searching") {
+                setStageIdx((s) => (s < 1 ? 1 : s)); // -> Learning your size and your story
+              } else if (msg.type === "chunk") {
+                setStageIdx((s) => (s < 2 ? 2 : s)); // first text -> Writing your brief
+              } else if (msg.type === "done") {
+                done = msg;
+              }
             } catch {
               // ignore partial/non-JSON lines
             }
@@ -423,9 +503,25 @@ function WorkingState({ ctx, go }: StateProps) {
         }
 
         const meta = done.meta || {};
+        const md = done.result_md || "";
+
+        // Never draw blank cards. If the engine could not read the site, the meta is
+        // empty and the markdown has no Market/Value content. Show the calm fallback.
+        const parsed = parseResultMarkdown(md);
+        const usable =
+          parsed.Market.length > 0 ||
+          parsed.Value.length > 0 ||
+          Boolean(meta.range_text && meta.range_text.trim()) ||
+          meta.range_variant === "by_hand";
+        if (!usable) {
+          go("error");
+          return;
+        }
+
+        setStageIdx(WORKING_STAGES.length); // all done
         go("result", {
           briefId: done.briefId,
-          resultMd: done.result_md || "",
+          resultMd: md,
           company: {
             name: meta.company_name || deriveName(ctx.url),
             oneliner: meta.company_oneliner,
@@ -444,41 +540,62 @@ function WorkingState({ ctx, go }: StateProps) {
     return () => {
       active = false;
       controller.abort();
+      clearTimeout(hardStop);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const revealed = progress >= 1;
 
   return (
     <section className="v-working">
       <div className="v-working-left">
         <h2 className="v-working-h2">Building your valuation</h2>
-        <p className="v-working-sub">About a minute.</p>
+        <p className="v-working-sub">
+          This takes about a minute, sometimes two. Hang tight.
+        </p>
 
-        <ul className="v-checklist" aria-live="polite" aria-label="Build progress">
-          {WORKING_STEPS.map((step, i) => {
-            if (i > progress) return null;
-            const done = i < progress;
+        <ol className="v-stages" aria-live="polite" aria-label="Build progress">
+          {WORKING_STAGES.map((stage, i) => {
+            const status = i < stageIdx ? "done" : i === stageIdx ? "active" : "pending";
+            const isLong = stage.id === "learn";
             return (
-              <li key={i} className={"v-check-row" + (done ? " is-done" : "")}>
-                <span className="v-check-box" aria-hidden="true">
-                  <svg viewBox="0 0 18 18">
-                    <path
-                      d="M4 9.5l3.2 3L14 6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+              <li key={stage.id} className={"v-stage is-" + status + (isLong ? " is-long" : "")}>
+                <span className="v-stage-mark" aria-hidden="true">
+                  {status === "done" && (
+                    <svg viewBox="0 0 18 18" className="v-stage-check">
+                      <path
+                        d="M4 9.5l3.2 3L14 6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                  {status === "active" && !isLong && <span className="v-stage-dot"></span>}
+                  {status === "active" && isLong && (
+                    <span className="v-stage-dots">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </span>
+                  )}
                 </span>
-                <span className="v-check-text">{step}</span>
+                <span className="v-stage-label">{stage.label}</span>
               </li>
             );
           })}
-        </ul>
+        </ol>
+
+        <p
+          className={
+            "v-reassure" +
+            (reassure && stageIdx < WORKING_STAGES.length ? " is-visible" : "")
+          }
+          aria-live="polite"
+        >
+          Still on it. A thorough read takes a little longer.
+        </p>
 
         <div className="v-tagline" aria-hidden="true">
           {WORKING_TAGLINES.map((t, i) => (
@@ -494,7 +611,7 @@ function WorkingState({ ctx, go }: StateProps) {
 
       <div className="v-working-right">
         <div className="v-company-card">
-          {revealed ? (
+          {companyRevealed ? (
             <div className="v-company-content v-fade-in" key="filled">
               <CompanyLogo domain={domain} name={name} className="v-company-logo" />
               <div className="v-company-body">
@@ -544,7 +661,7 @@ function ResultState({ ctx, go }: StateProps) {
             <h2 className="v-card-h">Market</h2>
             <div className="v-card-body">
               {sections.Market.map((p, i) => (
-                <p key={i}>{p}</p>
+                <p key={i}>{renderInline(p)}</p>
               ))}
             </div>
           </article>
@@ -552,9 +669,7 @@ function ResultState({ ctx, go }: StateProps) {
           <article className="v-card">
             <h2 className="v-card-h">Value</h2>
             <div className="v-card-body">
-              {sections.Value.map((p, i) => (
-                <p key={i}>{p}</p>
-              ))}
+              {sections.Value.map((p, i) => renderValuePoint(p, i))}
             </div>
           </article>
 
@@ -567,7 +682,7 @@ function ResultState({ ctx, go }: StateProps) {
                 <div className="v-card-body">
                   {buyerLine && <p>{buyerLine}</p>}
                   <p className="v-trust">
-                    We work only for you, the seller, and we only get paid when you do.
+                    We work only for you, the seller. Most of our fee comes only when you sell.
                   </p>
                 </div>
                 <div className="v-card-actions">
@@ -593,7 +708,7 @@ function ResultState({ ctx, go }: StateProps) {
                   </p>
                   {buyerLine && <p>{buyerLine}</p>}
                   <p className="v-trust">
-                    We work only for you, the seller, and we only get paid when you do.
+                    We work only for you, the seller. Most of our fee comes only when you sell.
                   </p>
                 </div>
                 <div className="v-card-actions">
@@ -836,7 +951,7 @@ function SuccessState() {
 }
 
 // ─── Error ───────────────────────────────────────────────────────────────────
-function ErrorState() {
+function ErrorState({ go }: StateProps) {
   return (
     <section className="v-error">
       <div className="v-error-inner">
@@ -844,9 +959,18 @@ function ErrorState() {
         <p className="v-error-sub">
           Sometimes a site is too quiet, or in Hebrew only. That is no problem.
         </p>
-        <a href={BOOKING_URL} className="v-btn v-btn-primary v-error-btn">
-          Talk to us instead
-        </a>
+        <div className="v-error-actions">
+          <a href={BOOKING_URL} className="v-btn v-btn-primary v-error-btn">
+            Talk to us instead
+          </a>
+          <button
+            type="button"
+            className="v-btn v-btn-outline v-error-btn"
+            onClick={() => go("front-door")}
+          >
+            Try a different URL
+          </button>
+        </div>
       </div>
     </section>
   );

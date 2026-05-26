@@ -22,12 +22,11 @@ const S = {
     quickValuation: "Quick valuation",
   },
   hero: {
-    eyebrow: "For Israeli family-owned businesses · NIS 5–50M revenue",
+    eyebrow: "For Israeli family businesses · NIS 5 to 50M",
     headlineLead: "Get the most out of your",
     headlineEmph: "life's work",
     headlineTrail: ".",
-    tag: "Small Businesses, Maximum Outcome.",
-    lede: "An Israeli sell-side advisor for family businesses, built by people who have been on your side of the table.",
+    lede: "An Israeli sell-side advisor, built by people who have sold their own companies.",
     ctaTalk: "Talk to us",
     ctaValuation: "Quick valuation",
   },
@@ -41,10 +40,9 @@ const S = {
   },
   stats: {
     items: [
-      { value: "4", unit: "decades", accent: false, lbl: "Working with Israeli business owners" },
-      { value: "10x", unit: "buyers", accent: false, lbl: "Strategic buyers, Israel and abroad" },
-      { value: "30%", unit: "higher", accent: true, lbl: "What a real auction delivers" },
-      { value: "0%", unit: "up front", accent: false, lbl: "Success fee. We get paid when you close." },
+      { value: "40+", unit: "years", accent: false, lbl: "Advising Israeli owners" },
+      { value: "3", unit: "companies", accent: false, lbl: "We built and sold our own" },
+      { value: "0", unit: "big banks", accent: true, lbl: "For a deal your size. So we built one." },
     ],
   },
   process: {
@@ -65,6 +63,8 @@ const S = {
     logos: [
       { src: "/brand/logos/kpmg.svg", alt: "KPMG", height: 38 },
       { src: "/brand/logos/jfrog.svg", alt: "JFrog", height: 48 },
+      { src: "/brand/logos/metro-group.png", alt: "Metropolinet Group", height: 52 },
+      { src: "/brand/logos/spacenter.svg", alt: "Space", height: 42 },
     ],
   },
   founders: {
@@ -74,17 +74,16 @@ const S = {
     ofir: {
       name: "Ofir Ben Haim",
       role: "Managing Director",
-      bio: "40 years advising Israeli business owners as a CPA. Built and sold OB&H in 2022. Thousands of clients across industrial, distribution, and services verticals. He has seen every deal structure that works in the Israeli market and several that do not.",
+      bio: "40+ years advising Israeli business owners as a CPA. Built and sold OB&H in 2022. Thousands of clients across industrial, distribution, and services verticals. He has seen every deal structure that works in the Israeli market and several that do not.",
     },
     ben: {
       name: "Benjamin Aronson",
       role: "Vice President",
-      bio: "Ben brings deep operational experience from the Israeli technology and services sector. Built and sold FinancePond in 2024. He has sat on the founder side of transactions and built Gesher to run the process he wished he had.",
+      bio: "Benjamin brings deep operational experience from the Israeli technology and services sector. Built and sold FinancePond in 2024. He has sat on the founder side of transactions and built Gesher to run the process he wished he had.",
     },
     story: [
-      "We have both sold companies. Benjamin sold FinancePond. Ofir sold OB&H. We have sat on your side of the table. We know what it feels like to give up something you built over decades.",
-      "That is why we built Gesher. After 14 months meeting hundreds of Israeli business owners, we saw the same thing every time. Real businesses. Real legacies. No professional advisor.",
-      "Below 100M NIS, you don't get J.P. Morgan or Goldman Sachs. You get unprofessional brokers. We built Gesher to give you the same process the big banks run for their billion-dollar deals. Better buyer map. Better competitive auction. With you on every call. Sized for a 5–50M NIS business.",
+      "We have both sat on your side of the table. We know what it feels like to give up something you built over years.",
+      "Below 100M NIS, you do not get J.P. Morgan. You get a broker. We run the same process the big banks run for billion-dollar deals. A better buyer map. A real auction. You on every call. Sized for a 5 to 50M business.",
     ],
     coda: "We are the advisor those owners never had.",
   },
@@ -97,7 +96,7 @@ const S = {
     eyebrow: "Get in touch",
     heading: "Talk to us.",
     lede: "Tell us where you are and we will tell you honestly whether we can help.",
-    note: "We work on success fee only. If we cannot help you, we will tell you in the first conversation.",
+    note: "We earn most of our fee only when you sell. A small monthly fee keeps us both committed until then. If we cannot help you, we will tell you in the first conversation.",
     labels: {
       name: "Name",
       email: "Email",
@@ -190,7 +189,6 @@ function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk
               <span className="hl-emph emph-italic">{S.hero.headlineEmph}</span>
               {S.hero.headlineTrail}
             </h1>
-            <p className="tag-italic">{S.hero.tag}</p>
             <p className="lede">{S.hero.lede}</p>
             <div className="hero-actions">
               <Button size="lg" onClick={onTalk} arrow>
