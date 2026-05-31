@@ -76,19 +76,19 @@ const S = {
     photoPlaceholder: "Founder photo",
     ofir: {
       name: "Ofir Ben Haim",
-      role: "Managing Director",
+      role: "Managing Partner",
       bio: "40+ years advising Israeli business owners as a CPA. Built and sold OB&H in 2022. Thousands of clients across industrial, distribution, and services verticals. He has seen every deal structure that works in the Israeli market and several that do not.",
     },
     ben: {
       name: "Benjamin Aronson",
-      role: "Vice President",
+      role: "Managing Partner",
       bio: "Benjamin brings deep operational experience from the Israeli technology and services sector. Built and sold FinancePond in 2024. He has sat on the founder side of transactions and built Gesher to run the process he wished he had.",
     },
     story: [
       "We have both sat on your side of the table. We know what it feels like to give up something you built over years.",
       "Below 100M NIS, you do not get J.P. Morgan. You get a broker. We run the same process the big banks run for billion-dollar deals. A better buyer map. A real auction. You on every call. Sized for a 5 to 50M business.",
     ],
-    coda: "We are the advisor those owners never had.",
+    coda: "",
   },
   selectivity: {
     eyebrow: "What sets us apart",
