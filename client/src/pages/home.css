@@ -160,6 +160,9 @@
     );
   }
 }
+/* RTL: mirror the footage horizontally too, so its calm side lands under the
+   copy on the right (like the English left), not the bright, busy open end. */
+[dir="rtl"] .hero-video { transform: scaleX(-1); }
 
 /* ---------- Hero — Headline emphasis ---------- */
 .hl-emph { white-space: nowrap; }
