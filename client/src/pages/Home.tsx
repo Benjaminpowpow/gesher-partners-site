@@ -68,6 +68,7 @@ const S = {
       { src: "/brand/logos/jfrog.svg", alt: "JFrog", height: 48 },
       { src: "/brand/logos/metro-group.png", alt: "Metropolinet Group", height: 52 },
       { src: "/brand/logos/spacenter.svg", alt: "Space", height: 42 },
+      { src: "/brand/logos/ptravel.webp", alt: "P Travels Club", height: 48 },
     ],
   },
   founders: {
