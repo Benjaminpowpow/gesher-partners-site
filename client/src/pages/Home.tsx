@@ -795,7 +795,7 @@ export default function Home({ lang = "en" }: { lang?: "en" | "he" }) {
 
   return (
     <StringsContext.Provider value={strings}>
-      <div className="gesher" lang={lang} dir={dir}>
+      <div className={lang === "he" ? "gesher gesher-rtl" : "gesher"} lang={lang} dir={dir}>
         <div className="container">
           <Nav onOpenValuation={() => setModalOpen(true)} onTalk={() => scrollTo("contact")} />
         </div>

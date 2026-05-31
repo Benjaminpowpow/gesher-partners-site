@@ -146,10 +146,12 @@
 .hero .lede { max-width: 44ch; margin-bottom: 36px; }
 
 /* RTL: the copy sits on the right, so the cream wash flips to keep it solid
-   behind the text and fade toward the left. Desktop only; the mobile wash is
-   a vertical (direction-agnostic) gradient. */
+   behind the text and fade toward the left. Keyed off the .gesher-rtl class
+   (set by React) so it does not depend on the document dir attribute, which
+   the static host serves as ltr. Desktop only; the mobile wash is a vertical
+   (direction-agnostic) gradient. */
 @media (min-width: 721px) {
-  [dir="rtl"] .hero-wash {
+  .gesher-rtl .hero-wash {
     background: linear-gradient(
       to left,
       #F5F0E6 0%,
@@ -162,7 +164,7 @@
 }
 /* RTL: mirror the footage horizontally too, so its calm side lands under the
    copy on the right (like the English left), not the bright, busy open end. */
-[dir="rtl"] .hero-video { transform: scaleX(-1); }
+.gesher-rtl .hero-video { transform: scaleX(-1); }
 
 /* ---------- Hero — Headline emphasis ---------- */
 .hl-emph { white-space: nowrap; }
@@ -279,7 +281,7 @@ p:last-child { margin-bottom: 0; }
 .btn-on-navy-outline { background: transparent; color: var(--cream); border-color: rgba(245, 240, 230, 0.5); }
 .btn-on-navy-outline:hover { background: rgba(245, 240, 230, 0.06); border-color: var(--cream); }
 .btn .arrow { width: 14px; height: 14px; margin-inline-start: 12px; stroke: currentColor; stroke-width: 1.5; fill: none; }
-[dir="rtl"] .btn .arrow { transform: scaleX(-1); }
+.gesher-rtl .btn .arrow { transform: scaleX(-1); }
 .btn-sm { padding: 10px 18px; font-size: 14px; min-height: 38px; }
 .btn-lg { padding: 18px 32px; font-size: 18px; min-height: 56px; }
 .btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
@@ -533,7 +535,7 @@ p:last-child { margin-bottom: 0; }
   background-position: right 14px center;
   padding-inline-end: 36px;
 }
-[dir="rtl"] .field select { background-position: left 14px center; }
+.gesher-rtl .field select { background-position: left 14px center; }
 .field textarea { resize: vertical; min-height: 120px; }
 .form-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; margin-top: 8px; }
 .form-actions .note { font-family: var(--font-serif); font-style: italic; color: var(--taupe); font-size: 14px; }
