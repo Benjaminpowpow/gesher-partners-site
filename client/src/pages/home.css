@@ -145,6 +145,22 @@
 .hero h1.hero-headline { margin-bottom: 26px; max-width: 18ch; }
 .hero .lede { max-width: 44ch; margin-bottom: 36px; }
 
+/* RTL: the copy sits on the right, so the cream wash flips to keep it solid
+   behind the text and fade toward the left. Desktop only; the mobile wash is
+   a vertical (direction-agnostic) gradient. */
+@media (min-width: 721px) {
+  [dir="rtl"] .hero-wash {
+    background: linear-gradient(
+      to left,
+      #F5F0E6 0%,
+      #F5F0E6 38%,
+      rgba(245, 240, 230, 0.92) 52%,
+      rgba(245, 240, 230, 0.55) 78%,
+      rgba(245, 240, 230, 0.28) 100%
+    );
+  }
+}
+
 /* ---------- Hero — Headline emphasis ---------- */
 .hl-emph { white-space: nowrap; }
 .hl-emph.emph-plain { font-style: normal; color: inherit; }
@@ -531,7 +547,7 @@ p:last-child { margin-bottom: 0; }
 .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
 
 /* ---------- Selectivity callout ---------- */
-.selectivity { text-align: left; padding: 96px 0; }
+.selectivity { text-align: start; padding: 96px 0; }
 .selectivity .quote {
   font-family: var(--font-serif); font-weight: 500;
   font-size: clamp(28px, 3vw, 36px); line-height: 1.3;

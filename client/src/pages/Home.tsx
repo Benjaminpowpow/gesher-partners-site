@@ -7,13 +7,14 @@
  * panel is dropped; the design's defaults are baked in (letter / warm / italic).
  *
  * All styling lives in home.css, scoped under .gesher so nothing bleeds to other
- * routes. Copy is inlined from the design's i18n bundle (English; Hebrew parked).
+ * routes. Bilingual: English (EN) at /en/, Hebrew (HE, right-to-left) at the root.
+ * The active language is chosen by the route and provided via StringsContext.
  */
-import { useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import "./home.css";
 
-const S = {
+const EN = {
   nav: {
     homeAriaLabel: "gesher home",
     primaryAriaLabel: "Primary",
@@ -129,8 +130,161 @@ const S = {
     mission: "Sell-side advisor for Israeli family businesses. NIS 5–50M revenue. Built for the owners who built decades-long businesses.",
     ariaLabel: "Footer",
     disclaimer: "Gesher Partners is not a licensed investment advisor. Nothing on this site constitutes investment advice or a solicitation to buy or sell any security.",
+    links: {
+      valuation: "Valuation Snapshot",
+      contact: "Contact",
+      privacy: "Privacy",
+      terms: "Terms",
+    },
   },
-} as const;
+  modal: {
+    eyebrow: "Quick valuation",
+    heading: "Paste a website. Get an honest brief.",
+    body: "We read your site, look at recent Israeli deal data, and name the buyers most likely to pay a real price. You get a short brief back, no obligation.",
+    open: "Open the brief",
+    notNow: "Not now",
+    ariaLabel: "Quick valuation",
+  },
+  // The language switch. On the English page this links to the Hebrew root.
+  langSwitch: { label: "עברית", href: "/" },
+};
+
+type Strings = typeof EN;
+
+// Hebrew copy. Same shape as EN, picked by Ben from two drafts and cleaned
+// against the writing rules. Ofir does the final native review before live.
+// Locked source: MANIS/10-hebrew-homepage-copy-locked.md.
+const HE: Strings = {
+  nav: {
+    homeAriaLabel: "דף הבית של גשר",
+    primaryAriaLabel: "ניווט ראשי",
+    howItWorks: "איך זה עובד",
+    founders: "המייסדים",
+    quickValuation: "ניתוח שווי ראשוני",
+    talkToUs: "דבר איתנו",
+    menuAriaLabel: "תפריט",
+    closeAriaLabel: "סגירת התפריט",
+  },
+  hero: {
+    eyebrow: "לעסקים משפחתיים בישראל · מחזור של 5 עד 50 מיליון ש״ח",
+    headlineLead: "להוציא את המקסימום",
+    headlineEmph: "ממפעל החיים שלך",
+    headlineTrail: ".",
+    lede: "ליווי ישראלי לצד המוכר, שהוקם על ידי אנשים שמכרו חברות בעצמם.",
+    ctaTalk: "דבר איתנו",
+    ctaValuation: "ניתוח שווי ראשוני",
+  },
+  problem: {
+    eyebrow: "הבעיה",
+    heading: "הוא בנה עסק אמיתי. ויש לו רק הזדמנות אחת לעשות את זה נכון.",
+    paras: [
+      "עשרים וחמש שנות עבודה. עסק חי ובועט. הילדים שלו לא מעוניינים להמשיך אותו. המתווכים שלא מפסיקים להתקשר רק רוצים לסגור עסקה מחר בבוקר, עם הקונה הראשון שירים את הטלפון. מגיע לו הרבה יותר מזה.",
+      "אנחנו השותף שהוא צריך לצידו. אנחנו לומדים את העסק לעומק. מאתרים את הקונים המדויקים, ומנהלים תהליך תחרותי אמיתי. ואנחנו אומרים את האמת. גם כשהאמת היא שעדיף עדיין לא למכור.",
+    ],
+  },
+  stats: {
+    items: [
+      { value: "40+", unit: "שנות ייעוץ", accent: false, lbl: "לבעלי עסקים בישראל" },
+      { value: "3", unit: "חברות", accent: false, lbl: "שבנינו ומכרנו בעצמנו" },
+      { value: "0", unit: "בנקי השקעות", accent: true, lbl: "שמתעניינים בעסקאות בגודל שלך. אז בנינו אחד כזה." },
+    ],
+  },
+  process: {
+    eyebrow: "התהליך",
+    heading: "איך עובד ליווי של גשר.",
+    lede: "דבר איתנו על העסק שלך.",
+    steps: [
+      { step: "I", title: "אריזה פיננסית ועסקית.", body: "מספרים אמיתיים, סיפור עסקי חזק, מוכן לקונים רציניים ובדיוק בסטנדרט שרוכש אסטרטגי בוחן ומנתח חברות." },
+      { step: "II", title: "איתור הרוכשים.", body: "קרנות פרייבט אקוויטי, רוכשים אסטרטגיים ו-Family Offices בארץ ובעולם. אנחנו ממפים אותם תוך שבועות, לא חודשים." },
+      { step: "III", title: "ניהול תהליך תחרותי.", body: "מספר קונים פוטנציאליים, באותו השבוע, סביב אותו השולחן. לא הצעה בודדת, אלא תחרות בריאה. זה הכוח שמשיג לך את המחיר הגבוה ביותר." },
+      { step: "IV", title: "סגירת העסקה.", body: "בנקאי השקעות בכיר מעורב אישית בכל שיחה. מהסכם הסודיות (NDA) הראשון ועד לחתימה האחרונה. בלי להעביר אותך לידיים של זוטרים." },
+    ],
+  },
+  trackRecord: {
+    eyebrow: "ניסיון מוכח",
+    heading: "החברות שבהן הצוות שלנו צמח, בנה וייעץ.",
+    lede: "קודם כל אנשי שטח ויועצים פיננסיים, ורק אז מייסדים.",
+    logos: EN.trackRecord.logos,
+  },
+  founders: {
+    eyebrow: "הצוות",
+    heading: "הוקם על ידי אנשים שישבו בדיוק בצד שלך של השולחן.",
+    photoPlaceholder: "תמונת מייסד",
+    ofir: {
+      name: "אופיר בן חיים",
+      role: "שותף מנהל",
+      bio: "מעל 40 שנות ניסיון כרואה חשבון בליווי וייעוץ לבעלי עסקים בישראל. הקים ומכר את פירמת OB&H בשנת 2022. ליווה אלפי לקוחות מגזרי התעשייה, הלוגיסטיקה, ההפצה והשירותים. אופיר מכיר מקרוב כל מבנה עסקה אפשרי בשוק הישראלי. אלו שעובדים, ואלו שנועדו להיכשל.",
+    },
+    ben: {
+      name: "בנימין ארונסון",
+      role: "שותף מנהל",
+      bio: "בנימין מביא עמו ניסיון ניהולי ותפעולי עמוק במגזרי הטכנולוגיה והשירותים בישראל. הקים ומכר את חברת FinancePond בשנת 2024. לאחר שחווה בעצמו את תהליך המכירה מזווית היזם, הוא הקים את גשר כדי להציע לבעלי חברות את התהליך המקצועי והמדויק שהוא עצמו היה מייחל לו.",
+    },
+    story: [
+      "שנינו ישבנו בצד שלך של השולחן. אנחנו מבינים לעומק מה המשמעות של פרידה מחברה שבנית במו ידייך במשך שנים.",
+      "בעסקאות של פחות מ-100 מיליון ש״ח, אתה לא מקבל את ג'יי.פי מורגן. אתה מקבל מתווך. אנחנו מריצים בדיוק את אותו תהליך שבנקי ההשקעות הגדולים שומרים לעסקאות של מיליארדים: מיפוי קונים קפדני, תהליך תחרותי אמיתי, ושקיפות מלאה שבה אתה שותף לכל שיחה. רק שהפעם, זה מותאם במיוחד לחברות במחזור של 5 עד 50 מיליון ש״ח.",
+    ],
+    coda: "",
+  },
+  selectivity: {
+    eyebrow: "מה שמייחד אותנו",
+    quote: "מרבית היועצים ילחצו עליך למכור בכל מחיר. אנחנו נדע להגיד לך גם מתי כדאי להמתין.",
+    sub: "זו הסיבה שבעלי חברות סומכים עלינו ברגע האמת.",
+  },
+  contact: {
+    eyebrow: "צור קשר",
+    heading: "דבר איתנו.",
+    lede: "ספר לנו איפה העסק עומד, ונשקף לך בכנות מלאה אם וכיצד נוכל לסייע.",
+    note: "עיקר שכר הטרחה שלנו משולם רק כשאתה מוכר. ריטיינר חודשי סמלי שומר על שנינו מחויבים עד אז. אם נראה שאנחנו לא השותף המתאים עבורך, נגיד לך את זה כבר בשיחה הראשונה.",
+    labels: {
+      name: "שם מלא",
+      email: "דוא״ל",
+      company: "שם החברה",
+      revenue: "מחזור מכירות שנתי",
+      stage: "שלב בתהליך",
+      message: "משהו נוסף שתרצה שנדע?",
+    },
+    placeholders: {
+      name: "השם שלך",
+      email: "you@example.co.il",
+      company: "העסק שלך",
+      revenue: "בחר טווח",
+      stage: "בחר אפשרות",
+      message: "כמה משפטים יספיקו.",
+    },
+    revenueOptions: ["פחות מ-5 מיליון ש״ח", "בין 5 ל-10 מיליון ש״ח", "בין 10 ל-20 מיליון ש״ח", "בין 20 ל-50 מיליון ש״ח", "מעל 50 מיליון ש״ח", "מעדיף לא לציין"],
+    stageOptions: ["בוחן אפשרויות ראשוניות", "מוכן ליציאה לתהליך", "קיבלתי פנייה אקטיבית מרוכש"],
+    send: "שליחה",
+    orEmail: "או במייל:",
+    emailAddress: "hello@gesherpartners.com",
+    thanksHeading: "תודה.",
+    thanksBody: "אנחנו קוראים באופן אישי כל פנייה. אופיר או בנימין יחזרו אליך תוך שני ימי עסקים.",
+  },
+  footer: {
+    mission: "ליווי עסקאות לצד המוכר עבור עסקים משפחתיים בישראל (מחזור של 5 עד 50 מיליון ש״ח). נבנה במיוחד עבור בעלים שהקדישו עשורים לבניית העסק שלהם.",
+    ariaLabel: "כותרת תחתונה",
+    disclaimer: "גשר פרטנרס אינה פירמת ייעוץ השקעות מורשית על פי חוק. שום מידע באתר זה אינו מהווה ייעוץ השקעות, המלצה או שידול לביצוע פעולה בניירות ערך.",
+    links: {
+      valuation: "ניתוח שווי ראשוני",
+      contact: "צור קשר",
+      privacy: "מדיניות פרטיות",
+      terms: "תנאי שימוש",
+    },
+  },
+  modal: {
+    eyebrow: "ניתוח שווי ראשוני",
+    heading: "הזן כתובת אתר. קבל ניתוח שווי ראשוני וכנה.",
+    body: "אנחנו ננתח את פעילות החברה דרך האתר, נצליב את הנתונים עם עסקאות ה-M&A האחרונות במשק הישראלי, ונמפה עבורך את הרוכשים בעלי ההסתברות הגבוהה ביותר לשלם שווי הוגן ומלא. תקבל דוח קצר ותמציתי ישירות אליך, ללא כל התחייבות.",
+    open: "לקבלת הניתוח",
+    notNow: "לא עכשיו",
+    ariaLabel: "ניתוח שווי ראשוני",
+  },
+  // On the Hebrew page the switch links to the English mirror.
+  langSwitch: { label: "EN", href: "/en/" },
+};
+
+const StringsContext = createContext<Strings>(EN);
+const useS = () => useContext(StringsContext);
 
 type ButtonProps = {
   variant?: "primary" | "outline" | "on-navy" | "on-navy-outline";
@@ -164,6 +318,7 @@ function Button({ variant = "primary", size = "md", children, arrow = false, ...
 }
 
 function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk: () => void }) {
+  const S = useS();
   const [open, setOpen] = useState(false);
 
   // Lock body scroll while the mobile menu is open. Esc closes it.
@@ -203,6 +358,7 @@ function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk:
       <div className="nav-links">
         <a href="#process">{S.nav.howItWorks}</a>
         <a href="#founders">{S.nav.founders}</a>
+        <a className="nav-lang" href={S.langSwitch.href}>{S.langSwitch.label}</a>
         <Button size="sm" onClick={onOpenValuation}>
           {S.nav.quickValuation}
         </Button>
@@ -253,6 +409,9 @@ function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk:
                 {S.nav.quickValuation}
               </button>
             </li>
+            <li>
+              <a href={S.langSwitch.href}>{S.langSwitch.label}</a>
+            </li>
           </ul>
 
           <div className="nav-menu-cta">
@@ -267,6 +426,7 @@ function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk:
 }
 
 function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk: () => void }) {
+  const S = useS();
   return (
     <header className="hero" id="top">
       <video
@@ -306,6 +466,7 @@ function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk
 }
 
 function Problem() {
+  const S = useS();
   return (
     <section className="section problem">
       <div className="container">
@@ -322,6 +483,7 @@ function Problem() {
 }
 
 function StatRow() {
+  const S = useS();
   return (
     <section className="section-tight">
       <div className="container">
@@ -342,6 +504,7 @@ function StatRow() {
 }
 
 function Process() {
+  const S = useS();
   return (
     <section className="section" id="process" style={{ background: "var(--warm-white)" }}>
       <div className="container">
@@ -363,6 +526,7 @@ function Process() {
 }
 
 function TrackRecord() {
+  const S = useS();
   return (
     <section className="section-tight">
       <div className="container">
@@ -380,6 +544,7 @@ function TrackRecord() {
 }
 
 function Founders() {
+  const S = useS();
   return (
     <section className="section" id="founders">
       <div className="container" style={{ fontFamily: "Inter" }}>
@@ -411,6 +576,7 @@ function Founders() {
 }
 
 function Selectivity() {
+  const S = useS();
   return (
     <section className="section-navy">
       <div className="container">
@@ -425,6 +591,7 @@ function Selectivity() {
 }
 
 function Contact() {
+  const S = useS();
   const [submitted, setSubmitted] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -530,6 +697,7 @@ function Contact() {
 }
 
 function Footer() {
+  const S = useS();
   const [, navigate] = useLocation();
   return (
     <footer className="footer">
@@ -546,15 +714,16 @@ function Footer() {
             <a href="#process">{S.nav.howItWorks}</a>
             <a href="#founders">{S.nav.founders}</a>
             <a href="/valuation" onClick={(e) => { e.preventDefault(); navigate("/valuation"); }}>
-              Valuation Snapshot
+              {S.footer.links.valuation}
             </a>
-            <a href="#contact">Contact</a>
+            <a href="#contact">{S.footer.links.contact}</a>
             <a href="/privacy" onClick={(e) => { e.preventDefault(); navigate("/privacy"); }}>
-              Privacy
+              {S.footer.links.privacy}
             </a>
             <a href="/terms" onClick={(e) => { e.preventDefault(); navigate("/terms"); }}>
-              Terms
+              {S.footer.links.terms}
             </a>
+            <a href={S.langSwitch.href}>{S.langSwitch.label}</a>
           </div>
         </div>
         <div className="footer-bottom">{S.footer.disclaimer}</div>
@@ -564,21 +733,22 @@ function Footer() {
 }
 
 function ValuationModal({ open, onClose, onOpenBrief }: { open: boolean; onClose: () => void; onOpenBrief: () => void }) {
+  const S = useS();
   if (!open) return null;
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Quick valuation">
-        <p className="eyebrow">Quick valuation</p>
-        <h3 className="serif modal-heading">Paste a website. Get an honest brief.</h3>
+      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={S.modal.ariaLabel}>
+        <p className="eyebrow">{S.modal.eyebrow}</p>
+        <h3 className="serif modal-heading">{S.modal.heading}</h3>
         <p className="modal-body">
-          We read your site, look at recent Israeli deal data, and name the buyers most likely to pay a real price. You get a short brief back, no obligation.
+          {S.modal.body}
         </p>
         <div className="modal-actions">
           <Button size="md" onClick={onOpenBrief} arrow>
-            Open the brief
+            {S.modal.open}
           </Button>
           <Button size="md" variant="outline" onClick={onClose}>
-            Not now
+            {S.modal.notNow}
           </Button>
         </div>
       </div>
@@ -586,9 +756,24 @@ function ValuationModal({ open, onClose, onOpenBrief }: { open: boolean; onClose
   );
 }
 
-export default function Home() {
+export default function Home({ lang = "en" }: { lang?: "en" | "he" }) {
   const [, navigate] = useLocation();
   const [modalOpen, setModalOpen] = useState(false);
+  const strings = lang === "he" ? HE : EN;
+  const dir = lang === "he" ? "rtl" : "ltr";
+
+  // Keep the document root in sync for client-side navigation. The server sets
+  // these on first load; this covers SPA transitions. On unmount we reset to the
+  // app default (English / LTR), since every non-home route is English.
+  useEffect(() => {
+    const el = document.documentElement;
+    el.lang = lang;
+    el.setAttribute("dir", dir);
+    return () => {
+      el.lang = "en";
+      el.setAttribute("dir", "ltr");
+    };
+  }, [lang, dir]);
 
   function scrollTo(id: string) {
     const el = document.getElementById(id);
@@ -596,20 +781,22 @@ export default function Home() {
   }
 
   return (
-    <div className="gesher">
-      <div className="container">
-        <Nav onOpenValuation={() => setModalOpen(true)} onTalk={() => scrollTo("contact")} />
+    <StringsContext.Provider value={strings}>
+      <div className="gesher" lang={lang} dir={dir}>
+        <div className="container">
+          <Nav onOpenValuation={() => setModalOpen(true)} onTalk={() => scrollTo("contact")} />
+        </div>
+        <Hero onOpenValuation={() => setModalOpen(true)} onTalk={() => scrollTo("contact")} />
+        <Problem />
+        <StatRow />
+        <Process />
+        <TrackRecord />
+        <Founders />
+        <Selectivity />
+        <Contact />
+        <Footer />
+        <ValuationModal open={modalOpen} onClose={() => setModalOpen(false)} onOpenBrief={() => navigate("/valuation")} />
       </div>
-      <Hero onOpenValuation={() => setModalOpen(true)} onTalk={() => scrollTo("contact")} />
-      <Problem />
-      <StatRow />
-      <Process />
-      <TrackRecord />
-      <Founders />
-      <Selectivity />
-      <Contact />
-      <Footer />
-      <ValuationModal open={modalOpen} onClose={() => setModalOpen(false)} onOpenBrief={() => navigate("/valuation")} />
-    </div>
+    </StringsContext.Provider>
   );
 }

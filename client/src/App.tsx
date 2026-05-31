@@ -14,7 +14,9 @@ import TestRender from "./pages/TestRender";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={() => <Home lang="he" />} />
+      <Route path="/en" component={() => <Home lang="en" />} />
+      <Route path="/en/" component={() => <Home lang="en" />} />
       <Route path="/valuation" component={Valuation} />
       <Route path="/exit-brief" component={ExitBrief} />
       <Route path="/test-render" component={TestRender} />
