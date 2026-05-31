@@ -145,8 +145,8 @@ const EN = {
     notNow: "Not now",
     ariaLabel: "Quick valuation",
   },
-  // The language switch. On the English page this links to the Hebrew root.
-  langSwitch: { label: "עברית", href: "/" },
+  // Which language this table is. Drives the active state in the switcher.
+  langCode: "en",
 };
 
 type Strings = typeof EN;
@@ -279,12 +279,25 @@ const HE: Strings = {
     notNow: "לא עכשיו",
     ariaLabel: "ניתוח שווי ראשוני",
   },
-  // On the Hebrew page the switch links to the English mirror.
-  langSwitch: { label: "EN", href: "/en/" },
+  langCode: "he",
 };
 
 const StringsContext = createContext<Strings>(EN);
 const useS = () => useContext(StringsContext);
+
+// Language switch. Both languages always visible, the active one bold. Real
+// anchor links (full navigation) so the server sets the right per-language head.
+function LangSwitch({ className = "" }: { className?: string }) {
+  const S = useS();
+  const isHe = S.langCode === "he";
+  return (
+    <div className={`lang-switch ${className}`.trim()} role="group" aria-label="Language / שפה">
+      <a href="/" lang="he" className={isHe ? "lang-on" : ""} aria-current={isHe ? "true" : undefined}>עב</a>
+      <span className="lang-sep" aria-hidden="true">/</span>
+      <a href="/en/" lang="en" className={!isHe ? "lang-on" : ""} aria-current={!isHe ? "true" : undefined}>EN</a>
+    </div>
+  );
+}
 
 type ButtonProps = {
   variant?: "primary" | "outline" | "on-navy" | "on-navy-outline";
@@ -358,10 +371,10 @@ function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk:
       <div className="nav-links">
         <a href="#process">{S.nav.howItWorks}</a>
         <a href="#founders">{S.nav.founders}</a>
-        <a className="nav-lang" href={S.langSwitch.href}>{S.langSwitch.label}</a>
         <Button size="sm" onClick={onOpenValuation}>
           {S.nav.quickValuation}
         </Button>
+        <LangSwitch />
       </div>
 
       {/* Mobile hamburger, hidden on desktop via CSS */}
@@ -410,7 +423,7 @@ function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk:
               </button>
             </li>
             <li>
-              <a href={S.langSwitch.href}>{S.langSwitch.label}</a>
+              <LangSwitch className="lang-switch-mobile" />
             </li>
           </ul>
 
@@ -723,7 +736,7 @@ function Footer() {
             <a href="/terms" onClick={(e) => { e.preventDefault(); navigate("/terms"); }}>
               {S.footer.links.terms}
             </a>
-            <a href={S.langSwitch.href}>{S.langSwitch.label}</a>
+            <LangSwitch />
           </div>
         </div>
         <div className="footer-bottom">{S.footer.disclaimer}</div>

@@ -308,6 +308,30 @@ p:last-child { margin-bottom: 0; }
 }
 .nav-links a:hover { color: var(--navy); }
 
+/* ---------- Language switch ---------- */
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1;
+}
+.lang-switch a {
+  color: var(--taupe);
+  text-decoration: none;
+  transition: color var(--dur-quick) var(--ease-quiet);
+}
+.lang-switch a:hover { color: var(--navy); }
+.lang-switch a.lang-on { color: var(--navy); font-weight: 600; }
+.lang-switch .lang-sep { color: var(--hairline); }
+/* In the top nav, detach the switch from the CTA with a hairline divider. */
+.nav-links .lang-switch {
+  padding-inline-start: 18px;
+  border-inline-start: 0.5px solid var(--hairline);
+}
+.lang-switch-mobile { font-size: 18px; padding: 22px 4px; gap: 10px; }
+
 /* ---------- Nav — mobile hamburger + full-screen menu ---------- */
 .nav-toggle {
   display: none; /* shown only on mobile, below */
