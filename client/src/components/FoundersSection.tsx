@@ -3,7 +3,6 @@ export default function FoundersSection() {
     "We have both sold companies. Ben sold FinancePond. Ofir sold OB&H. We have sat on your side of the table. We know what it feels like to give up something you built over decades.",
     "That is why we built Gesher. After 14 months meeting hundreds of Israeli business owners, we saw the same thing every time. Real businesses. Real legacies. No proffessional advisor.",
     "Below 100M NIS, you don't get J.P Morgan or Goldman Sachs. You get unproffessional brokers. We built Gesher to give you the same process the big banks run for their billion-dollar deals. Better buyer map. Better competitive auction. With you on every call. Sized for a 5-50M NIS business.",
-    "We are the advisor those owners never had.",
   ];
 
   return (
@@ -52,7 +51,7 @@ export default function FoundersSection() {
                 }}
               />
               <p className="small-caps" style={{ marginBottom: 8, color: "var(--color-secondary)" }}>
-                Managing Director
+                Managing Partner
               </p>
               <h3
                 style={{
@@ -91,7 +90,7 @@ export default function FoundersSection() {
                 }}
               />
               <p className="small-caps" style={{ marginBottom: 8, color: "var(--color-secondary)" }}>
-                Vice President
+                Managing Partner
               </p>
               <h3
                 style={{
