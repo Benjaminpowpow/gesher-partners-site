@@ -84,11 +84,11 @@
    site doesn't use that class, so re-declare them at root scope. Marking a
    subtree with lang="he" + dir="rtl" auto-routes to Frank Ruhl Libre + Heebo
    and mirrors the layout. No-op while window.LOCALE === 'en'. */
-[lang="he"] { font-family: var(--font-hebrew-sans); }
-[lang="he"] h1, [lang="he"] h2, [lang="he"] h3,
-[lang="he"] .display, [lang="he"] .tag-italic,
-[lang="he"] .founder-name, [lang="he"] .founder-coda,
-[lang="he"] .selectivity .quote {
+&[lang="he"] { font-family: var(--font-hebrew-sans); }
+&[lang="he"] h1, &[lang="he"] h2, &[lang="he"] h3,
+&[lang="he"] .display, &[lang="he"] .tag-italic,
+&[lang="he"] .founder-name, &[lang="he"] .founder-coda,
+&[lang="he"] .selectivity .quote {
   font-family: var(--font-hebrew-serif);
   font-weight: 400;
 }
@@ -151,7 +151,7 @@
    the static host serves as ltr. Desktop only; the mobile wash is a vertical
    (direction-agnostic) gradient. */
 @media (min-width: 721px) {
-  .gesher-rtl .hero-wash {
+  &.gesher-rtl .hero-wash {
     background: linear-gradient(
       to left,
       #F5F0E6 0%,
@@ -164,7 +164,7 @@
 }
 /* RTL: mirror the footage horizontally too, so its calm side lands under the
    copy on the right (like the English left), not the bright, busy open end. */
-.gesher-rtl .hero-video { transform: scaleX(-1); }
+&.gesher-rtl .hero-video { transform: scaleX(-1); }
 
 /* ---------- Hero — Headline emphasis ---------- */
 .hl-emph { white-space: nowrap; }
@@ -281,7 +281,7 @@ p:last-child { margin-bottom: 0; }
 .btn-on-navy-outline { background: transparent; color: var(--cream); border-color: rgba(245, 240, 230, 0.5); }
 .btn-on-navy-outline:hover { background: rgba(245, 240, 230, 0.06); border-color: var(--cream); }
 .btn .arrow { width: 14px; height: 14px; margin-inline-start: 12px; stroke: currentColor; stroke-width: 1.5; fill: none; }
-.gesher-rtl .btn .arrow { transform: scaleX(-1); }
+&.gesher-rtl .btn .arrow { transform: scaleX(-1); }
 .btn-sm { padding: 10px 18px; font-size: 14px; min-height: 38px; }
 .btn-lg { padding: 18px 32px; font-size: 18px; min-height: 56px; }
 .btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
@@ -535,7 +535,7 @@ p:last-child { margin-bottom: 0; }
   background-position: right 14px center;
   padding-inline-end: 36px;
 }
-.gesher-rtl .field select { background-position: left 14px center; }
+&.gesher-rtl .field select { background-position: left 14px center; }
 .field textarea { resize: vertical; min-height: 120px; }
 .form-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; margin-top: 8px; }
 .form-actions .note { font-family: var(--font-serif); font-style: italic; color: var(--taupe); font-size: 14px; }
