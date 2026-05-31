@@ -505,6 +505,13 @@ function WorkingState({ ctx, go }: StateProps) {
         const meta = done.meta || {};
         const md = done.result_md || "";
 
+        // The brain marks a run it could not read at the exact domain given. Send the
+        // seller straight to the error screen, never a brief guessed from a same-name site.
+        if (meta.range_variant === "unreadable") {
+          go("error");
+          return;
+        }
+
         // Never draw blank cards. If the engine could not read the site, the meta is
         // empty and the markdown has no Market/Value content. Show the calm fallback.
         const parsed = parseResultMarkdown(md);
