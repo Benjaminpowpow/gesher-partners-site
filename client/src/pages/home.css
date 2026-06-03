@@ -476,10 +476,18 @@ p:last-child { margin-bottom: 0; }
 .founders { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; margin-top: 48px; }
 .founder-card { display: flex; flex-direction: column; gap: 16px; }
 .founder-photo {
-  width: 100%; aspect-ratio: 4 / 5;
-  background: var(--warm-white); border: 1px solid var(--hairline);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--taupe); font-family: var(--font-serif); font-style: italic; font-size: 13px;
+  width: 100%; max-width: 260px; aspect-ratio: 4 / 5;
+  overflow: hidden; border-radius: 14px;
+  background-color: var(--warm-white); background-repeat: no-repeat;
+}
+.founder-photo--ofir {
+  background-image: url("/founders/gesher_ofir.jpeg");
+  background-size: 125%; background-position: 50% 30%;
+  filter: saturate(0.68) contrast(0.90) brightness(0.95) sepia(0.16);
+}
+.founder-photo--ben {
+  background-image: url("/founders/gesher_ben_soft_color.jpg");
+  background-size: 150%; background-position: 50% 12%;
 }
 .founder-name { font-family: var(--font-serif); font-weight: 500; font-size: 22px; color: var(--navy); margin: 0; }
 .founder-role { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--taupe); margin: 0 0 8px; }

@@ -565,13 +565,13 @@ function Founders() {
         <h2 className="display">{S.founders.heading}</h2>
         <div className="founders">
           <div className="founder-card">
-            <div className="founder-photo">{S.founders.photoPlaceholder}</div>
+            <div className="founder-photo founder-photo--ofir" role="img" aria-label={S.founders.ofir.name}></div>
             <h3 className="founder-name">{S.founders.ofir.name}</h3>
             <p className="founder-role">{S.founders.ofir.role}</p>
             <p className="founder-bio">{S.founders.ofir.bio}</p>
           </div>
           <div className="founder-card">
-            <div className="founder-photo">{S.founders.photoPlaceholder}</div>
+            <div className="founder-photo founder-photo--ben" role="img" aria-label={S.founders.ben.name}></div>
             <h3 className="founder-name">{S.founders.ben.name}</h3>
             <p className="founder-role">{S.founders.ben.role}</p>
             <p className="founder-bio">{S.founders.ben.bio}</p>
