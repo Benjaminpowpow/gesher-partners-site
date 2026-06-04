@@ -30,13 +30,13 @@ const EN = {
     headlineLead: "Get the most out of your",
     headlineEmph: "life's work",
     headlineTrail: ".",
-    lede: "Sell-side advisors who've sold their own companies, and helped others do the same.",
+    lede: "Sell-side advisors who've sold their own companies\n& helped others do the same",
     ctaTalk: "Talk to us",
     ctaValuation: "Quick valuation",
   },
   problem: {
     eyebrow: "The problem",
-    heading: "You built something. You have one shot to get this right.",
+    heading: "You built something.\nYou have one shot to get this right.",
     paras: [
       "There is no next generation, and it is time to sell.",
       "We are the advisor you should have next to you.",
@@ -46,7 +46,7 @@ const EN = {
     items: [
       { value: "40+", unit: "years", accent: false, lbl: "Advising business owners" },
       { value: "20+", unit: "companies", accent: false, lbl: "Built and sold" },
-      { value: "0", unit: "investment banks", accent: true, lbl: "For a deal this size. So we built one." },
+      { value: "0", unit: "investment banks", accent: true, lbl: "For a deal this size." },
     ],
   },
   process: {
@@ -93,7 +93,7 @@ const EN = {
   },
   selectivity: {
     eyebrow: "What sets us apart",
-    quote: "Most advisors push you to sell. We tell you when to wait.",
+    quote: "Most advisors push you to sell.\nWe tell you when to wait.",
     sub: "That is why owners trust us when it is time.",
   },
   contact: {
@@ -294,6 +294,18 @@ const useS = () => useContext(StringsContext);
 // below are kept intact. See also App.tsx "/" route and vite.ts ENGLISH_ONLY.
 const SHOW_LANG_SWITCH: boolean = false;
 
+// Render a string as stacked lines, breaking on "\n". Used where the design
+// calls for a deliberate two-line break (hero subline, problem heading, quote).
+function Lines({ text }: { text: string }) {
+  return (
+    <>
+      {text.split("\n").map((line, i) => (
+        <span key={i} style={{ display: "block" }}>{line}</span>
+      ))}
+    </>
+  );
+}
+
 // Language switch. Both languages always visible, the active one bold. Real
 // anchor links (full navigation) so the server sets the right per-language head.
 function LangSwitch({ className = "" }: { className?: string }) {
@@ -473,7 +485,7 @@ function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk
             <span className="hl-emph emph-italic">{S.hero.headlineEmph}</span>
             {S.hero.headlineTrail}
           </h1>
-          <p className="lede">{S.hero.lede}</p>
+          <p className="lede"><Lines text={S.hero.lede} /></p>
           <div className="hero-actions">
             <Button size="lg" onClick={onTalk} arrow>
               {S.hero.ctaTalk}
@@ -494,7 +506,7 @@ function Problem() {
     <section className="section problem">
       <div className="container">
         <p className="eyebrow">{S.problem.eyebrow}</p>
-        <h2 className="display">{S.problem.heading}</h2>
+        <h2 className="display"><Lines text={S.problem.heading} /></h2>
         {S.problem.paras.map((p, i) => (
           <p key={i} style={{ fontSize: 18, color: "var(--near-black)" }}>
             {p}
@@ -605,7 +617,7 @@ function Selectivity() {
       <div className="container">
         <div className="selectivity">
           <p className="eyebrow selectivity-eyebrow">{S.selectivity.eyebrow}</p>
-          <p className="quote">{S.selectivity.quote}</p>
+          <p className="quote"><Lines text={S.selectivity.quote} /></p>
           <p className="sub">{S.selectivity.sub}</p>
         </div>
       </div>
@@ -694,7 +706,7 @@ function Contact() {
                 ))}
               </select>
             </div>
-            <div className="field full">
+            <div className="field">
               <label htmlFor="stage">{labels.stage}</label>
               <select id="stage" value={stage} onChange={(e) => setStage(e.target.value)}>
                 <option value="" disabled>
