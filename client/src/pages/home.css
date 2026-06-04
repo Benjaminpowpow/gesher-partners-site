@@ -482,39 +482,62 @@ p:last-child { margin-bottom: 0; }
 @media (max-width: 560px) {
   .process-grid { grid-template-columns: 1fr; }
 }
-/* Price-discovery idea: a quiet statement with one burgundy accent rule. */
-.process-price {
-  margin-top: 40px; max-width: 58ch;
-  padding-inline-start: 20px; border-inline-start: 2px solid var(--burgundy);
+/* The process as a rising staircase: each step sits higher than the last,
+   climbing toward "your best price" (top right). */
+.process-stairs-head { display: flex; justify-content: flex-end; margin-top: 44px; margin-bottom: 10px; }
+.process-bestprice {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-sans); font-weight: 600; font-size: 13px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--burgundy);
 }
-.process-price-lead {
-  font-family: var(--font-serif); font-weight: 500; font-size: 24px;
-  line-height: 1.3; color: var(--navy); margin: 0 0 8px;
+.process-stairs {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; align-items: start;
 }
-.process-price-body {
-  font-size: 18px; line-height: 1.6; color: var(--near-black); margin: 0;
+.process-step {
+  background: var(--cream); border: 1px solid var(--hairline);
+  border-radius: var(--radius); padding: 26px 24px;
 }
+.process-step:nth-child(1) { margin-top: 96px; }
+.process-step:nth-child(2) { margin-top: 64px; }
+.process-step:nth-child(3) { margin-top: 32px; }
+.process-step:nth-child(4) { margin-top: 0; }
+.process-step-icon { display: inline-flex; color: var(--navy); margin-bottom: 14px; }
+.process-step .step {
+  font-family: var(--font-serif); font-weight: 500; font-style: italic;
+  font-size: 14px; color: var(--burgundy); margin: 0 0 6px; letter-spacing: 0.08em;
+}
+.process-step h3 { margin-bottom: 8px; }
+.process-step p { font-size: 15px; line-height: 1.55; color: var(--near-black); margin: 0; }
+
 /* What you do / what we do. */
 .process-split {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
-  margin-top: 56px; padding-top: 40px; border-top: 0.5px solid var(--hairline);
+  display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 56px;
+  margin-top: 72px; padding-top: 44px; border-top: 0.5px solid var(--hairline);
 }
 .process-split-label {
   font-family: var(--font-sans); font-weight: 600; font-size: 13px;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy);
-  margin: 0 0 16px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy); margin: 0 0 22px;
 }
-.process-split-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.process-split-list li {
-  font-size: 17px; line-height: 1.5; color: var(--near-black);
-  padding-inline-start: 18px; position: relative;
+.process-you-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
+.process-you-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 16px; line-height: 1.45; color: var(--near-black); }
+.process-you-list li svg { color: var(--navy); flex-shrink: 0; margin-top: 2px; }
+.process-we-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 28px 32px; }
+.process-we-list li { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 96px; text-align: center; }
+.process-we-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--warm-white); border: 1px solid var(--hairline); color: var(--navy);
 }
-.process-split-list li::before {
-  content: ""; position: absolute; inset-inline-start: 0; top: 10px;
-  width: 5px; height: 5px; border-radius: 50%; background: var(--taupe);
+.process-we-list li span:last-child { font-size: 13px; line-height: 1.3; color: var(--near-black); }
+@media (max-width: 760px) {
+  .process-stairs { grid-template-columns: 1fr 1fr; }
+  .process-step { margin-top: 0 !important; }
+  .process-stairs-head { display: none; }
+  .process-split { grid-template-columns: 1fr; gap: 36px; }
 }
-@media (max-width: 560px) {
-  .process-split { grid-template-columns: 1fr; gap: 32px; }
+@media (max-width: 460px) {
+  .process-stairs { grid-template-columns: 1fr; }
 }
 
 /* ---------- Founders ---------- */

@@ -12,6 +12,7 @@
  */
 import { createContext, useContext, useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { FileText, Search, BarChart3, ShieldCheck, Briefcase, Users, Scale, PenLine, ArrowUpRight } from "lucide-react";
 import "./home.css";
 
 const EN = {
@@ -534,18 +535,27 @@ function StatRow() {
 }
 
 // Process section. ENGLISH-ONLY redesign (2026-06-04), built from the "How we
-// sell Kitaron" one-pager: a calm price-discovery idea, the four steps, and a
-// "you do / we do" split. Content is inline here while the site is English-only;
-// when the Hebrew layer is un-parked this section gets translated with Ofir.
-// The old S.process strings remain in EN/HE as a reference for that pass.
+// sell Kitaron" one-pager: a rising staircase of four steps and a visual
+// "you do / we do" split. Content is inline while the site is English-only;
+// the parked Hebrew strings (EN/HE.process) stay as a reference for the later
+// translation pass with Ofir.
 const PROCESS_STEPS = [
-  { step: "01", title: "Prepare", body: "Clean numbers, a sharp story, and a price range we set together." },
-  { step: "02", title: "Find every buyer", body: "Every serious buyer, in Israel and abroad. Not one or two." },
-  { step: "03", title: "Run the competition", body: "They bid by one deadline, then refine round after round." },
-  { step: "04", title: "Close and protect you", body: "The best offer, every term locked, all the way to signing." },
+  { step: "01", title: "Prepare", body: "Clean numbers, a sharp story, and a price range we set together.", Icon: FileText },
+  { step: "02", title: "Find every buyer", body: "Every serious buyer, in Israel and abroad. Not one or two.", Icon: Search },
+  { step: "03", title: "Run the competition", body: "They bid by one deadline, then refine round after round.", Icon: BarChart3 },
+  { step: "04", title: "Close and protect you", body: "The best offer, every term locked, all the way to signing.", Icon: ShieldCheck },
 ];
-const PROCESS_YOU = ["Run your business.", "Join the key meetings. We prep you for each."];
-const PROCESS_WE = ["Pricing and materials", "Buyer search", "The competition", "Legal and tax", "Paperwork and close"];
+const PROCESS_YOU = [
+  { label: "Run your business.", Icon: Briefcase },
+  { label: "Join the key meetings. We prep you for each.", Icon: Users },
+];
+const PROCESS_WE = [
+  { label: "Pricing and materials", Icon: FileText },
+  { label: "Buyer search", Icon: Search },
+  { label: "The competition", Icon: BarChart3 },
+  { label: "Legal and tax", Icon: Scale },
+  { label: "Paperwork and close", Icon: PenLine },
+];
 
 function Process() {
   return (
@@ -553,35 +563,40 @@ function Process() {
       <div className="container">
         <p className="eyebrow">The process</p>
         <h2 className="display">How we sell your business.</h2>
+        <p className="tag-italic">A real process that finds your true price.</p>
 
-        <div className="process-price">
-          <p className="process-price-lead">One offer is just an opinion.</p>
-          <p className="process-price-body">
-            A real process finds your true price. Many serious buyers, one deadline, real competition.
-          </p>
+        <div className="process-stairs-head">
+          <span className="process-bestprice"><ArrowUpRight size={16} strokeWidth={2} /> Your best price</span>
         </div>
-
-        <div className="process-grid">
+        <ol className="process-stairs">
           {PROCESS_STEPS.map((s) => (
-            <div className="process-block" key={s.step}>
+            <li className="process-step" key={s.step}>
+              <span className="process-step-icon"><s.Icon size={24} strokeWidth={1.5} /></span>
               <p className="step">{s.step}</p>
               <h3 className="serif">{s.title}</h3>
               <p>{s.body}</p>
-            </div>
+            </li>
           ))}
-        </div>
+        </ol>
 
         <div className="process-split">
-          <div className="process-split-col">
+          <div>
             <p className="process-split-label">You</p>
-            <ul className="process-split-list">
-              {PROCESS_YOU.map((item, i) => <li key={i}>{item}</li>)}
+            <ul className="process-you-list">
+              {PROCESS_YOU.map((it, i) => (
+                <li key={i}><it.Icon size={20} strokeWidth={1.5} /><span>{it.label}</span></li>
+              ))}
             </ul>
           </div>
-          <div className="process-split-col">
+          <div>
             <p className="process-split-label">We</p>
-            <ul className="process-split-list">
-              {PROCESS_WE.map((item, i) => <li key={i}>{item}</li>)}
+            <ul className="process-we-list">
+              {PROCESS_WE.map((it, i) => (
+                <li key={i}>
+                  <span className="process-we-icon"><it.Icon size={22} strokeWidth={1.5} /></span>
+                  <span>{it.label}</span>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
