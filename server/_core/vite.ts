@@ -24,11 +24,20 @@ const HREFLANG = [
   `<link rel="alternate" hreflang="x-default" href="${SITE}/" />`,
 ].join("\n    ");
 
+// ENGLISH-ONLY (2026-06-04): the Hebrew site is parked. While this is true the
+// root (/) serves the English head, the Hebrew rewrites below are skipped, and the
+// hreflang alternates are dropped. A single-language site needs no alternates, and
+// pointing hreflang at a hidden Hebrew page would send mixed signals to search and
+// answer engines. To restore the bilingual site, set this to false. See also the
+// App.tsx "/" route and Home.tsx SHOW_LANG_SWITCH.
+const ENGLISH_ONLY: boolean = true;
+
 export function localizeHtml(template: string, url: string): string {
   const reqPath = url.split("?")[0].split("#")[0];
   const isEnHome = reqPath === "/en" || reqPath === "/en/";
-  const isHeHome = reqPath === "/";
-  if (!isEnHome && !isHeHome) return template;
+  const isHeHome = !ENGLISH_ONLY && reqPath === "/";
+  const isRootHome = reqPath === "/"; // English root while ENGLISH_ONLY is true
+  if (!isEnHome && !isHeHome && !isRootHome) return template;
 
   let html = template;
 
@@ -59,9 +68,10 @@ export function localizeHtml(template: string, url: string): string {
   }
 
   const canonical = isEnHome ? `${SITE}/en/` : `${SITE}/`;
+  const alternates = ENGLISH_ONLY ? "" : `\n    ${HREFLANG}`;
   return html.replace(
     "</head>",
-    `<link rel="canonical" href="${canonical}" />\n    ${HREFLANG}\n  </head>`
+    `<link rel="canonical" href="${canonical}" />${alternates}\n  </head>`
   );
 }
 

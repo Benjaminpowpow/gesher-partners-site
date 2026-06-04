@@ -285,10 +285,17 @@ const HE: Strings = {
 const StringsContext = createContext<Strings>(EN);
 const useS = () => useContext(StringsContext);
 
+// ENGLISH-ONLY (2026-06-04): the Hebrew site is parked, so the language switch
+// is hidden everywhere it is used (nav desktop, nav mobile, footer). Flip this
+// to true to bring the עב / EN toggle back. The Hebrew copy (HE) and RTL code
+// below are kept intact. See also App.tsx "/" route and vite.ts ENGLISH_ONLY.
+const SHOW_LANG_SWITCH: boolean = false;
+
 // Language switch. Both languages always visible, the active one bold. Real
 // anchor links (full navigation) so the server sets the right per-language head.
 function LangSwitch({ className = "" }: { className?: string }) {
   const S = useS();
+  if (!SHOW_LANG_SWITCH) return null;
   const isHe = S.langCode === "he";
   return (
     <div className={`lang-switch ${className}`.trim()} role="group" aria-label="Language / שפה">

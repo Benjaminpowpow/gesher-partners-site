@@ -14,7 +14,10 @@ import TestRender from "./pages/TestRender";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={() => <Home lang="he" />} />
+      {/* ENGLISH-ONLY (2026-06-04): root serves English while the Hebrew site is
+          parked. To restore Hebrew, change the "/" route back to <Home lang="he" />
+          (see also Home.tsx SHOW_LANG_SWITCH and server/_core/vite.ts ENGLISH_ONLY). */}
+      <Route path="/" component={() => <Home lang="en" />} />
       <Route path="/en" component={() => <Home lang="en" />} />
       <Route path="/en/" component={() => <Home lang="en" />} />
       <Route path="/valuation" component={Valuation} />
