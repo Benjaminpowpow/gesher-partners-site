@@ -602,7 +602,7 @@ function Process() {
         <div className="process-handoff">
           <p className="eyebrow">What you do, what we do</p>
           <div className="process-split">
-            <div>
+            <div className="process-col">
               <p className="process-split-label">You</p>
               <ul className="process-you-list">
                 {PROCESS_YOU.map((it, i) => (
@@ -610,7 +610,7 @@ function Process() {
                 ))}
               </ul>
             </div>
-            <div>
+            <div className="process-col process-col--we">
               <p className="process-split-label">We</p>
               <ul className="process-we-list">
                 {PROCESS_WE.map((it, i) => (
