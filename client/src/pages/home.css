@@ -239,6 +239,9 @@ h2.display {
   max-width: 22ch;
   text-wrap: balance;
 }
+/* Problem heading uses deliberate two-line breaks (Lines helper). Widen it so
+   each line stays on one line on desktop; it still wraps gracefully on mobile. */
+.problem h2.display { max-width: none; }
 .section-navy h1.display, .section-navy h2.display { color: var(--cream); }
 h3.serif {
   font-family: var(--font-serif); font-weight: 500;
