@@ -100,7 +100,7 @@ const EN = {
     eyebrow: "Get in touch",
     heading: "Contact us.",
     lede: "Tell us where you are and we will tell you honestly whether we can help.",
-    note: "We earn most of our fee only when you sell. A small monthly fee keeps us both committed until then. If we cannot help you, we will tell you in the first conversation.",
+    note: "When you win, we win.",
     labels: {
       name: "Name",
       email: "Email",
