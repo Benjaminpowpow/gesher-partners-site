@@ -68,7 +68,7 @@ const EN = {
       { src: "/brand/logos/kpmg.svg", alt: "KPMG", height: 38 },
       { src: "/brand/logos/jfrog.svg", alt: "JFrog", height: 48 },
       { src: "/brand/logos/metro-group.png", alt: "Metropolinet Group", height: 52 },
-      { src: "/brand/logos/space.png", alt: "Space", height: 42 },
+      { src: "/brand/logos/space.png", alt: "Space", height: 50 },
       { src: "/brand/logos/ptravel.webp", alt: "P Travels Club", height: 48 },
       { src: "/brand/logos/milgam.png", alt: "Milgam", height: 30 },
     ],
