@@ -27,7 +27,7 @@ const EN = {
     closeAriaLabel: "Close menu",
   },
   hero: {
-    eyebrow: "For private and family businesses · NIS 5 to 50M",
+    eyebrow: "For private and family businesses · 5-50M NIS",
     headlineLead: "Get the most out of your",
     headlineEmph: "life's work",
     headlineTrail: ".",
@@ -36,7 +36,7 @@ const EN = {
     ctaValuation: "Quick valuation",
   },
   problem: {
-    eyebrow: "The problem",
+    eyebrow: "The challenge",
     heading: "You built something.\nYou have one shot to get this right.",
     paras: [
       "There is no next generation, and it is time to sell.",
@@ -63,7 +63,7 @@ const EN = {
   },
   trackRecord: {
     eyebrow: "Track record",
-    heading: "Where the team has built and advised.",
+    heading: "Where we have built and advised.",
     lede: "Operators and advisors before founders",
     logos: [
       { src: "/brand/logos/kpmg.svg", alt: "KPMG", height: 38 },
@@ -565,7 +565,7 @@ function Process() {
     <section className="section" id="process" style={{ background: "var(--warm-white)" }}>
       <div className="container">
         <p className="eyebrow">The process</p>
-        <h2 className="display">How we sell your business.</h2>
+        <h2 className="display">How we help you.</h2>
         <p className="tag-italic">A process that finds your true market value</p>
 
         <div className="bidchart">
@@ -632,7 +632,6 @@ function TrackRecord() {
       <div className="container">
         <p className="eyebrow">{S.trackRecord.eyebrow}</p>
         <h2 className="display">{S.trackRecord.heading}</h2>
-        <p className="lede">{S.trackRecord.lede}</p>
         <div className="logos">
           {S.trackRecord.logos.map((l, i) => (
             <img key={i} className="track-logo" src={l.src} alt={l.alt} style={{ height: l.height }} />
