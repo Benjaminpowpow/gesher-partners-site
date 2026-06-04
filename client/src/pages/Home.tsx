@@ -580,7 +580,7 @@ function Process() {
                   <span key={i} className={"bidchart-bar" + (i === BID_BARS.length - 1 ? " bidchart-bar--top" : "")} style={{ height: h }} />
                 ))}
               </div>
-              <p className="bidchart-cap">An auction<span className="bidchart-upside">your upside</span></p>
+              <p className="bidchart-cap">Many buyers<span className="bidchart-upside">your upside</span></p>
             </div>
           </div>
         </div>
