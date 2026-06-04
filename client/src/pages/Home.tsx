@@ -566,7 +566,7 @@ function Process() {
       <div className="container">
         <p className="eyebrow">The process</p>
         <h2 className="display">How we sell your business.</h2>
-        <p className="tag-italic">A real process that finds your true price.</p>
+        <p className="tag-italic">A process that finds your true market value.</p>
 
         <div className="bidchart">
           <div className="bidchart-row">
@@ -583,7 +583,6 @@ function Process() {
               <p className="bidchart-cap">An auction<span className="bidchart-upside">your upside</span></p>
             </div>
           </div>
-          <p className="bidchart-note"><strong>One buyer sets a price.</strong> An auction finds your true market value.</p>
         </div>
 
         <div className="process-stairs-head">
