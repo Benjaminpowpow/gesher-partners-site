@@ -492,13 +492,12 @@ p:last-child { margin-bottom: 0; }
   background-color: var(--warm-white); background-repeat: no-repeat;
 }
 .founder-photo--ofir {
-  background-image: url("/founders/gesher_ofir.jpeg");
-  background-size: 125%; background-position: 50% 30%;
-  filter: saturate(0.68) contrast(0.90) brightness(0.95) sepia(0.16);
+  background-image: url("/founders/gesher_ofir_final.jpg");
+  background-size: cover; background-position: 50% 25%;
 }
 .founder-photo--ben {
-  background-image: url("/founders/gesher_ben_soft_color.jpg");
-  background-size: 150%; background-position: 50% 12%;
+  background-image: url("/founders/gesher_ben_final.jpg");
+  background-size: cover; background-position: 50% 25%;
 }
 .founder-name { font-family: var(--font-serif); font-weight: 500; font-size: 22px; color: var(--navy); margin: 0; }
 .founder-role { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--taupe); margin: 0 0 8px; }
