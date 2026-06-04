@@ -12,7 +12,7 @@
  */
 import { createContext, useContext, useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { FileText, Search, BarChart3, ShieldCheck, Briefcase, Users, Scale, PenLine, ArrowUpRight } from "lucide-react";
+import { FileText, Search, Gavel, ShieldCheck, Briefcase, Users, Scale, Handshake, FileSignature, ArrowUpRight } from "lucide-react";
 import "./home.css";
 
 const EN = {
@@ -535,27 +535,30 @@ function StatRow() {
 }
 
 // Process section. ENGLISH-ONLY redesign (2026-06-04), built from the "How we
-// sell Kitaron" one-pager: a rising staircase of four steps and a visual
-// "you do / we do" split. Content is inline while the site is English-only;
-// the parked Hebrew strings (EN/HE.process) stay as a reference for the later
-// translation pass with Ofir.
+// sell Kitaron" one-pager: a one-buyer-vs-auction chart, a rising staircase of
+// four steps, and a visual "you do / we do" split. Inline while English-only;
+// the parked Hebrew strings stay as a reference for the later pass with Ofir.
 const PROCESS_STEPS = [
-  { step: "01", title: "Prepare", body: "Clean numbers, a sharp story, and a price range we set together.", Icon: FileText },
-  { step: "02", title: "Find every buyer", body: "Every serious buyer, in Israel and abroad. Not one or two.", Icon: Search },
-  { step: "03", title: "Run the competition", body: "They bid by one deadline, then refine round after round.", Icon: BarChart3 },
-  { step: "04", title: "Close and protect you", body: "The best offer, every term locked, all the way to signing.", Icon: ShieldCheck },
+  { step: "01", title: "Prepare", body: "Clean numbers and a sharp story.", Icon: FileText },
+  { step: "02", title: "Find every buyer", body: "Every serious buyer.", Icon: Search },
+  { step: "03", title: "Run the auction", body: "Many buyers, your true market value.", Icon: Gavel },
+  { step: "04", title: "Close and protect you", body: "All the way to the best offer.", Icon: ShieldCheck },
 ];
 const PROCESS_YOU = [
   { label: "Run your business.", Icon: Briefcase },
   { label: "Join the key meetings. We prep you for each.", Icon: Users },
 ];
 const PROCESS_WE = [
-  { label: "Pricing and materials", Icon: FileText },
+  { label: "Create materials", Icon: FileText },
   { label: "Buyer search", Icon: Search },
-  { label: "The competition", Icon: BarChart3 },
-  { label: "Legal and tax", Icon: Scale },
-  { label: "Paperwork and close", Icon: PenLine },
+  { label: "Auction", Icon: Gavel },
+  { label: "Legal & tax", Icon: Scale },
+  { label: "Negotiation", Icon: Handshake },
+  { label: "Paperwork & close", Icon: FileSignature },
 ];
+// One short bar (one buyer) vs four rising bars (an auction); the last bar is
+// burgundy to read as the upside. Heights are illustrative.
+const BID_BARS = ["48%", "66%", "84%", "100%"];
 
 function Process() {
   return (
@@ -564,6 +567,24 @@ function Process() {
         <p className="eyebrow">The process</p>
         <h2 className="display">How we sell your business.</h2>
         <p className="tag-italic">A real process that finds your true price.</p>
+
+        <div className="bidchart">
+          <div className="bidchart-row">
+            <div className="bidchart-group">
+              <div className="bidchart-bars"><span className="bidchart-bar" style={{ height: "34%" }} /></div>
+              <p className="bidchart-cap">One buyer</p>
+            </div>
+            <div className="bidchart-group">
+              <div className="bidchart-bars">
+                {BID_BARS.map((h, i) => (
+                  <span key={i} className={"bidchart-bar" + (i === BID_BARS.length - 1 ? " bidchart-bar--top" : "")} style={{ height: h }} />
+                ))}
+              </div>
+              <p className="bidchart-cap">An auction<span className="bidchart-upside">your upside</span></p>
+            </div>
+          </div>
+          <p className="bidchart-note"><strong>One buyer sets a price.</strong> An auction finds your true market value.</p>
+        </div>
 
         <div className="process-stairs-head">
           <span className="process-bestprice"><ArrowUpRight size={16} strokeWidth={2} /> Your best price</span>
@@ -579,25 +600,25 @@ function Process() {
           ))}
         </ol>
 
-        <div className="process-split">
-          <div>
-            <p className="process-split-label">You</p>
-            <ul className="process-you-list">
-              {PROCESS_YOU.map((it, i) => (
-                <li key={i}><it.Icon size={20} strokeWidth={1.5} /><span>{it.label}</span></li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <p className="process-split-label">We</p>
-            <ul className="process-we-list">
-              {PROCESS_WE.map((it, i) => (
-                <li key={i}>
-                  <span className="process-we-icon"><it.Icon size={22} strokeWidth={1.5} /></span>
-                  <span>{it.label}</span>
-                </li>
-              ))}
-            </ul>
+        <div className="process-handoff">
+          <p className="eyebrow">What you do, what we do</p>
+          <div className="process-split">
+            <div>
+              <p className="process-split-label">You</p>
+              <ul className="process-you-list">
+                {PROCESS_YOU.map((it, i) => (
+                  <li key={i}><it.Icon size={20} strokeWidth={1.5} /><span>{it.label}</span></li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="process-split-label">We</p>
+              <ul className="process-we-list">
+                {PROCESS_WE.map((it, i) => (
+                  <li key={i}><it.Icon size={24} strokeWidth={1.5} /><span>{it.label}</span></li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </div>
