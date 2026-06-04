@@ -533,22 +533,57 @@ function StatRow() {
   );
 }
 
+// Process section. ENGLISH-ONLY redesign (2026-06-04), built from the "How we
+// sell Kitaron" one-pager: a calm price-discovery idea, the four steps, and a
+// "you do / we do" split. Content is inline here while the site is English-only;
+// when the Hebrew layer is un-parked this section gets translated with Ofir.
+// The old S.process strings remain in EN/HE as a reference for that pass.
+const PROCESS_STEPS = [
+  { step: "01", title: "Prepare", body: "Clean numbers, a sharp story, and a price range we set together." },
+  { step: "02", title: "Find every buyer", body: "Every serious buyer, in Israel and abroad. Not one or two." },
+  { step: "03", title: "Run the competition", body: "They bid by one deadline, then refine round after round." },
+  { step: "04", title: "Close and protect you", body: "The best offer, every term locked, all the way to signing." },
+];
+const PROCESS_YOU = ["Run your business.", "Join the key meetings. We prep you for each."];
+const PROCESS_WE = ["Pricing and materials", "Buyer search", "The competition", "Legal and tax", "Paperwork and close"];
+
 function Process() {
-  const S = useS();
   return (
     <section className="section" id="process" style={{ background: "var(--warm-white)" }}>
       <div className="container">
-        <p className="eyebrow">{S.process.eyebrow}</p>
-        <h2 className="display">{S.process.heading}</h2>
-        <p className="lede">{S.process.lede}</p>
+        <p className="eyebrow">The process</p>
+        <h2 className="display">How we sell your business.</h2>
+
+        <div className="process-price">
+          <p className="process-price-lead">One offer is just an opinion.</p>
+          <p className="process-price-body">
+            A real process finds your true price. Many serious buyers, one deadline, real competition.
+          </p>
+        </div>
+
         <div className="process-grid">
-          {S.process.steps.map((s) => (
+          {PROCESS_STEPS.map((s) => (
             <div className="process-block" key={s.step}>
               <p className="step">{s.step}</p>
               <h3 className="serif">{s.title}</h3>
               <p>{s.body}</p>
             </div>
           ))}
+        </div>
+
+        <div className="process-split">
+          <div className="process-split-col">
+            <p className="process-split-label">You</p>
+            <ul className="process-split-list">
+              {PROCESS_YOU.map((item, i) => <li key={i}>{item}</li>)}
+            </ul>
+          </div>
+          <div className="process-split-col">
+            <p className="process-split-label">We</p>
+            <ul className="process-split-list">
+              {PROCESS_WE.map((item, i) => <li key={i}>{item}</li>)}
+            </ul>
+          </div>
         </div>
       </div>
     </section>

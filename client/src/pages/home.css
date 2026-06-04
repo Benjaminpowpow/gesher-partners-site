@@ -482,6 +482,40 @@ p:last-child { margin-bottom: 0; }
 @media (max-width: 560px) {
   .process-grid { grid-template-columns: 1fr; }
 }
+/* Price-discovery idea: a quiet statement with one burgundy accent rule. */
+.process-price {
+  margin-top: 40px; max-width: 58ch;
+  padding-inline-start: 20px; border-inline-start: 2px solid var(--burgundy);
+}
+.process-price-lead {
+  font-family: var(--font-serif); font-weight: 500; font-size: 24px;
+  line-height: 1.3; color: var(--navy); margin: 0 0 8px;
+}
+.process-price-body {
+  font-size: 18px; line-height: 1.6; color: var(--near-black); margin: 0;
+}
+/* What you do / what we do. */
+.process-split {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
+  margin-top: 56px; padding-top: 40px; border-top: 0.5px solid var(--hairline);
+}
+.process-split-label {
+  font-family: var(--font-sans); font-weight: 600; font-size: 13px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy);
+  margin: 0 0 16px;
+}
+.process-split-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.process-split-list li {
+  font-size: 17px; line-height: 1.5; color: var(--near-black);
+  padding-inline-start: 18px; position: relative;
+}
+.process-split-list li::before {
+  content: ""; position: absolute; inset-inline-start: 0; top: 10px;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--taupe);
+}
+@media (max-width: 560px) {
+  .process-split { grid-template-columns: 1fr; gap: 32px; }
+}
 
 /* ---------- Founders ---------- */
 .founders { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; margin-top: 48px; }
