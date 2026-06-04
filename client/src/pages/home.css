@@ -143,7 +143,7 @@
 }
 .hero .eyebrow { margin-bottom: 28px; }
 .hero h1.hero-headline { margin-bottom: 26px; max-width: 18ch; }
-.hero .lede { max-width: 44ch; margin-bottom: 36px; }
+.hero .lede { max-width: none; margin-bottom: 36px; font-size: 22px; }
 
 /* RTL: the copy sits on the right, so the cream wash flips to keep it solid
    behind the text and fade toward the left. Keyed off the .gesher-rtl class
@@ -290,13 +290,21 @@ p:last-child { margin-bottom: 0; }
 .btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
 /* ---------- Nav ---------- */
+/* Sticky top bar. Full-width background so it stays opaque over the hero on
+   scroll; the inner .container keeps the nav aligned to the page grid. */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  background: var(--cream);
+  border-bottom: 0.5px solid var(--hairline);
+}
 .nav {
   display: flex; align-items: center; justify-content: space-between;
   gap: 24px;
   flex-wrap: wrap;
   row-gap: 12px;
   padding: 22px 0;
-  border-bottom: 0.5px solid var(--hairline);
 }
 /* The brand link can carry inline-edited text next to the wordmark; let it
    shrink instead of pushing the nav-links into each other. */
@@ -307,7 +315,7 @@ p:last-child { margin-bottom: 0; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.nav .wordmark { height: 22px; display: block; flex-shrink: 0; }
+.nav .wordmark { height: 30px; display: block; flex-shrink: 0; }
 .nav .brand-mark { flex-shrink: 0; }
 .nav-links { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; row-gap: 8px; }
 .nav-links a {

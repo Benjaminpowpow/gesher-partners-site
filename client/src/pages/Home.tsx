@@ -352,7 +352,7 @@ function Button({ variant = "primary", size = "md", children, arrow = false, ...
   );
 }
 
-function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk: () => void }) {
+function Nav({ onTalk }: { onTalk: () => void }) {
   const S = useS();
   const [open, setOpen] = useState(false);
 
@@ -385,7 +385,7 @@ function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk:
   return (
     <nav className="nav" aria-label={S.nav.primaryAriaLabel}>
       <a href="#top" aria-label={S.nav.homeAriaLabel} style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
-        <img className="brand-mark" src="/brand/gesher-mark.svg" alt="" style={{ height: 28, display: "block" }} />
+        <img className="brand-mark" src="/brand/gesher-mark.svg" alt="" style={{ height: 36, display: "block" }} />
         <img className="wordmark" src="/brand/gesher-wordmark.svg" alt="gesher" />
       </a>
 
@@ -393,9 +393,6 @@ function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk:
       <div className="nav-links">
         <a href="#process">{S.nav.howItWorks}</a>
         <a href="#founders">{S.nav.founders}</a>
-        <Button size="sm" onClick={onOpenValuation}>
-          {S.nav.quickValuation}
-        </Button>
         <LangSwitch />
       </div>
 
@@ -418,7 +415,7 @@ function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk:
         <div id="nav-menu" className="nav-menu" role="dialog" aria-modal="true" aria-label={S.nav.menuAriaLabel}>
           <div className="nav-menu-bar">
             <a href="#top" aria-label={S.nav.homeAriaLabel} onClick={close} style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
-              <img className="brand-mark" src="/brand/gesher-mark.svg" alt="" style={{ height: 28, display: "block" }} />
+              <img className="brand-mark" src="/brand/gesher-mark.svg" alt="" style={{ height: 36, display: "block" }} />
               <img className="wordmark" src="/brand/gesher-wordmark.svg" alt="gesher" />
             </a>
             <button type="button" className="nav-toggle" aria-label={S.nav.closeAriaLabel} onClick={close}>
@@ -439,14 +436,11 @@ function Nav({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk:
                 {S.nav.founders}
               </a>
             </li>
-            <li>
-              <button type="button" className="nav-menu-link-btn" onClick={() => { close(); onOpenValuation(); }}>
-                {S.nav.quickValuation}
-              </button>
-            </li>
-            <li>
-              <LangSwitch className="lang-switch-mobile" />
-            </li>
+            {SHOW_LANG_SWITCH && (
+              <li>
+                <LangSwitch className="lang-switch-mobile" />
+              </li>
+            )}
           </ul>
 
           <div className="nav-menu-cta">
@@ -824,9 +818,11 @@ export default function Home({ lang = "en" }: { lang?: "en" | "he" }) {
   return (
     <StringsContext.Provider value={strings}>
       <div className={lang === "he" ? "gesher gesher-rtl" : "gesher"} lang={lang} dir={dir}>
-        <div className="container">
-          <Nav onOpenValuation={() => setModalOpen(true)} onTalk={() => scrollTo("contact")} />
-        </div>
+        <header className="site-header">
+          <div className="container">
+            <Nav onTalk={() => scrollTo("contact")} />
+          </div>
+        </header>
         <Hero onOpenValuation={() => setModalOpen(true)} onTalk={() => scrollTo("contact")} />
         <Problem />
         <StatRow />
