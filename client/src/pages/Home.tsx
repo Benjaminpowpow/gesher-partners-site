@@ -545,8 +545,8 @@ const PROCESS_STEPS = [
   { step: "04", title: "Close and protect you", body: "All the way to the best offer.", Icon: ShieldCheck },
 ];
 const PROCESS_YOU = [
-  { label: "Run your business.", Icon: Briefcase },
-  { label: "Join the key meetings. We prep you for each.", Icon: Users },
+  { label: "Run your business", Icon: Briefcase },
+  { label: "Join the key meetings, we prep you for each", Icon: Users },
 ];
 const PROCESS_WE = [
   { label: "Create materials", Icon: FileText },
