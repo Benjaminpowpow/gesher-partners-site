@@ -26,27 +26,27 @@ const EN = {
     closeAriaLabel: "Close menu",
   },
   hero: {
-    eyebrow: "For Israeli family businesses · NIS 5 to 50M",
+    eyebrow: "For private and family businesses · NIS 5 to 50M",
     headlineLead: "Get the most out of your",
     headlineEmph: "life's work",
     headlineTrail: ".",
-    lede: "An Israeli sell-side advisor, built by people who have sold their own companies.",
+    lede: "Sell-side advisors who've sold their own companies, and helped others do the same.",
     ctaTalk: "Talk to us",
     ctaValuation: "Quick valuation",
   },
   problem: {
     eyebrow: "The problem",
-    heading: "He built something real. He has one shot to get this right.",
+    heading: "You built something. You have one shot to get this right.",
     paras: [
-      "Twenty-five years of work. A real business. His kids do not want it. The brokers who keep calling want to sell it tomorrow, to the first buyer who answers. He deserves better than that.",
-      "We are the advisor he should have. We study the business. We find the right buyers. We run a real auction. And we tell the truth, even when the truth is do not sell yet.",
+      "There is no next generation, and it is time to sell.",
+      "We are the advisor you should have next to you.",
     ],
   },
   stats: {
     items: [
-      { value: "40+", unit: "years", accent: false, lbl: "Advising Israeli owners" },
-      { value: "3", unit: "companies", accent: false, lbl: "We built and sold our own" },
-      { value: "0", unit: "big banks", accent: true, lbl: "For a deal your size. So we built one." },
+      { value: "40+", unit: "years", accent: false, lbl: "Advising business owners" },
+      { value: "20+", unit: "companies", accent: false, lbl: "Built and sold" },
+      { value: "0", unit: "investment banks", accent: true, lbl: "For a deal this size. So we built one." },
     ],
   },
   process: {
@@ -77,18 +77,17 @@ const EN = {
     heading: "Built by people who have been on your side of the table.",
     photoPlaceholder: "Founder photo",
     ofir: {
-      name: "Ofir Ben Haim",
+      name: "Ofir Ben Haim, CPA",
       role: "Managing Partner",
-      bio: "40+ years advising Israeli business owners as a CPA. Built and sold OB&H in 2022. Thousands of clients across industrial, distribution, and services verticals. He has seen every deal structure that works in the Israeli market and several that do not.",
+      bio: "40+ years advising Israeli business owners. He has seen every deal structure that works in the Israeli market, and several that do not.",
     },
     ben: {
       name: "Benjamin Aronson",
       role: "Managing Partner",
-      bio: "Benjamin brings deep operational experience from the Israeli technology and services sector. Built and sold FinancePond in 2024. He has sat on the founder side of transactions and built Gesher to run the process he wished he had.",
+      bio: "Benjamin brings deep operational experience from the technology and services sector. Built and sold his company. Sat on the founder side of transactions.",
     },
     story: [
-      "We have both sat on your side of the table. We know what it feels like to give up something you built over years.",
-      "Below 100M NIS, you do not get J.P. Morgan. You get a broker. We run the same process the big banks run for billion-dollar deals. A better buyer map. A real auction. You on every call. Sized for a 5 to 50M business.",
+      "We sat on your side of the table. We know what it feels like to sell something you built over years.",
     ],
     coda: "",
   },
@@ -99,13 +98,14 @@ const EN = {
   },
   contact: {
     eyebrow: "Get in touch",
-    heading: "Talk to us.",
+    heading: "Contact us.",
     lede: "Tell us where you are and we will tell you honestly whether we can help.",
     note: "We earn most of our fee only when you sell. A small monthly fee keeps us both committed until then. If we cannot help you, we will tell you in the first conversation.",
     labels: {
       name: "Name",
       email: "Email",
       company: "Company",
+      website: "Website",
       revenue: "Annual revenue",
       stage: "Where you are in the process",
       message: "Anything you want us to know",
@@ -114,6 +114,7 @@ const EN = {
       name: "Your name",
       email: "you@example.co.il",
       company: "Your business",
+      website: "yourbusiness.co.il",
       revenue: "Select range",
       stage: "Select one",
       message: "A few sentences are enough.",
@@ -127,7 +128,7 @@ const EN = {
     thanksBody: "We read every note ourselves. You will hear from Ofir or Ben within two business days.",
   },
   footer: {
-    mission: "Sell-side advisor for Israeli family businesses. NIS 5–50M revenue. Built for the owners who built decades-long businesses.",
+    mission: "Sell-side advisor.",
     ariaLabel: "Footer",
     disclaimer: "Gesher Partners is not a licensed investment advisor. Nothing on this site constitutes investment advice or a solicitation to buy or sell any security.",
     links: {
@@ -240,6 +241,7 @@ const HE: Strings = {
       name: "שם מלא",
       email: "דוא״ל",
       company: "שם החברה",
+      website: "אתר אינטרנט",
       revenue: "מחזור מכירות שנתי",
       stage: "שלב בתהליך",
       message: "משהו נוסף שתרצה שנדע?",
@@ -248,6 +250,7 @@ const HE: Strings = {
       name: "השם שלך",
       email: "you@example.co.il",
       company: "העסק שלך",
+      website: "yourbusiness.co.il",
       revenue: "בחר טווח",
       stage: "בחר אפשרות",
       message: "כמה משפטים יספיקו.",
@@ -616,6 +619,7 @@ function Contact() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
+  const [website, setWebsite] = useState("");
   const [revenue, setRevenue] = useState("");
   const [stage, setStage] = useState("");
   const [message, setMessage] = useState("");
@@ -627,6 +631,7 @@ function Contact() {
     const composed = [
       message.trim(),
       company.trim() && `Company: ${company.trim()}`,
+      website.trim() && `Website: ${website.trim()}`,
       revenue && `Revenue: ${revenue}`,
       stage && `Stage: ${stage}`,
     ]
@@ -673,6 +678,10 @@ function Contact() {
             <div className="field">
               <label htmlFor="company">{labels.company}</label>
               <input id="company" type="text" placeholder={placeholders.company} value={company} onChange={(e) => setCompany(e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="website">{labels.website}</label>
+              <input id="website" type="url" placeholder={placeholders.website} value={website} onChange={(e) => setWebsite(e.target.value)} />
             </div>
             <div className="field">
               <label htmlFor="revenue">{labels.revenue}</label>
