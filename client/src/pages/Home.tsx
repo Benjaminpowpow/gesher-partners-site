@@ -47,7 +47,7 @@ const EN = {
     items: [
       { value: "40+", unit: "years", accent: false, lbl: "Advising business owners" },
       { value: "20+", unit: "companies", accent: false, lbl: "Built and sold" },
-      { value: "0", unit: "investment banks", accent: true, lbl: "For a deal this size." },
+      { value: "0", unit: "investment banks", accent: true, lbl: "For a deal this size" },
     ],
   },
   process: {
@@ -64,7 +64,7 @@ const EN = {
   trackRecord: {
     eyebrow: "Track record",
     heading: "Where the team has built and advised.",
-    lede: "Operators and advisors before founders.",
+    lede: "Operators and advisors before founders",
     logos: [
       { src: "/brand/logos/kpmg.svg", alt: "KPMG", height: 38 },
       { src: "/brand/logos/jfrog.svg", alt: "JFrog", height: 48 },
@@ -130,7 +130,7 @@ const EN = {
     thanksBody: "We read every note ourselves. You will hear from Ofir or Ben within two business days.",
   },
   footer: {
-    mission: "Sell-side advisor.",
+    mission: "Sell-side advisor",
     ariaLabel: "Footer",
     disclaimer: "Gesher Partners is not a licensed investment advisor. Nothing on this site constitutes investment advice or a solicitation to buy or sell any security.",
     links: {
@@ -539,10 +539,10 @@ function StatRow() {
 // four steps, and a visual "you do / we do" split. Inline while English-only;
 // the parked Hebrew strings stay as a reference for the later pass with Ofir.
 const PROCESS_STEPS = [
-  { step: "01", title: "Prepare", body: "Clean numbers and a sharp story.", Icon: FileText },
-  { step: "02", title: "Find every buyer", body: "Every serious buyer.", Icon: Search },
-  { step: "03", title: "Run the auction", body: "Many buyers, your true market value.", Icon: Gavel },
-  { step: "04", title: "Close and protect you", body: "All the way to the best offer.", Icon: ShieldCheck },
+  { step: "01", title: "Prepare", body: "Clean numbers and a sharp story", Icon: FileText },
+  { step: "02", title: "Find every buyer", body: "Every serious buyer", Icon: Search },
+  { step: "03", title: "Run the auction", body: "Many buyers, your true market value", Icon: Gavel },
+  { step: "04", title: "Close and protect you", body: "All the way to the best offer", Icon: ShieldCheck },
 ];
 const PROCESS_YOU = [
   { label: "Run your business", Icon: Briefcase },
@@ -566,7 +566,7 @@ function Process() {
       <div className="container">
         <p className="eyebrow">The process</p>
         <h2 className="display">How we sell your business.</h2>
-        <p className="tag-italic">A process that finds your true market value.</p>
+        <p className="tag-italic">A process that finds your true market value</p>
 
         <div className="bidchart">
           <div className="bidchart-row">
