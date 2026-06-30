@@ -573,37 +573,41 @@ function Process() {
         <p className="tag-italic">A process that finds your true market value</p>
 
         <div className="bidchart">
-          <div className="bidchart-toplabels">
-            <span className="bidchart-toplabel">One buyer</span>
-            <span className="bidchart-toplabel">Competitive bidding</span>
-          </div>
-
           <div className="bidchart-plot">
             <div className="bidchart-base" />
             <div className="bidchart-offer" />
-            <span className="bidchart-offer-cap">the one-offer level</span>
 
-            <div className="bidchart-cols">
-              <div className="bidchart-col">
-                <div className="bidchart-bar">
-                  <span className="bidchart-seg bidchart-seg--navy" style={{ height: ONE_OFFER }} />
+            <div className="bidchart-groups">
+              {/* One buyer: a single navy bar at the one-offer level. */}
+              <div className="bidchart-core">
+                <span className="bidchart-glabel">One buyer</span>
+                <div className="bidchart-cols">
+                  <div className="bidchart-col">
+                    <div className="bidchart-bar">
+                      <span className="bidchart-seg bidchart-seg--navy" style={{ height: ONE_OFFER }} />
+                    </div>
+                    <span className="bidchart-foot"><User size={18} strokeWidth={1.5} /></span>
+                  </div>
                 </div>
-                <span className="bidchart-foot"><User size={18} strokeWidth={1.5} /></span>
               </div>
 
-              <div className="bidchart-spacer" />
-
-              {GAP_BARS.map((g, i) => (
-                <div className="bidchart-col" key={i}>
-                  <div className="bidchart-bar">
-                    <span className="bidchart-seg bidchart-seg--gap" style={{ height: g }} />
-                    <span className="bidchart-seg bidchart-seg--navy" style={{ height: ONE_OFFER }} />
+              {/* Competitive bidding: navy base + rising burgundy gap, bracket to the right. */}
+              <div className="bidchart-many">
+                <div className="bidchart-core">
+                  <span className="bidchart-glabel">Competitive bidding</span>
+                  <span className="bidchart-offer-cap">the one-offer level</span>
+                  <div className="bidchart-cols">
+                    {GAP_BARS.map((g, i) => (
+                      <div className="bidchart-col" key={i}>
+                        <div className="bidchart-bar">
+                          <span className="bidchart-seg bidchart-seg--gap" style={{ height: g }} />
+                          <span className="bidchart-seg bidchart-seg--navy" style={{ height: ONE_OFFER }} />
+                        </div>
+                        <span className="bidchart-foot"><User size={18} strokeWidth={1.5} /></span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="bidchart-foot"><User size={18} strokeWidth={1.5} /></span>
                 </div>
-              ))}
-
-              <div className="bidchart-col bidchart-col--bracket">
                 <div className="bidchart-bracket" style={{ height: GAP_BARS[GAP_BARS.length - 1], marginBottom: ONE_OFFER + 32 }}>
                   <span className="bidchart-bracket-label">The gap is yours</span>
                 </div>
