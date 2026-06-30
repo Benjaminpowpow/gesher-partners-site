@@ -595,7 +595,6 @@ function Process() {
               <div className="bidchart-many">
                 <div className="bidchart-core">
                   <span className="bidchart-glabel">Competitive bidding</span>
-                  <span className="bidchart-offer-cap">the one-offer level</span>
                   <div className="bidchart-cols">
                     {GAP_BARS.map((g, i) => (
                       <div className="bidchart-col" key={i}>

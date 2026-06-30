@@ -547,13 +547,6 @@ p:last-child { margin-bottom: 0; }
   margin: 0 0 16px; font-family: var(--font-sans); font-size: 13px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--taupe); white-space: nowrap; text-align: center;
 }
-/* Hangs to the left of the first competitive bar, just above the dashed line. */
-.bidchart-offer-cap {
-  position: absolute; right: 100%; margin-right: 16px;
-  bottom: calc(var(--foot) + var(--offer) + 6px);
-  font-family: var(--font-serif); font-style: italic; font-size: 14px;
-  color: var(--taupe); white-space: nowrap;
-}
 .bidchart-cols { display: flex; align-items: flex-end; justify-content: center; gap: var(--bar-gap); }
 .bidchart-col { display: flex; flex-direction: column; align-items: center; }
 .bidchart-bar { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
@@ -578,14 +571,12 @@ p:last-child { margin-bottom: 0; }
 @media (max-width: 720px) {
   .bidchart { --bar-gap: 11px; --group-gap: 52px; }
 }
-/* Phone: shrink bars, gaps, and the bracket label so the chart never clips. The
-   "the one-offer level" caption is dropped here — no room without overlap. */
+/* Phone: shrink bars, gaps, and the bracket label so the chart never clips. */
 @media (max-width: 480px) {
   .bidchart { --bar-w: 20px; --bar-gap: 7px; --group-gap: 32px; --brk-label-w: 50px; }
   .bidchart-glabel { font-size: 10px; letter-spacing: 0.05em; margin-bottom: 12px; }
   .bidchart-bracket { margin-left: 7px; }
   .bidchart-bracket-label { left: 11px; font-size: 10px; }
-  .bidchart-offer-cap { display: none; }
 }
 /* What you do / what we do. */
 .process-handoff { margin-top: 72px; padding-top: 44px; border-top: 0.5px solid var(--hairline); }
