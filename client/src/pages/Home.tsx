@@ -12,7 +12,7 @@
  */
 import { createContext, useContext, useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { FileText, Search, Gavel, ShieldCheck, Briefcase, Users, Scale, Handshake, FileSignature, ArrowUpRight } from "lucide-react";
+import { FileText, Search, Gavel, ShieldCheck, Briefcase, Users, User, Scale, Handshake, FileSignature, ArrowUpRight } from "lucide-react";
 import "./home.css";
 
 const EN = {
@@ -556,9 +556,13 @@ const PROCESS_WE = [
   { label: "Negotiation", Icon: Handshake },
   { label: "Paperwork & close", Icon: FileSignature },
 ];
-// One short bar (one buyer) vs four rising bars (an auction); the last bar is
-// burgundy to read as the upside. Heights are illustrative.
-const BID_BARS = ["48%", "66%", "84%", "100%"];
+// One buyer pays the one-offer level. Competitive bidding stacks a burgundy
+// "gap" on top of that same level, and the gap is the seller's upside. Heights
+// are illustrative pixels. ONE_OFFER is the shared navy base (the one-offer
+// level); keep it in sync with --offer in home.css. GAP_BARS are the burgundy
+// tops, rising bar to bar.
+const ONE_OFFER = 92;
+const GAP_BARS = [20, 44, 68, 92, 114];
 
 function Process() {
   return (
@@ -569,18 +573,41 @@ function Process() {
         <p className="tag-italic">A process that finds your true market value</p>
 
         <div className="bidchart">
-          <div className="bidchart-row">
-            <div className="bidchart-group">
-              <div className="bidchart-bars"><span className="bidchart-bar" style={{ height: "34%" }} /></div>
-              <p className="bidchart-cap">One buyer</p>
-            </div>
-            <div className="bidchart-group">
-              <div className="bidchart-bars">
-                {BID_BARS.map((h, i) => (
-                  <span key={i} className={"bidchart-bar" + (i === BID_BARS.length - 1 ? " bidchart-bar--top" : "")} style={{ height: h }} />
-                ))}
+          <div className="bidchart-toplabels">
+            <span className="bidchart-toplabel">One buyer</span>
+            <span className="bidchart-toplabel">Competitive bidding</span>
+          </div>
+
+          <div className="bidchart-plot">
+            <div className="bidchart-base" />
+            <div className="bidchart-offer" />
+            <span className="bidchart-offer-cap">the one-offer level</span>
+
+            <div className="bidchart-cols">
+              <div className="bidchart-col">
+                <div className="bidchart-bar">
+                  <span className="bidchart-seg bidchart-seg--navy" style={{ height: ONE_OFFER }} />
+                </div>
+                <span className="bidchart-foot"><User size={18} strokeWidth={1.5} /></span>
               </div>
-              <p className="bidchart-cap">Many buyers<span className="bidchart-upside">your upside</span></p>
+
+              <div className="bidchart-spacer" />
+
+              {GAP_BARS.map((g, i) => (
+                <div className="bidchart-col" key={i}>
+                  <div className="bidchart-bar">
+                    <span className="bidchart-seg bidchart-seg--gap" style={{ height: g }} />
+                    <span className="bidchart-seg bidchart-seg--navy" style={{ height: ONE_OFFER }} />
+                  </div>
+                  <span className="bidchart-foot"><User size={18} strokeWidth={1.5} /></span>
+                </div>
+              ))}
+
+              <div className="bidchart-col bidchart-col--bracket">
+                <div className="bidchart-bracket" style={{ height: GAP_BARS[GAP_BARS.length - 1], marginBottom: ONE_OFFER + 32 }}>
+                  <span className="bidchart-bracket-label">The gap is yours</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

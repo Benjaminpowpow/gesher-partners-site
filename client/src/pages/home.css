@@ -510,21 +510,53 @@ p:last-child { margin-bottom: 0; }
 .process-step h3 { margin-bottom: 8px; }
 .process-step p { font-size: 15px; line-height: 1.55; color: var(--near-black); margin: 0; }
 
-/* One buyer vs an auction. One short bar against four rising bars; the burgundy
-   top bar reads as the upside. Soft framing: "your true market value". */
-.bidchart { margin: 40px auto 0; max-width: 560px; }
-.bidchart-row { display: flex; align-items: flex-start; justify-content: center; gap: 64px; }
-.bidchart-group { display: flex; flex-direction: column; align-items: center; }
-.bidchart-bars { display: flex; align-items: flex-end; gap: 8px; height: 180px; border-bottom: 1px solid var(--hairline); }
-.bidchart-bar { width: 24px; background: var(--navy); border-radius: 2px 2px 0 0; }
-.bidchart-bar--top { background: var(--burgundy); }
-.bidchart-cap {
-  margin: 14px 0 0; font-family: var(--font-sans); font-size: 13px;
-  letter-spacing: 0.1em; text-transform: uppercase; color: var(--taupe); text-align: center;
+/* One buyer vs competitive bidding. A single navy bar sets "the one-offer level"
+   (a dashed line across the chart). Competitive bids stack a burgundy "gap" on
+   top of that same level, rising bar to bar; the gap is the seller's upside,
+   called out by the bracket on the right. --offer must match ONE_OFFER in
+   Home.tsx; --foot is the icon row height under each bar. */
+.bidchart { margin: 44px auto 0; max-width: 600px; --offer: 92px; --foot: 32px; }
+.bidchart-toplabels {
+  display: flex; justify-content: space-between; padding: 0 26px; margin: 0 0 20px;
 }
-.bidchart-upside {
-  display: block; margin-top: 5px; font-size: 12px; letter-spacing: 0.02em;
-  text-transform: none; color: var(--burgundy); font-weight: 600;
+.bidchart-toplabel {
+  font-family: var(--font-sans); font-size: 13px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--taupe);
+}
+.bidchart-plot { position: relative; }
+/* Baseline under the bars and the dashed one-offer level above it. */
+.bidchart-base {
+  position: absolute; left: 0; right: 0; bottom: var(--foot);
+  border-top: 1px solid var(--hairline);
+}
+.bidchart-offer {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--foot) + var(--offer));
+  border-top: 1px dashed var(--taupe); opacity: 0.65;
+}
+.bidchart-offer-cap {
+  position: absolute; left: 22%; bottom: calc(var(--foot) + var(--offer) + 6px);
+  font-family: var(--font-serif); font-style: italic; font-size: 14px; color: var(--taupe);
+}
+.bidchart-cols { display: flex; align-items: flex-end; justify-content: center; gap: 14px; }
+.bidchart-col { display: flex; flex-direction: column; align-items: center; }
+.bidchart-spacer { width: 46px; }
+.bidchart-bar { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.bidchart-seg { width: 30px; }
+.bidchart-seg--navy { background: var(--navy); border-radius: 0 0 2px 2px; }
+.bidchart-seg--gap { background: var(--burgundy); border-radius: 2px 2px 0 0; }
+.bidchart-foot {
+  margin-top: 14px; height: 18px; display: flex; align-items: center; color: var(--navy);
+}
+/* The bracket spans the burgundy band of the tallest bar. The inline height is
+   that band; the inline margin-bottom lifts it to the one-offer level. */
+.bidchart-col--bracket { justify-content: flex-end; margin-left: 8px; }
+.bidchart-bracket {
+  position: relative; width: 8px; border: 1.5px solid var(--burgundy); border-left: none;
+}
+.bidchart-bracket-label {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+  width: 64px; font-family: var(--font-sans); font-weight: 700; font-size: 13px;
+  line-height: 1.2; letter-spacing: 0.06em; text-transform: uppercase; color: var(--burgundy);
 }
 /* What you do / what we do. */
 .process-handoff { margin-top: 72px; padding-top: 44px; border-top: 0.5px solid var(--hairline); }
