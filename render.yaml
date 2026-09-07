@@ -10,10 +10,15 @@ services:
   - type: web
     name: gesher-partners-site
     runtime: node
-    plan: starter
+    # Render renamed its plans in Aug 2026. "starter" is now "0.5c-512mb",
+    # the same $7/mo box: 0.5 CPU, 512MB. If a build ever dies on memory,
+    # the next size up is "1c-2g".
+    plan: 0.5c-512mb
+    # Frankfurt is the closest Render region to Israel.
     region: frankfurt
     branch: main
-    autoDeploy: true
+    # Replaces the deprecated "autoDeploy: true". Every push to main deploys.
+    autoDeployTrigger: commit
 
     # corepack turns on pnpm at the exact version package.json pins.
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
