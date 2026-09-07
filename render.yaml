@@ -35,8 +35,14 @@ services:
       - key: RESEND_API_KEY
         sync: false
 
-      # Where new leads land. Defaults to hello@gesher-partners.com if unset.
+      # Where new leads land. Defaults to MAIL_FROM if unset.
       - key: LEAD_NOTIFICATION_EMAIL
+        sync: false
+
+      # The address emails are sent FROM. Must be on a domain verified in
+      # Resend. Defaults to hello@gesherpartners.com, so leave it blank unless
+      # the sending domain changes.
+      - key: MAIL_FROM
         sync: false
 
       # Writes the Exit Brief. Get it at console.anthropic.com.

@@ -6,6 +6,21 @@ import { EXIT_BRIEF_SYSTEM_PROMPT } from "../lib/exitBriefSkill";
 import { insertValuationLead, markValuationLeadPdfRequested } from "../db";
 import { nanoid } from "nanoid";
 
+// ─── Email addresses ────────────────────────────────────────────────────────
+// Resend will only send from a domain we have verified in the Resend dashboard.
+// The firm's domain is gesherpartners.com (no hyphen). An earlier version of
+// this file sent from gesher-partners.com, which we do not own, so every send
+// would have been rejected. MAIL_FROM lets us change this without a code push.
+const MAIL_FROM = process.env.MAIL_FROM ?? "hello@gesherpartners.com";
+
+// Where new leads and contact-form submissions land.
+const NOTIFY_EMAIL = process.env.LEAD_NOTIFICATION_EMAIL ?? MAIL_FROM;
+
+// Resend wants "Display Name <address@domain>".
+function sender(displayName: string): string {
+  return `${displayName} <${MAIL_FROM}>`;
+}
+
 // ─── In-memory stores ───────────────────────────────────────────────────────
 // briefId -> the seller brief markdown (v7 is seller-only, no trace)
 const briefStore = new Map<string, string>();
@@ -311,7 +326,7 @@ async function handleExitBriefPdf(req: Request, res: Response) {
   }
 
   const resendKey = process.env.RESEND_API_KEY;
-  const notifyEmail = process.env.LEAD_NOTIFICATION_EMAIL ?? "hello@gesher-partners.com";
+  const notifyEmail = NOTIFY_EMAIL;
 
   if (!resendKey) {
     res.status(500).json({
@@ -327,7 +342,7 @@ async function handleExitBriefPdf(req: Request, res: Response) {
     // Email to the seller with the brief content
     // (PDF generation via @react-pdf/renderer is Phase 2 work)
     await resend.emails.send({
-      from: "Gesher <hello@gesher-partners.com>",
+      from: sender("Gesher"),
       to: email,
       subject: "Your Valuation Snapshot from Gesher",
       html: `
@@ -346,7 +361,7 @@ async function handleExitBriefPdf(req: Request, res: Response) {
 
     // Notification to Ben with full details including thinking trace
     await resend.emails.send({
-      from: "Gesher Lead <hello@gesher-partners.com>",
+      from: sender("Gesher Lead"),
       to: notifyEmail,
       subject: `New Valuation Snapshot lead: ${name} <${email}>`,
       html: `
@@ -386,7 +401,7 @@ async function handleContact(req: Request, res: Response) {
   }
 
   const resendKey = process.env.RESEND_API_KEY;
-  const notifyEmail = process.env.LEAD_NOTIFICATION_EMAIL ?? "hello@gesher-partners.com";
+  const notifyEmail = NOTIFY_EMAIL;
 
   if (!resendKey) {
     // Log and return success anyway so the form doesn't break in dev
@@ -399,7 +414,7 @@ async function handleContact(req: Request, res: Response) {
 
   try {
     await resend.emails.send({
-      from: "Gesher Contact Form <hello@gesher-partners.com>",
+      from: sender("Gesher Contact Form"),
       to: notifyEmail,
       replyTo: email,
       subject: `New contact from ${name} (${role ?? "not specified"})`,
@@ -477,7 +492,7 @@ async function handlePdfRequest(req: Request, res: Response) {
   });
 
   const resendKey = process.env.RESEND_API_KEY;
-  const notifyEmail = process.env.LEAD_NOTIFICATION_EMAIL ?? "hello@gesher-partners.com";
+  const notifyEmail = NOTIFY_EMAIL;
 
   if (!resendKey) {
     res.status(500).json({ message: "Email delivery is not configured." });
@@ -519,7 +534,7 @@ async function handlePdfRequest(req: Request, res: Response) {
     `;
 
     await resend.emails.send({
-      from: "Gesher <hello@gesher-partners.com>",
+      from: sender("Gesher"),
       to: notifyEmail,
       subject: `PDF Request: ${name} (${email})`,
       html: emailHtml,

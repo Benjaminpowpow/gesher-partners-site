@@ -60,7 +60,7 @@ export default function Footer() {
               <br />
               Address pending
               <br />
-              hello@gesher-partners.com
+              hello@gesherpartners.com
             </p>
           </div>
 

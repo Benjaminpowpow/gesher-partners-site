@@ -38,8 +38,8 @@ export default function Privacy() {
                 </p>
                 <p style={{ marginTop: 20 }}>
                   In the meantime, if you have questions about how your information is handled, please contact us at{" "}
-                  <a href="mailto:hello@gesher-partners.com" style={{ color: "var(--color-primary)" }}>
-                    hello@gesher-partners.com
+                  <a href="mailto:hello@gesherpartners.com" style={{ color: "var(--color-primary)" }}>
+                    hello@gesherpartners.com
                   </a>
                   .
                 </p>
