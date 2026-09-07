@@ -11,10 +11,13 @@ import { nanoid } from "nanoid";
 // The firm's domain is gesherpartners.com (no hyphen). An earlier version of
 // this file sent from gesher-partners.com, which we do not own, so every send
 // would have been rejected. MAIL_FROM lets us change this without a code push.
-const MAIL_FROM = process.env.MAIL_FROM ?? "hello@gesherpartners.com";
+// "||" not "??" on purpose. A host that creates the variable but leaves it
+// blank hands us "", which "??" would happily accept and we would send from
+// "Gesher <>". Empty means unset here.
+const MAIL_FROM = process.env.MAIL_FROM || "hello@gesherpartners.com";
 
 // Where new leads and contact-form submissions land.
-const NOTIFY_EMAIL = process.env.LEAD_NOTIFICATION_EMAIL ?? MAIL_FROM;
+const NOTIFY_EMAIL = process.env.LEAD_NOTIFICATION_EMAIL || MAIL_FROM;
 
 // Resend wants "Display Name <address@domain>".
 function sender(displayName: string): string {
