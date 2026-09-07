@@ -296,6 +296,13 @@ const useS = () => useContext(StringsContext);
 // below are kept intact. See also App.tsx "/" route and vite.ts ENGLISH_ONLY.
 const SHOW_LANG_SWITCH: boolean = false;
 
+// HERO MEDIA (2026-09-07): empty because the old hero video lived in Manus
+// storage and went down with it. Put the file in client/public/hero/ and set
+// these to "/hero/hero.mp4" and "/hero/hero-poster.jpg" to bring it back.
+// Empty means the <video> is not rendered at all, so no failed requests.
+const HERO_VIDEO: string = "";
+const HERO_POSTER: string | undefined = undefined;
+
 // Render a string as stacked lines, breaking on "\n". Used where the design
 // calls for a deliberate two-line break (hero subline, problem heading, quote).
 function Lines({ text }: { text: string }) {
@@ -460,17 +467,29 @@ function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk
   const S = useS();
   return (
     <header className="hero" id="top">
-      <video
-        className="hero-video"
-        src="/manus-storage/hero_06053d8a.mp4"
-        poster="/manus-storage/hero-poster_e70d346e.png"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        aria-hidden="true"
-      />
+      {/* The hero video and its poster lived only in Manus storage, never in
+          this repo, so they died with the Manus deployment. Until we put the
+          file back, render no <video> at all: pointing at a missing file made
+          every page load fire two failed requests. The hero falls back to the
+          cream ground, which reads clean.
+
+          To restore: drop the file at client/public/hero/hero.mp4 (and a
+          poster frame beside it), then set HERO_VIDEO below. Keep the media in
+          the repo this time. Render has no media limit, and a file in git is a
+          file that cannot be deleted by somebody else's outage. */}
+      {HERO_VIDEO && (
+        <video
+          className="hero-video"
+          src={HERO_VIDEO}
+          poster={HERO_POSTER}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          aria-hidden="true"
+        />
+      )}
       <div className="hero-wash" aria-hidden="true"></div>
 
       <div className="container hero-container">

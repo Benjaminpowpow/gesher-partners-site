@@ -25,9 +25,11 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script
-      defer
-      src="%VITE_ANALYTICS_ENDPOINT%/umami"
-      data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"></script>
+    <!-- Manus ran an umami analytics server for us. It is gone, and the two
+         VITE_ vars were never set outside Manus, so this tag shipped with the
+         literal "%VITE_ANALYTICS_ENDPOINT%" in the src and threw a console
+         error on every page load. Removed. We have no analytics right now.
+         Cloudflare Web Analytics or Plausible would drop straight back in
+         here when we want them. -->
   </body>
 </html>
