@@ -53,8 +53,11 @@ async function startServer() {
     serveStatic(app);
   }
 
+  // A managed host (Render, Fly, Railway) hands us the port it will route traffic
+  // to. Never scan past it there, or the health check hits a port nothing serves.
+  // Locally we still scan, so a stray dev server does not block startup.
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  const port = process.env.PORT ? preferredPort : await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);

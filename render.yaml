@@ -1,0 +1,53 @@
+# How this site gets deployed.
+#
+# Render reads this file straight out of the repo. That is the point: the deploy
+# setup lives in git next to the code, not inside somebody's dashboard. If the
+# host ever disappears, this file tells the next one exactly what to do.
+#
+# Push to main -> Render builds -> Render restarts the site. No button to click.
+
+services:
+  - type: web
+    name: gesher-partners-site
+    runtime: node
+    plan: starter
+    region: frankfurt
+    branch: main
+    autoDeploy: true
+
+    # corepack turns on pnpm at the exact version package.json pins.
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+
+    # Render pings this path. A non-200 means the deploy failed and it rolls back.
+    healthCheckPath: /
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22.14.0
+
+      # sync: false means "Ben types this into the Render dashboard by hand".
+      # Secrets never go in this file, because this file is public in the repo.
+
+      # Sends the contact form and the Exit Brief emails. Get it at resend.com.
+      - key: RESEND_API_KEY
+        sync: false
+
+      # Where new leads land. Defaults to hello@gesher-partners.com if unset.
+      - key: LEAD_NOTIFICATION_EMAIL
+        sync: false
+
+      # Writes the Exit Brief. Get it at console.anthropic.com.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # Optional. Pings a Slack channel when a lead comes in.
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+
+      # Optional today. This is what the buyer/seller portal will need later,
+      # and what the old Manus database used to hold.
+      - key: DATABASE_URL
+        sync: false
