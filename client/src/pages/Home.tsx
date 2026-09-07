@@ -296,12 +296,15 @@ const useS = () => useContext(StringsContext);
 // below are kept intact. See also App.tsx "/" route and vite.ts ENGLISH_ONLY.
 const SHOW_LANG_SWITCH: boolean = false;
 
-// HERO MEDIA (2026-09-07): empty because the old hero video lived in Manus
-// storage and went down with it. Put the file in client/public/hero/ and set
-// these to "/hero/hero.mp4" and "/hero/hero-poster.jpg" to bring it back.
-// Empty means the <video> is not rendered at all, so no failed requests.
-const HERO_VIDEO: string = "";
-const HERO_POSTER: string | undefined = undefined;
+// HERO MEDIA (2026-09-07): the file now lives in this repo at
+// client/public/hero/, not in someone else's storage bucket. Source was
+// 0524(3).mp4 on Ben's Desktop, 19.5MB. Re-encoded to 960x540 and cut to the
+// first 8 seconds, which took it to 4.5MB. It is a muted background loop
+// sitting behind the cream wash, so the extra resolution and the extra six
+// seconds bought nothing and cost every visitor 15MB.
+// Set HERO_VIDEO to "" to render no <video> at all.
+const HERO_VIDEO: string = "/hero/hero.mp4";
+const HERO_POSTER: string | undefined = "/hero/hero-poster.jpg";
 
 // Render a string as stacked lines, breaking on "\n". Used where the design
 // calls for a deliberate two-line break (hero subline, problem heading, quote).
