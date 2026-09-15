@@ -398,8 +398,11 @@ async function handleContact(req: Request, res: Response) {
     message?: string;
   };
 
-  if (!name || !email || !message) {
-    res.status(400).json({ error: "Name, email, and message are required." });
+  // The homepage form asks for one contact field, "Phone or email", because a
+  // 60-year-old owner is far likelier to leave a mobile number than an address.
+  // So either one is enough. Reply-to is only set when there is a real address.
+  if (!name || !message || (!email && !phone)) {
+    res.status(400).json({ error: "Name, a way to reach you, and a message are required." });
     return;
   }
 
@@ -408,7 +411,7 @@ async function handleContact(req: Request, res: Response) {
 
   if (!resendKey) {
     // Log and return success anyway so the form doesn't break in dev
-    console.warn("[contact] RESEND_API_KEY not set. Logging contact form submission:", { name, email, role });
+    console.warn("[contact] RESEND_API_KEY not set. Logging contact form submission:", { name, email, phone, role });
     res.json({ success: true });
     return;
   }
@@ -419,14 +422,16 @@ async function handleContact(req: Request, res: Response) {
     await resend.emails.send({
       from: sender("Gesher Contact Form"),
       to: notifyEmail,
-      replyTo: email,
+      // Only a real address can be replied to. A phone number in reply-to would
+      // make every reply bounce.
+      ...(email ? { replyTo: email } : {}),
       subject: `New contact from ${name} (${role ?? "not specified"})`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 20px;">
           <h2 style="color: #1B3A5C;">New Contact Form Submission</h2>
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 100px;">Name</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${name}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Email</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${email}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Email</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${email ?? "—"}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Phone</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${phone ?? "—"}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Role</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${role ?? "—"}</td></tr>
           </table>

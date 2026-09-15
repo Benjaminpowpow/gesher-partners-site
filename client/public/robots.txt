@@ -1,6 +1,106 @@
-# Only the home page and /valuation are public landing pages.
-# The old/internal tool routes are kept reachable but not indexed.
+# Gesher Partners. Owners find us through search and, more and more, by asking
+# an AI assistant. Both are welcome on the public pages.
+#
+# The home page, /valuation, /privacy and /terms are public. The old and
+# internal tool routes stay reachable by link but out of the index.
+#
+# A crawler that has its own named group below ignores the "*" group entirely,
+# so every group repeats the same two Disallow lines. Adding a bot means
+# copying the whole block, not just the name.
+
 User-agent: *
+Allow: /
 Disallow: /exit-brief
 Disallow: /test-render
+
+# ─── Search engines ─────────────────────────────────────────────────────────
+User-agent: Googlebot
 Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+User-agent: Bingbot
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+# ─── AI assistants and answer engines ───────────────────────────────────────
+# OpenAI: GPTBot trains and indexes, OAI-SearchBot serves search results,
+# ChatGPT-User fetches a page when someone asks about it.
+User-agent: GPTBot
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+# Anthropic (Claude).
+User-agent: ClaudeBot
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+User-agent: Claude-User
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+# Perplexity.
+User-agent: PerplexityBot
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+# Google's AI products (Gemini, AI Overviews) read this name, not Googlebot.
+User-agent: Google-Extended
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+# Apple Intelligence.
+User-agent: Applebot
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+# Meta AI.
+User-agent: meta-externalagent
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+# Common Crawl. A lot of models are trained on it.
+User-agent: CCBot
+Allow: /
+Disallow: /exit-brief
+Disallow: /test-render
+
+Sitemap: https://gesherpartners.com/sitemap.xml
