@@ -850,7 +850,10 @@ p:last-child { margin-bottom: 0; }
 .marquee-set { display: flex; align-items: center; gap: 88px; padding-inline-end: 88px; }
 .marquee-set img { height: 32px; width: auto; flex: none; }
 .marquee-set img.tall { height: 42px; }
-@keyframes logo-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+/* The logo-scroll keyframes live at the bottom of this file, outside the
+   .gesher block. @keyframes cannot be nested inside a style rule: the browser
+   still reads the animation name here, but it resolves to nothing and the row
+   sits dead still. That is exactly what happened on 2026-09-15. */
 
 /* Headings that set their own line breaks.
    The base h2 uses text-wrap: balance, which re-splits a heading to even out
@@ -1167,4 +1170,11 @@ p:last-child { margin-bottom: 0; }
   .spot { transition: none; }
   .spots { transition: none !important; }
 }
+}
+
+/* The logo strip animation. At the top level on purpose: @keyframes inside a
+   style rule is invalid CSS, and the row silently stops moving. */
+@keyframes logo-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
