@@ -541,8 +541,12 @@ function ProofStrip() {
 function LogoStrip() {
   const set = (hidden: boolean) => (
     <div className="marquee-set" aria-hidden={hidden ? true : undefined}>
+      {/* No loading="lazy" here on purpose. The browser only loads a lazy image
+          when it comes into view, and these sit on a track that slides left,
+          so a logo that starts off screen is never asked for and the slot stays
+          blank. Seven small logos load eagerly without a fuss. */}
       {COPY.logos.items.map((l, i) => (
-        <img key={i} src={l.src} alt={hidden ? "" : l.alt} className={l.tall ? "tall" : undefined} loading="lazy" />
+        <img key={i} src={l.src} alt={hidden ? "" : l.alt} className={l.tall ? "tall" : undefined} />
       ))}
     </div>
   );

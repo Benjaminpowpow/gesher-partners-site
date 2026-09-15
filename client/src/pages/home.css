@@ -834,8 +834,12 @@ p:last-child { margin-bottom: 0; }
    width and loops, so the row reads as one endless line with no seam. It
    pauses while the mouse is over it. Under reduce-motion it stops moving and
    wraps into a still, centred row (see the media query at the end). */
-.logostrip { padding: 0 0 96px; border-bottom: 0.5px solid var(--hairline); }
-.logostrip-label { text-align: center; margin: 0 0 24px; }
+.logostrip { padding: 0 0 36px; border-bottom: 0.5px solid var(--hairline); }
+/* Spacing set on .logostrip .logostrip-label, not on the class alone, so it
+   cannot lose to the base .eyebrow rule. The label needs air under it, and the
+   hairline underneath needs to sit close to the logos, or the row looks like it
+   is floating away from its own label. Both measured, not guessed. */
+.logostrip .logostrip-label { text-align: center; margin: 0 0 40px; }
 .marquee {
   overflow: hidden;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
@@ -1111,7 +1115,8 @@ p:last-child { margin-bottom: 0; }
   .proof-n small { font-size: 13px; margin-inline-start: 3px; }
   .proof-l { font-size: 12px; margin-top: 6px; }
 
-  .logostrip { padding-bottom: 64px; }
+  .logostrip { padding-bottom: 28px; }
+  .logostrip .logostrip-label { margin-bottom: 32px; }
   .marquee-set { gap: 48px; padding-inline-end: 48px; }
   .marquee-set img { height: 26px; }
   .marquee-set img.tall { height: 34px; }
@@ -1155,6 +1160,11 @@ p:last-child { margin-bottom: 0; }
   .band-line { font-size: 17px; }
 
   .form { grid-template-columns: 1fr; }
+
+  /* Footer links were 23px tall, too small to hit with a thumb. Padding brings
+     each one to a comfortable target without changing how the row looks. */
+  .footer-links { gap: 4px 24px; }
+  .footer-links a { display: inline-block; padding: 11px 0; }
 }
 
 /* ---------- Reduce motion ----------

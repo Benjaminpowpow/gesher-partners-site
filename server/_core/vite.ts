@@ -94,15 +94,15 @@ export function localizeHtml(template: string, url: string): string {
     html = html
       .replace(/<html[^>]*>/, '<html lang="he" dir="rtl">')
       .replace(
-        "<title>Sell-Side M&A for Israeli Family Businesses | Gesher Partners</title>",
+        "<title>Sell-Side M&A for private and family businesses in Israel | Gesher Partners</title>",
         "<title>גשר פרטנרס. ליווי מכירת עסקים משפחתיים בישראל</title>"
       )
       .replace(
-        'content="Sell-side M&A advisor for Israeli family businesses, NIS 5 to 50M in revenue. We run a real auction with serious buyers to get you the best price."',
+        'content="Sell-side M&A advisor for private and family businesses in Israel, 5 to 50M NIS in revenue. We run a real auction with serious buyers to get you the best price."',
         'content="ליווי לצד המוכר לעסקים משפחתיים בישראל, מחזור 5 עד 50 מיליון ש״ח. אנחנו מנהלים תהליך תחרותי אמיתי מול קונים רציניים כדי להשיג לך את המחיר הטוב ביותר."'
       )
       .replace(
-        /content="Gesher Partners\. Sell-side M&A for Israeli family businesses"/g,
+        /content="Gesher Partners\. Sell-side M&A for private and family businesses in Israel"/g,
         'content="גשר פרטנרס. ליווי מכירת עסקים משפחתיים בישראל"'
       )
       .replace(
