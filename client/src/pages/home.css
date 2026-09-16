@@ -705,6 +705,21 @@ p:last-child { margin-bottom: 0; }
 .field textarea { resize: vertical; min-height: 120px; }
 .form-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; margin-top: 8px; }
 .form-actions .note { font-family: var(--font-serif); font-style: italic; color: var(--taupe); font-size: 14px; }
+/* "We will send this with your valuation: Kitaron, 11M to 14.2M". Quiet, but
+   there, so the owner knows what is riding along with his note. */
+.contact-handoff {
+  margin: 0 0 4px;
+  padding: 10px 14px;
+  background: var(--warm-white);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--taupe);
+}
+.contact-handoff strong { color: var(--navy); font-weight: 500; }
+
 /* The send-failed line. Burgundy, because this one has to be read. */
 .form-error {
   margin: 0;

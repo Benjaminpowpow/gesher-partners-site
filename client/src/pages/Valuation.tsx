@@ -14,6 +14,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Lockup } from "@/components/Lockup";
+import { saveValuationHandoff } from "@/lib/valuationHandoff";
 import "./valuation.css";
 
 // No booking tool on the site yet. Every "talk to us" on this page sends the
@@ -130,12 +131,22 @@ const LEARN_FALLBACK_MS = 5000; // move off "Reading" if no search signal arrive
 const HARD_TIMEOUT_MS = 180000; // never hang: fall back to the calm screen after 3 min
 
 const SUCCESS_STATS = [
-  { lead: "Within 24 hours", body: "Ofir or Benjamin reads your note and sends your one-page brief." },
+  { lead: "Already sent", body: "Your one-page brief is in your inbox. Keep it, or pass it to whoever you talk these things over with." },
   { lead: "A short call", body: "We talk through where you are." },
   { lead: "An honest answer", body: "If we can help, we tell you how. If we cannot, we tell you that too." },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+// Turn a bucket value back into the words the owner actually saw ("5 to 10M").
+// The lead email should read the way the screen read, not "5-10m".
+function labelFor(
+  ranges: ReadonlyArray<{ value: string; label: string }>,
+  value?: string,
+): string | undefined {
+  if (!value) return undefined;
+  return ranges.find((r) => r.value === value)?.label;
+}
+
 function deriveDomain(url: string): string | undefined {
   if (!url) return undefined;
   try {
@@ -678,6 +689,23 @@ function ResultState({ ctx, go }: StateProps) {
     ? `There are real buyers for a business like yours: ${ctx.buyerTypes}`
     : "";
 
+  // Leave the note for the contact form the moment the range is on screen, not
+  // when he clicks a button. There are half a dozen ways off this page and they
+  // should all carry it: the buttons in the cards, the one in the top bar, the
+  // one on the thank-you screen.
+  useEffect(() => {
+    saveValuationHandoff({
+      briefId: ctx.briefId,
+      site: company.domain || ctx.url,
+      company: company.name,
+      range: ctx.rangeText,
+      revenue: labelFor(REVENUE_RANGES, ctx.revenue),
+      profit: labelFor(PROFIT_RANGES, ctx.profit),
+    });
+    // company.name and company.domain are derived from these, no need to list them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx.briefId, ctx.url, ctx.rangeText, ctx.revenue, ctx.profit]);
+
   return (
     <section className="v-result">
       <div className="v-result-inner">
@@ -776,6 +804,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
   const [ownerSalary, setOwnerSalary] = useState(ctx.ownerSalary || "");
   const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -821,13 +850,23 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
         payload.revenue = String(REVENUE_MIDPOINTS[revenue]);
       if (profit && PROFIT_MIDPOINTS[profit])
         payload.pretax_profit = String(PROFIT_MIDPOINTS[profit]);
-      await fetch("/api/exit-brief/pdf-request", {
+      const res = await fetch("/api/exit-brief/pdf-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      // This used to thank him no matter what. It now promises him an email, so
+      // it has to wait and find out whether the email actually left. Telling a
+      // man his brief is coming when it is not is worse than telling him no.
+      if (!res.ok) {
+        setFailed(true);
+        setSubmitting(false);
+        return;
+      }
     } catch {
-      // Non-blocking. We still thank the seller; the lead is best-effort.
+      setFailed(true);
+      setSubmitting(false);
+      return;
     }
     go("success", { lead, revenue, profit, ownerSalary });
   }
@@ -861,7 +900,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
           <h2 id="v-modal-title" className="v-modal-title">
             Get your one-page brief
           </h2>
-          <p className="v-modal-sub">We will send it to you shortly.</p>
+          <p className="v-modal-sub">It lands in your inbox in a few seconds.</p>
 
           <form className="v-modal-form" onSubmit={handleSubmit} noValidate>
             <div className="v-field">
@@ -939,12 +978,19 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
               options={OWNER_SALARY_RANGES}
             />
 
+            {failed && (
+              <p className="v-modal-error" role="alert">
+                We could not send it. Please try again, or write to us at
+                office@gesherpartners.com and we will send it by hand.
+              </p>
+            )}
+
             <button
               type="submit"
               className="v-btn v-btn-primary v-btn-block v-modal-submit"
               disabled={submitting}
             >
-              {submitting ? "Sending..." : "Send it to me"}
+              {submitting ? "Sending..." : failed ? "Try again" : "Send it to me"}
             </button>
           </form>
         </div>
@@ -958,9 +1004,9 @@ function SuccessState() {
   return (
     <section className="v-success">
       <div className="v-success-inner">
-        <h1 className="v-success-h1">Got it. Your one-page brief is on its way.</h1>
+        <h1 className="v-success-h1">Sent. Check your inbox.</h1>
         <p className="v-success-sub">
-          Ofir or Benjamin will email it to you within 24 hours.
+          Your one-page brief is in your email. It is yours to keep and to share.
         </p>
 
         <ul className="v-stat-row v-stat-row--boxes" role="list">

@@ -23,7 +23,9 @@ var HEADERS = [
   'Revenue band',
   'Stage',
   'Message',
-  'Source page'
+  'Source page',
+  'Valuation site',
+  'Valuation range'
 ];
 
 function doPost(e) {
@@ -54,7 +56,9 @@ function doPost(e) {
       payload.revenue || '',
       payload.stage || '',
       payload.message || '',
-      payload.sourcePage || ''
+      payload.sourcePage || '',
+      payload.valuationSite || '',
+      payload.valuationRange || ''
     ]);
 
     return json({ ok: true });

@@ -103,7 +103,7 @@ There are real buyers for a business like yours: [buyer types from the vertical,
 We work only for you, the seller, and most of our fee comes only when you sell. Our job is to build
 real competition, so you're not negotiating alone.
 
-**Book 30 minutes with Ofir Ben Haim.** We name them and show how to push for the top of
+**Talk to us.** We name them and show how to push for the top of
 this range.
 ```
 
@@ -118,7 +118,7 @@ There are real buyers for a business like yours: [buyer types from the vertical,
 We work only for you, the seller, and most of our fee comes only when you sell. Our job is to build
 real competition, so you're not negotiating alone.
 
-**Book 30 minutes with Ofir Ben Haim.** We name them and show what would tighten this number.
+**Talk to us.** We name them and show what would tighten this number.
 ```
 
 **Backup band (model matched, exact industry not mapped):**
@@ -133,7 +133,7 @@ There are real buyers for a business like yours: [honest buyer types for the mod
 only for you, the seller, and most of our fee comes only when you sell. Our job is to build real
 competition, so you're not negotiating alone.
 
-**Book 30 minutes with Ofir Ben Haim.** We sharpen this number and name the buyers.
+**Talk to us.** We sharpen this number and name the buyers.
 ```
 
 **Wild card (unmapped, no hard number):**
@@ -145,7 +145,7 @@ There are real buyers for a business like yours: [honest buyer types]. We work o
 the seller, and most of our fee comes only when you sell. Our job is to build real competition, so you're
 not negotiating alone.
 
-**Book 30 minutes with Ofir Ben Haim.** We look at your earnings together, build a real number,
+**Talk to us.** We look at your earnings together, build a real number,
 and name the buyers.
 ```
 

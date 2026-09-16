@@ -29,6 +29,11 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { useLocation } from "wouter";
 import { FAQ_ITEMS, FAQ_ITEMS_HE } from "@shared/faq";
 import { Lockup as BrandLockup } from "@/components/Lockup";
+import {
+  clearValuationHandoff,
+  describeHandoff,
+  readValuationHandoff,
+} from "@/lib/valuationHandoff";
 import "./home.css";
 
 /* ─── Copy ────────────────────────────────────────────────────────────────── */
@@ -204,6 +209,9 @@ const COPY = {
     ],
     send: "Send",
     sending: "Sending",
+    // Sits above the form when he has just run a valuation. He sees what is
+    // being attached before he sends it, so nothing travels behind his back.
+    fromValuation: "We will send this with your valuation:",
     // Shown only when the server says the note did not go out. An owner who
     // trusts a thank-you card that lied has no reason to write twice.
     sendFailed:
@@ -407,6 +415,10 @@ const COPY_HE: Copy = {
     // TODO(hebrew): still English. The button says this for a second while the
     // form is in flight. Lands with Ofir's review of the page.
     sending: "Sending",
+    // TODO(hebrew): still English. Rare on this page, because the valuation tool
+    // is English only today. It can still happen: run the valuation, then land
+    // on /he/. Lands with Ofir's review.
+    fromValuation: "We will send this with your valuation:",
     // Hebrew, approved by Ben on 2026-09-16, pasted verbatim. Ofir still sees it
     // in his review of the whole page.
     sendFailed:
@@ -1346,6 +1358,9 @@ function Contact() {
   const [reach, setReach] = useState("");
   const [revenue, setRevenue] = useState("");
   const [message, setMessage] = useState("");
+  // Did he just come off a valuation? Read once on mount. If he did, the lead
+  // carries his site and his range, and he is told so above the form.
+  const [handoff] = useState(() => readValuationHandoff());
   const { labels, placeholders, revenueOptions } = C.contact;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -1370,11 +1385,29 @@ function Contact() {
           message: message.trim() || "(no message)",
           // Tells us whether the lead came off the English page or /he/.
           sourcePage: window.location.pathname,
+          // The valuation he just ran, when there was one. This is what turns
+          // "somebody wants to talk" into "the owner of this company, who was
+          // just quoted this range, wants to talk."
+          ...(handoff
+            ? {
+                valuation: {
+                  briefId: handoff.briefId,
+                  site: handoff.site,
+                  company: handoff.company,
+                  range: handoff.range,
+                  revenue: handoff.revenue,
+                  profit: handoff.profit,
+                },
+              }
+            : {}),
         }),
       });
       // Only a 2xx means the mail actually left. Anything else, including the
       // missing-key error, is a failure the owner needs to see.
       setStatus(res.ok ? "sent" : "failed");
+      // Used up. A second, unrelated message should not drag the old valuation
+      // along with it. A failed send keeps it, so a retry still carries it.
+      if (res.ok) clearValuationHandoff();
     } catch {
       // Offline, DNS, the server down. Same story for the owner.
       setStatus("failed");
@@ -1404,6 +1437,11 @@ function Contact() {
           </div>
         ) : (
           <form className="form" onSubmit={handleSubmit}>
+            {handoff && (
+              <p className="contact-handoff full">
+                {C.contact.fromValuation} <strong>{describeHandoff(handoff)}</strong>
+              </p>
+            )}
             <div className="field">
               <label htmlFor="name">{labels.name}</label>
               <input

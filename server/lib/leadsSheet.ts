@@ -29,6 +29,9 @@ export interface LeadRow {
   message?: string;
   /** The page the form was submitted from, e.g. "/" or "/he/". */
   sourcePage?: string;
+  /** Set when the lead ran the valuation tool before writing in. */
+  valuationSite?: string;
+  valuationRange?: string;
 }
 
 /**
@@ -66,6 +69,8 @@ export async function appendLeadRow(row: LeadRow): Promise<boolean> {
         stage: row.stage ?? "",
         message: row.message ?? "",
         sourcePage: row.sourcePage ?? "",
+        valuationSite: row.valuationSite ?? "",
+        valuationRange: row.valuationRange ?? "",
       }),
       signal: AbortSignal.timeout(SHEET_TIMEOUT_MS),
     });

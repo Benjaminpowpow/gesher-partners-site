@@ -1059,6 +1059,15 @@
   line-height: 1.5;
   margin: 8px 0 -4px;
 }
+/* Shown only when the brief could not be sent. He was promised an email, so a
+   silent failure would be a broken promise. */
+.v-modal-error {
+  font-family: var(--font-sans);
+  font-size: var(--fs-small);
+  color: var(--burgundy);
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
 .v-modal-submit {
   margin-top: 8px;
 }
