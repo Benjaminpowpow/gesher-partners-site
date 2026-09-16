@@ -26,18 +26,34 @@ function sender(displayName: string): string {
 }
 
 // ─── The Brief engine ───────────────────────────────────────────────────────
-// Sonnet 5. Every token rate on this model is exactly 2.5x cheaper than the
-// Opus model this used to name (input, output, cache read, cache write, all of
-// them). Thinking eats some of that back, so a Brief costs roughly half what it
-// used to, not 40% of it.
+// Haiku 4.5, the cheapest current model. Every token rate on it is half of
+// Sonnet 5's, which was itself 2.5x cheaper than the Opus model this file
+// started on.
 //
-// Sonnet 5 thinks before it writes unless you tell it not to, and that thinking
-// is spent out of max_tokens. 6,000 was enough for Opus, which did not think.
-// It is not enough here: the thinking would eat the budget and the seller would
-// get half a card. Hence the larger ceiling below. We only pay for what it
-// actually uses, so a bigger ceiling is not a bigger bill.
-const BRIEF_MODEL = "claude-sonnet-5";
-const BRIEF_MAX_TOKENS = 16_000;
+// It is an env var, not a constant, on purpose. This model writes the thing an
+// owner reads after a bank stage. If the Briefs come back thin, Ben sets
+// EXIT_BRIEF_MODEL to claude-sonnet-5 in Render and the next run is better, no
+// code change and no deploy wait. That is the escape hatch; use it before
+// arguing about pennies.
+//
+// Worth knowing before changing it: the model is no longer the big line on the
+// bill. Web search is billed on its own at $10 per 1,000 searches and is the
+// same whatever model runs, so it is about 40% of a Brief now. MAX_WEB_SEARCHES
+// below is the other real dial.
+const BRIEF_MODEL = process.env.EXIT_BRIEF_MODEL || "claude-haiku-4-5";
+
+// Haiku 4.5 does not take the "adaptive" thinking setting. Sonnet and Opus do,
+// and on those models thinking is spent out of max_tokens, so the ceiling has
+// to be bigger when it is on. Keyed off the model name so flipping the env var
+// above does the right thing by itself.
+const WANTS_ADAPTIVE_THINKING = !BRIEF_MODEL.includes("haiku");
+const BRIEF_MAX_TOKENS = WANTS_ADAPTIVE_THINKING ? 16_000 : 8_000;
+
+// The v7 engine takes a light live look at the seller's site. Six searches cost
+// 6 cents before a single token is billed. Four is enough to read a small
+// Israeli company and saves 2 cents a Brief, which is real money next to what
+// the model itself costs now.
+const MAX_WEB_SEARCHES = 4;
 
 // ─── Spend guards on POST /api/exit-brief ───────────────────────────────────
 // Two gates, because they stop two different things.
@@ -307,14 +323,15 @@ async function handleExitBrief(req: Request, res: Response) {
   try {
     const stream = await anthropic.messages.create({
       model: BRIEF_MODEL,
-      // v7: three short cards. The ceiling has to cover the model's thinking as
-      // well as those cards, which is why it is not 6,000 any more. See
+      // v7: three short cards. The ceiling moves with the model, because a
+      // thinking model spends part of it before it writes a word. See
       // BRIEF_MAX_TOKENS above.
       max_tokens: BRIEF_MAX_TOKENS,
-      // Sonnet 5 decides for itself how hard to think on each site. Left off,
-      // it does this anyway. Written out so the next reader knows it is a
-      // choice and knows where the extra output tokens come from.
-      thinking: { type: "adaptive" },
+      // Only on a model that accepts it. Haiku 4.5 does not, and sending it
+      // there is a 400, not a shrug.
+      ...(WANTS_ADAPTIVE_THINKING
+        ? { thinking: { type: "adaptive" as const } }
+        : {}),
       // v7: cache the ~10k-token bundle so it is billed once, not re-sent every run.
       // The seller URL + intake stay the dynamic part in the user message.
       system: [
@@ -329,9 +346,11 @@ async function handleExitBrief(req: Request, res: Response) {
       tools: [
         {
           // v7: light live look only. The deep comp + buyer hunt moved to the cache.
+          // Kept on the basic tool version on purpose: the newer one runs code
+          // execution under the hood, which is a bigger change than this needs.
           type: "web_search_20250305",
           name: "web_search",
-          max_uses: 6,
+          max_uses: MAX_WEB_SEARCHES,
         } as unknown as Anthropic.Tool,
       ],
     });
