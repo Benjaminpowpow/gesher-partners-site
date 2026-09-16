@@ -15,8 +15,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./valuation.css";
 
-// Ben sets the real link. Until then this is a clearly marked placeholder.
-const BOOKING_URL = "https://cal.com/gesher"; // TODO(Ben): real cal.com booking link
+// No booking tool on the site yet. Every "talk to us" on this page sends the
+// owner to the contact form on the home page. When a real calendar link goes
+// live, change this one constant and the button copy that goes with it.
+const TALK_URL = "/#contact";
 
 type ScreenId =
   | "front-door"
@@ -693,8 +695,8 @@ function ResultState({ ctx, go }: StateProps) {
                   </p>
                 </div>
                 <div className="v-card-actions">
-                  <a href={BOOKING_URL} className="v-btn v-btn-primary v-btn-block">
-                    Book 30 minutes with Ofir Ben Haim
+                  <a href={TALK_URL} className="v-btn v-btn-primary v-btn-block">
+                    Talk to us
                   </a>
                   <button
                     type="button"
@@ -719,7 +721,7 @@ function ResultState({ ctx, go }: StateProps) {
                   </p>
                 </div>
                 <div className="v-card-actions">
-                  <a href={BOOKING_URL} className="v-btn v-btn-primary v-btn-block">
+                  <a href={TALK_URL} className="v-btn v-btn-primary v-btn-block">
                     Build your number with Ofir and Benjamin
                   </a>
                 </div>
@@ -729,9 +731,9 @@ function ResultState({ ctx, go }: StateProps) {
         </div>
       </div>
 
-      <div className="v-stickybar" role="region" aria-label="Book a call">
-        <a href={BOOKING_URL} className="v-stickybar-cta">
-          Book a call with Ofir Ben Haim and Benjamin Aronson
+      <div className="v-stickybar" role="region" aria-label="Talk to us">
+        <a href={TALK_URL} className="v-stickybar-cta">
+          Talk to Ofir Ben Haim and Benjamin Aronson
         </a>
       </div>
     </section>
@@ -948,8 +950,8 @@ function SuccessState() {
 
         <div className="v-success-cta">
           <p className="v-success-cta-line">Want to talk sooner?</p>
-          <a href={BOOKING_URL} className="v-btn v-btn-primary v-success-btn">
-            Book 30 minutes with Ofir Ben Haim
+          <a href={TALK_URL} className="v-btn v-btn-primary v-success-btn">
+            Talk to us
           </a>
         </div>
       </div>
@@ -967,7 +969,7 @@ function ErrorState({ go }: StateProps) {
           Sometimes a site is too quiet, or in Hebrew only. That is no problem.
         </p>
         <div className="v-error-actions">
-          <a href={BOOKING_URL} className="v-btn v-btn-primary v-error-btn">
+          <a href={TALK_URL} className="v-btn v-btn-primary v-error-btn">
             Talk to us instead
           </a>
           <button
@@ -1015,7 +1017,7 @@ export default function Valuation() {
           <img className="mark" src="/brand/gesher-mark.svg" alt="" />
           <img className="wordmark" src="/brand/gesher-wordmark.svg" alt="gesher" />
         </a>
-        <a className="talk" href={BOOKING_URL}>
+        <a className="talk" href={TALK_URL}>
           Talk to us
         </a>
       </header>

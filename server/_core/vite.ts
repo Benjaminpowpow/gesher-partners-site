@@ -85,7 +85,7 @@ function professionalServiceSchema(lang: Lang) {
       { "@type": "Person", name: "Ofir Ben Haim" },
       { "@type": "Person", name: "Benjamin Aronson" },
     ],
-    email: "hello@gesherpartners.com",
+    email: "office@gesherpartners.com",
   };
 }
 

@@ -45,13 +45,22 @@ services:
         sync: false
 
       # The address emails are sent FROM. Must be on a domain verified in
-      # Resend. Defaults to hello@gesherpartners.com, so leave it blank unless
+      # Resend. Defaults to office@gesherpartners.com, so leave it blank unless
       # the sending domain changes.
       - key: MAIL_FROM
         sync: false
 
       # Writes the Exit Brief. Get it at console.anthropic.com.
       - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # The temporary lead list. Every contact-form submission also writes one
+      # row to a Google Sheet. This is the Apps Script web app URL, the long
+      # one ending in /exec. Treat it as a secret: anyone holding it can add
+      # rows. Setup steps are in the site playbook in the vault, and the script
+      # itself is in the repo at references/leads-sheet.gs. Leave it blank and
+      # the site still runs, it just keeps no list.
+      - key: LEADS_SHEET_WEBHOOK
         sync: false
 
       # Optional. Pings a Slack channel when a lead comes in.

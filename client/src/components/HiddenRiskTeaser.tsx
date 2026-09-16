@@ -7,14 +7,15 @@ interface HiddenRiskTeaserProps {
    */
   bodyLine?: string;
   /**
-   * Ofir's call booking URL. Defaults to placeholder.
+   * Where the button sends the owner. No booking tool on the site yet, so the
+   * default is the contact form on the home page.
    */
   callUrl?: string;
 }
 
 export default function HiddenRiskTeaser({
   bodyLine = "2 more risk factors identified.",
-  callUrl = "https://cal.com/ofir-gesher",
+  callUrl = "/#contact",
 }: HiddenRiskTeaserProps) {
   return (
     <div
@@ -78,14 +79,12 @@ export default function HiddenRiskTeaser({
             margin: "0 0 20px 0",
           }}
         >
-          Book a 30-minute call with Ofir to walk through them.
+          Talk to Ofir and he will walk you through them.
         </p>
 
         {/* CTA button */}
         <a
           href={callUrl}
-          target="_blank"
-          rel="noopener noreferrer"
           style={{
             display: "inline-block",
             background: "#1B3A5C",
@@ -107,7 +106,7 @@ export default function HiddenRiskTeaser({
             (e.currentTarget as HTMLAnchorElement).style.boxShadow = "none";
           }}
         >
-          Book the call.
+          Talk to us
         </a>
       </div>
     </div>

@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import { createHash } from "node:crypto";
 import { EXIT_BRIEF_SYSTEM_PROMPT } from "../lib/exitBriefSkill";
+import { appendLeadRow } from "../lib/leadsSheet";
 import { insertValuationLead, markValuationLeadPdfRequested } from "../db";
 import { nanoid } from "nanoid";
 
@@ -14,7 +15,7 @@ import { nanoid } from "nanoid";
 // "||" not "??" on purpose. A host that creates the variable but leaves it
 // blank hands us "", which "??" would happily accept and we would send from
 // "Gesher <>". Empty means unset here.
-const MAIL_FROM = process.env.MAIL_FROM || "hello@gesherpartners.com";
+const MAIL_FROM = process.env.MAIL_FROM || "office@gesherpartners.com";
 
 // Where new leads and contact-form submissions land.
 const NOTIFY_EMAIL = process.env.LEAD_NOTIFICATION_EMAIL || MAIL_FROM;
@@ -52,6 +53,18 @@ function getClientIp(req: Request): string {
 // "we never share your numbers" promise.
 function hashIp(ip: string): string {
   return createHash("sha256").update(ip).digest("hex").slice(0, 64);
+}
+
+// Which page the lead came off, for the Sheet's last column. We only keep the
+// path, never the query string, so nothing personal can ride along in a URL.
+function sourcePageFromReferer(req: Request): string | undefined {
+  const referer = req.headers.referer;
+  if (typeof referer !== "string") return undefined;
+  try {
+    return new URL(referer).pathname;
+  } catch {
+    return undefined;
+  }
 }
 
 function domainFromUrl(url: string): string | undefined {
@@ -354,8 +367,8 @@ async function handleExitBriefPdf(req: Request, res: Response) {
           <p style="font-size: 16px; color: #666; margin-bottom: 32px;">Hi ${name}, here is your Valuation Snapshot from Gesher.</p>
           <div style="background: #F8F4ED; padding: 32px; border-radius: 8px; font-family: Georgia, serif; font-size: 15px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word;">${sellerMarkdown.substring(0, 8000)}</div>
           <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #ddd;">
-            <p style="font-size: 15px; color: #333;">Want to go deeper? Book a 30-minute call with Ofir Ben Haim.</p>
-            <a href="https://cal.com/gesher" style="display: inline-block; background: #1B3A5C; color: white; padding: 14px 28px; border-radius: 4px; text-decoration: none; font-family: Arial, sans-serif; font-size: 15px; margin-top: 12px;">Book a call</a>
+            <p style="font-size: 15px; color: #333;">Want to go deeper? Talk to Ofir Ben Haim.</p>
+            <a href="https://gesherpartners.com/#contact" style="display: inline-block; background: #1B3A5C; color: white; padding: 14px 28px; border-radius: 4px; text-decoration: none; font-family: Arial, sans-serif; font-size: 15px; margin-top: 12px;">Talk to us</a>
           </div>
           <p style="font-size: 12px; color: #999; margin-top: 32px;">Strictly private. Built from public sources. Not an offer or a valuation opinion.</p>
         </div>
@@ -390,12 +403,16 @@ async function handleExitBriefPdf(req: Request, res: Response) {
 
 // ─── Route: POST /api/contact ────────────────────────────────────────────────
 async function handleContact(req: Request, res: Response) {
-  const { name, email, phone, role, message } = req.body as {
+  const { name, email, phone, role, company, revenue, stage, message, sourcePage } = req.body as {
     name?: string;
     email?: string;
     phone?: string;
     role?: string;
+    company?: string;
+    revenue?: string;
+    stage?: string;
     message?: string;
+    sourcePage?: string;
   };
 
   // The homepage form asks for one contact field, "Phone or email", because a
@@ -406,13 +423,34 @@ async function handleContact(req: Request, res: Response) {
     return;
   }
 
+  // Start the Sheet write now and settle it at the end. It runs alongside the
+  // email instead of in front of it, so a slow or broken Sheet never holds the
+  // email up. appendLeadRow never rejects, so this promise is safe to hold.
+  const sheetWrite = appendLeadRow({
+    name,
+    email,
+    phone,
+    company,
+    revenue,
+    stage,
+    message,
+    // The page the form sat on. Falls back to the referring URL when the form
+    // does not send one.
+    sourcePage: sourcePage ?? sourcePageFromReferer(req),
+  });
+
   const resendKey = process.env.RESEND_API_KEY;
   const notifyEmail = NOTIFY_EMAIL;
 
   if (!resendKey) {
-    // Log and return success anyway so the form doesn't break in dev
-    console.warn("[contact] RESEND_API_KEY not set. Logging contact form submission:", { name, email, phone, role });
-    res.json({ success: true });
+    // Used to return success here, which meant a real lead vanished with
+    // nothing but a console line. Now the owner is told it did not go through,
+    // and the lead is still in the Sheet if the Sheet is wired up.
+    console.error("[contact] RESEND_API_KEY not set. Contact form submission NOT emailed:", { name, email, phone, role });
+    await sheetWrite;
+    res.status(500).json({
+      error: "Email delivery is not configured. Please try again later or email us directly.",
+    });
     return;
   }
 
@@ -434,6 +472,9 @@ async function handleContact(req: Request, res: Response) {
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Email</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${email ?? "—"}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Phone</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${phone ?? "—"}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Role</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${role ?? "—"}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Company</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${company ?? "—"}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Revenue</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${revenue ?? "—"}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Stage</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${stage ?? "—"}</td></tr>
           </table>
           <h3 style="color: #1B3A5C;">Message</h3>
           <p style="background: #f5f5f5; padding: 16px; border-radius: 4px; white-space: pre-wrap;">${message}</p>
@@ -441,9 +482,16 @@ async function handleContact(req: Request, res: Response) {
       `,
     });
 
+    const written = await sheetWrite;
+    if (!written) {
+      // The email went out, so the lead is not lost. The Sheet is just behind.
+      console.warn("[contact] Emailed the lead but did not write it to the Sheet:", { name, email, phone });
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error("[contact] Resend error:", err);
+    await sheetWrite;
     res.status(500).json({ error: "Failed to send message. Please try again or email us directly." });
   }
 }

@@ -41,8 +41,8 @@ export default function Terms() {
                 </p>
                 <p style={{ marginTop: 20 }}>
                   If you have questions, contact us at{" "}
-                  <a href="mailto:hello@gesherpartners.com" style={{ color: "var(--color-primary)" }}>
-                    hello@gesherpartners.com
+                  <a href="mailto:office@gesherpartners.com" style={{ color: "var(--color-primary)" }}>
+                    office@gesherpartners.com
                   </a>
                   .
                 </p>
