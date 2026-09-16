@@ -154,11 +154,24 @@
 .v-topbar .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
   text-decoration: none;
 }
-.v-topbar .brand .mark { height: 24px; display: block; }
-.v-topbar .brand .wordmark { height: 18px; display: block; }
+/* The shared Lockup component (components/Lockup.tsx) draws the mark, the
+   wordmark and the tagline. home.css styles the same class names inside its
+   .gesher scope, which does not reach this page, so the rules are repeated
+   here at this page's smaller size. Heights come from the component itself. */
+.v-topbar .brand .lockup { display: inline-grid; gap: 2px; justify-items: start; }
+.v-topbar .brand .lockup-row { display: flex; align-items: center; gap: 10px; }
+.v-topbar .brand .brand-mark,
+.v-topbar .brand .wordmark { display: block; flex-shrink: 0; }
+.v-topbar .brand .lockup-tag {
+  font-family: var(--font-serif);
+  font-size: 12px;
+  color: var(--taupe);
+  letter-spacing: 0.01em;
+  line-height: 1;
+  padding-inline-start: 2px;
+}
 .v-topbar .talk {
   font-family: var(--font-sans);
   font-size: 15px;

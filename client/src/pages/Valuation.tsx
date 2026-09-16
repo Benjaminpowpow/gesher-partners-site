@@ -13,6 +13,7 @@
  *  - Lead capture posts to /api/exit-brief/pdf-request with the briefId.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Lockup } from "@/components/Lockup";
 import "./valuation.css";
 
 // No booking tool on the site yet. Every "talk to us" on this page sends the
@@ -46,6 +47,10 @@ interface Ctx {
   rangeText?: string;
   buyerTypes?: string;
   lead?: { name: string; email: string; phone: string };
+  // What the server said when it refused. Set only when the server sent a real
+  // sentence, which is how the daily cap reaches the seller. Everything else
+  // keeps the page's own "we could not read that site" wording.
+  errorMessage?: string;
 }
 
 type Patch = Partial<Ctx>;
@@ -386,6 +391,14 @@ function FrontDoorState({ ctx, go }: StateProps) {
 // React StrictMode mount/unmount/remount in dev.
 let lastFiredUrl: string | null = null;
 
+// Let the seller try the same URL again after a dead end. Without this the guard
+// above blocks the second run and the working screen sits there for three
+// minutes. It matters now that a run can be refused by the daily cap: the honest
+// move after "try again later" is to let him try again.
+function allowRerun(): void {
+  lastFiredUrl = null;
+}
+
 // ─── Working ─────────────────────────────────────────────────────────────────
 function WorkingState({ ctx, go }: StateProps) {
   const [stageIdx, setStageIdx] = useState(0); // 0 read, 1 learn, 2 write, 3 done
@@ -443,7 +456,7 @@ function WorkingState({ ctx, go }: StateProps) {
       if (active) {
         active = false;
         controller.abort();
-        go("error");
+        go("error", { errorMessage: undefined });
       }
     }, HARD_TIMEOUT_MS);
 
@@ -465,7 +478,20 @@ function WorkingState({ ctx, go }: StateProps) {
         });
 
         if (!res.ok || !res.body) {
-          if (active) go("error");
+          // The server refuses for two different reasons and the seller should
+          // not be told the wrong one. A 429 means we hit a limit, and the
+          // server's own sentence points at Ofir. Anything else falls back to
+          // the page's "we could not read that site."
+          let serverMessage: string | undefined;
+          try {
+            const body = (await res.json()) as { error?: string };
+            if (typeof body.error === "string" && body.error.trim()) {
+              serverMessage = body.error.trim();
+            }
+          } catch {
+            // Not JSON. Nothing to show, use the page's own wording.
+          }
+          if (active) go("error", { errorMessage: serverMessage });
           return;
         }
 
@@ -500,7 +526,7 @@ function WorkingState({ ctx, go }: StateProps) {
 
         if (!active) return;
         if (!done || !done.briefId) {
-          go("error");
+          go("error", { errorMessage: undefined });
           return;
         }
 
@@ -510,7 +536,7 @@ function WorkingState({ ctx, go }: StateProps) {
         // The brain marks a run it could not read at the exact domain given. Send the
         // seller straight to the error screen, never a brief guessed from a same-name site.
         if (meta.range_variant === "unreadable") {
-          go("error");
+          go("error", { errorMessage: undefined });
           return;
         }
 
@@ -523,7 +549,7 @@ function WorkingState({ ctx, go }: StateProps) {
           Boolean(meta.range_text && meta.range_text.trim()) ||
           meta.range_variant === "by_hand";
         if (!usable) {
-          go("error");
+          go("error", { errorMessage: undefined });
           return;
         }
 
@@ -541,7 +567,7 @@ function WorkingState({ ctx, go }: StateProps) {
           buyerTypes: meta.buyer_types || "",
         });
       } catch (err) {
-        if (active) go("error");
+        if (active) go("error", { errorMessage: undefined });
       }
     }
 
@@ -960,13 +986,20 @@ function SuccessState() {
 }
 
 // ─── Error ───────────────────────────────────────────────────────────────────
-function ErrorState({ go }: StateProps) {
+function ErrorState({ ctx, go }: StateProps) {
+  // Two different dead ends, two different headings. When the server handed
+  // back a sentence (the daily cap, the per-minute limit, a busy engine) it is
+  // the truth and it goes on screen. Otherwise we could not read the site.
+  const serverSaid = ctx.errorMessage;
   return (
     <section className="v-error">
       <div className="v-error-inner">
-        <h1 className="v-error-h1">We could not read that site.</h1>
+        <h1 className="v-error-h1">
+          {serverSaid ? "Not right now." : "We could not read that site."}
+        </h1>
         <p className="v-error-sub">
-          Sometimes a site is too quiet, or in Hebrew only. That is no problem.
+          {serverSaid ??
+            "Sometimes a site is too quiet, or in Hebrew only. That is no problem."}
         </p>
         <div className="v-error-actions">
           <a href={TALK_URL} className="v-btn v-btn-primary v-error-btn">
@@ -975,7 +1008,10 @@ function ErrorState({ go }: StateProps) {
           <button
             type="button"
             className="v-btn v-btn-outline v-error-btn"
-            onClick={() => go("front-door")}
+            onClick={() => {
+              allowRerun();
+              go("front-door", { errorMessage: undefined });
+            }}
           >
             Try a different URL
           </button>
@@ -1013,9 +1049,11 @@ export default function Valuation() {
   return (
     <div className="v-page" data-state={state}>
       <header className="v-topbar">
-        <a className="brand" href="/" aria-label="gesher — home">
-          <img className="mark" src="/brand/gesher-mark.svg" alt="" />
-          <img className="wordmark" src="/brand/gesher-wordmark.svg" alt="gesher" />
+        <a className="brand" href="/" aria-label="gesher home">
+          {/* The same lockup the home page uses, tagline and all. This page
+              used to show the mark and wordmark only, so an owner who came
+              here off an ad never saw what the firm does. */}
+          <Lockup markHeight={24} />
         </a>
         <a className="talk" href={TALK_URL}>
           Talk to us

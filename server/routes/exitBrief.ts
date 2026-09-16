@@ -25,12 +25,82 @@ function sender(displayName: string): string {
   return `${displayName} <${MAIL_FROM}>`;
 }
 
+// ─── The Brief engine ───────────────────────────────────────────────────────
+// Sonnet 5. Every token rate on this model is exactly 2.5x cheaper than the
+// Opus model this used to name (input, output, cache read, cache write, all of
+// them). Thinking eats some of that back, so a Brief costs roughly half what it
+// used to, not 40% of it.
+//
+// Sonnet 5 thinks before it writes unless you tell it not to, and that thinking
+// is spent out of max_tokens. 6,000 was enough for Opus, which did not think.
+// It is not enough here: the thinking would eat the budget and the seller would
+// get half a card. Hence the larger ceiling below. We only pay for what it
+// actually uses, so a bigger ceiling is not a bigger bill.
+const BRIEF_MODEL = "claude-sonnet-5";
+const BRIEF_MAX_TOKENS = 16_000;
+
+// ─── Spend guards on POST /api/exit-brief ───────────────────────────────────
+// Two gates, because they stop two different things.
+//
+// The per-IP gate stops one person hammering the button. The site-wide daily
+// cap is the one that bounds the money: whatever happens, the site cannot run
+// more than this many Briefs in a day. Ben changes the number in Render with
+// EXIT_BRIEF_DAILY_CAP and nothing else moves.
+//
+// Both counts live in memory, so a restart clears them. That is fine. Render
+// restarts on deploy, not on a schedule, and the Anthropic console spend cap is
+// the hard backstop underneath all of this.
+const IP_COOLDOWN_MS = 60_000;
+
+// One visitor cannot eat the whole day. Three Briefs is more than an honest
+// owner needs and far less than the day's budget.
+const PER_IP_DAILY_LIMIT = 3;
+
+// Exported for the tests. A typo in the Render dashboard must not turn the cap
+// off, so anything that is not a positive number falls back to 10.
+export function dailyCap(): number {
+  const raw = Number(process.env.EXIT_BRIEF_DAILY_CAP);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 10;
+}
+
+// The day the seller is living in, not the day the server is living in. Render
+// runs on UTC, which rolls over at 3am Israel time. Keyed to Jerusalem so "10 a
+// day" means one Israeli calendar day.
+export function todayKey(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+// The message the seller sees when either gate closes. It is the same sentence
+// the engine already uses when it is busy: no dead end, a way to reach a human.
+const OVER_CAP_MESSAGE =
+  "We have hit today's limit on free Briefs. Book a call with Ofir and we will pull the Brief together by hand.";
+
 // ─── In-memory stores ───────────────────────────────────────────────────────
 // briefId -> the seller brief markdown (v7 is seller-only, no trace)
 const briefStore = new Map<string, string>();
 
 // IP -> last request timestamp (ms)
 const rateLimitStore = new Map<string, number>();
+
+// Today's counts. Both are wiped the moment the date key changes, so these maps
+// never grow past one day of traffic.
+let usageDay = todayKey();
+let briefsToday = 0;
+const briefsTodayByIp = new Map<string, number>();
+
+function rollDayIfNeeded(): void {
+  const today = todayKey();
+  if (today !== usageDay) {
+    usageDay = today;
+    briefsToday = 0;
+    briefsTodayByIp.clear();
+  }
+}
 
 // Lead requests
 interface LeadRequest {
@@ -149,11 +219,24 @@ async function handleExitBrief(req: Request, res: Response) {
   const now = Date.now();
   const last = rateLimitStore.get(ip) ?? 0;
 
-  if (now - last < 60_000) {
+  if (now - last < IP_COOLDOWN_MS) {
     res.status(429).json({
       error:
         "You have already generated a Brief in the last minute. Wait a moment and try again, or book a call with Ofir and we will pull the Brief together by hand.",
     });
+    return;
+  }
+
+  rollDayIfNeeded();
+
+  if (briefsToday >= dailyCap()) {
+    console.warn(`[exit-brief] Daily cap of ${dailyCap()} reached for ${usageDay}.`);
+    res.status(429).json({ error: OVER_CAP_MESSAGE });
+    return;
+  }
+
+  if ((briefsTodayByIp.get(ip) ?? 0) >= PER_IP_DAILY_LIMIT) {
+    res.status(429).json({ error: OVER_CAP_MESSAGE });
     return;
   }
 
@@ -198,7 +281,11 @@ async function handleExitBrief(req: Request, res: Response) {
     return;
   }
 
+  // Count it here, not at the end. A run that starts has already cost money,
+  // whether or not it finishes.
   rateLimitStore.set(ip, now);
+  briefsToday += 1;
+  briefsTodayByIp.set(ip, (briefsTodayByIp.get(ip) ?? 0) + 1);
 
   // Build user message
   let userMessage = `URL: ${normalizedUrl}`;
@@ -219,10 +306,16 @@ async function handleExitBrief(req: Request, res: Response) {
 
   try {
     const stream = await anthropic.messages.create({
-      model: "claude-opus-4-5",
-      // v7: three short cards, far fewer output tokens than v6's brief + trace.
-      max_tokens: 6000,
-      // v7: cache the ~7k-token bundle so it is billed once, not re-sent every run.
+      model: BRIEF_MODEL,
+      // v7: three short cards. The ceiling has to cover the model's thinking as
+      // well as those cards, which is why it is not 6,000 any more. See
+      // BRIEF_MAX_TOKENS above.
+      max_tokens: BRIEF_MAX_TOKENS,
+      // Sonnet 5 decides for itself how hard to think on each site. Left off,
+      // it does this anyway. Written out so the next reader knows it is a
+      // choice and knows where the extra output tokens come from.
+      thinking: { type: "adaptive" },
+      // v7: cache the ~10k-token bundle so it is billed once, not re-sent every run.
       // The seller URL + intake stay the dynamic part in the user message.
       system: [
         {

@@ -28,6 +28,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { FAQ_ITEMS, FAQ_ITEMS_HE } from "@shared/faq";
+import { Lockup as BrandLockup } from "@/components/Lockup";
 import "./home.css";
 
 /* ─── Copy ────────────────────────────────────────────────────────────────── */
@@ -202,6 +203,11 @@ const COPY = {
       "Prefer not to say",
     ],
     send: "Send",
+    sending: "Sending",
+    // Shown only when the server says the note did not go out. An owner who
+    // trusts a thank-you card that lied has no reason to write twice.
+    sendFailed:
+      "Your note did not go through. Please try again, or write to us at office@gesherpartners.com.",
     thanksHeading: "Thank you.",
     thanksBody:
       "We read every note ourselves. You will hear from Ofir or Ben within two business days.",
@@ -398,6 +404,14 @@ const COPY_HE: Copy = {
       "מעדיף לא לציין",
     ],
     send: "שלח",
+    // TODO(hebrew): English placeholders. "sending" and "sendFailed" are new in
+    // session 2 and have no Hebrew line in file 23 yet. The Gemini prompt for
+    // sendFailed is in the session 2 notes; the line lands with Ofir's review of
+    // this page. Until then a Hebrew-page owner whose note fails sees English,
+    // which is still better than a thank-you card that lied to him.
+    sending: "Sending",
+    sendFailed:
+      "Your note did not go through. Please try again, or write to us at office@gesherpartners.com.",
     // No Hebrew for the thank-you note in file 23 yet. English until it lands.
     thanksHeading: "Thank you.",
     thanksBody:
@@ -504,18 +518,12 @@ function Button({ variant = "primary", size = "md", children, arrow = false, ...
 }
 
 // The lockup: mark, wordmark, and the line under it. One piece, used in the
-// nav, the mobile menu and the footer.
+// nav, the mobile menu and the footer. The shape moved to components/Lockup.tsx
+// so the valuation page shows the same thing. This wrapper only feeds it the
+// tagline from whichever copy table the page is running.
 function Lockup({ markHeight = 34 }: { markHeight?: number }) {
   const { copy: C } = useCopy();
-  return (
-    <span className="lockup">
-      <span className="lockup-row">
-        <img className="brand-mark" src="/brand/gesher-mark.svg" alt="" style={{ height: markHeight, display: "block" }} />
-        <img className="wordmark" src="/brand/gesher-wordmark.svg" alt="gesher" style={{ height: markHeight * 0.85 }} />
-      </span>
-      <span className="lockup-tag">{C.nav.tagline}</span>
-    </span>
-  );
+  return <BrandLockup markHeight={markHeight} tagline={C.nav.tagline} />;
 }
 
 // Thin-line sector icons. Navy, 1.4 stroke, no fill. Same set as the mockup.
@@ -1330,35 +1338,48 @@ function Band({ onTalk }: { onTalk: () => void }) {
 
 function Contact() {
   const { copy: C } = useCopy();
-  const [submitted, setSubmitted] = useState(false);
+  // The form used to flip to the thank-you card the instant the button was
+  // pressed and throw the server's answer away. A lead that never sent looked
+  // exactly like a lead that did, and the owner had no reason to try again.
+  // Now the card waits for the answer, and a failed send says so.
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
   const [name, setName] = useState("");
   const [reach, setReach] = useState("");
   const [revenue, setRevenue] = useState("");
   const [message, setMessage] = useState("");
   const { labels, placeholders, revenueOptions } = C.contact;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitted(true);
+    if (status === "sending") return;
+    setStatus("sending");
     // One field now takes either a phone number or an email. Send it as the
     // email when it looks like one, otherwise as the phone. The server accepts
     // either, and only sets reply-to when there is a real address.
     const looksLikeEmail = reach.includes("@");
     // Revenue used to be glued onto the message. It goes as its own field now
     // so it lands in its own column on the lead sheet.
-    fetch("/api/contact", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: name.trim(),
-        email: looksLikeEmail ? reach.trim() : undefined,
-        phone: looksLikeEmail ? undefined : reach.trim(),
-        revenue: revenue || undefined,
-        message: message.trim() || "(no message)",
-        // Tells us whether the lead came off the English page or /he/.
-        sourcePage: window.location.pathname,
-      }),
-    }).catch(() => {});
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: looksLikeEmail ? reach.trim() : undefined,
+          phone: looksLikeEmail ? undefined : reach.trim(),
+          revenue: revenue || undefined,
+          message: message.trim() || "(no message)",
+          // Tells us whether the lead came off the English page or /he/.
+          sourcePage: window.location.pathname,
+        }),
+      });
+      // Only a 2xx means the mail actually left. Anything else, including the
+      // missing-key error, is a failure the owner needs to see.
+      setStatus(res.ok ? "sent" : "failed");
+    } catch {
+      // Offline, DNS, the server down. Same story for the owner.
+      setStatus("failed");
+    }
   }
 
   return (
@@ -1375,7 +1396,7 @@ function Contact() {
           </p>
         </div>
 
-        {submitted ? (
+        {status === "sent" ? (
           <div className="contact-thanks">
             <h3 className="serif" style={{ marginBottom: 8 }}>
               {C.contact.thanksHeading}
@@ -1426,9 +1447,14 @@ function Contact() {
                 onChange={(e) => setMessage(e.target.value)}
               />
             </div>
+            {status === "failed" && (
+              <p className="form-error full" role="alert">
+                {C.contact.sendFailed}
+              </p>
+            )}
             <div className="form-actions">
-              <Button type="submit" size="lg" arrow>
-                {C.contact.send}
+              <Button type="submit" size="lg" arrow disabled={status === "sending"}>
+                {status === "sending" ? C.contact.sending : C.contact.send}
               </Button>
             </div>
           </form>

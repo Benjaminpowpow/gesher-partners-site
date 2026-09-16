@@ -50,8 +50,16 @@ services:
       - key: MAIL_FROM
         sync: false
 
-      # Writes the Exit Brief. Get it at console.anthropic.com.
+      # Writes the Exit Brief. Get it at console.anthropic.com. Set a monthly
+      # spend cap on the key in that console too. That cap is the hard stop;
+      # the one below is the soft one.
       - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # How many free Briefs the whole site will run in one day (Israel time).
+      # Blank means 10. Raise it when the ads turn on and the console bill
+      # looks fine. One visitor can only take 3 of them.
+      - key: EXIT_BRIEF_DAILY_CAP
         sync: false
 
       # The temporary lead list. Every contact-form submission also writes one
