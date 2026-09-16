@@ -5,74 +5,102 @@ import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
-import { FAQ_ITEMS } from "@shared/faq";
+import { FAQ_ITEMS, FAQ_ITEMS_HE, type FaqItem } from "@shared/faq";
 
-/**
- * Per-language <head> for the bilingual homepage.
+/* ─── Homepage head, per language ─────────────────────────────────────────────
+ * English lives at the root (/), Hebrew under /he/. Decided 2026-09-16: English
+ * stays where it is live and indexed; Hebrew is the twin. The old /en/ URLs
+ * 301 to the root (see index.ts). Only the two homepage routes are localized;
+ * every other route returns the template unchanged, so the valuation tool and
+ * the legal pages are untouched.
  *
- * Hebrew is the main site at the root (/), English is the mirror at /en/.
- * Only the two homepage routes are localized; every other route returns the
- * template unchanged, so the valuation tool and the legal pages are untouched.
+ * The title, description, Open Graph text, canonical, hreflang twins and the
+ * two schema blocks go in here rather than in client/index.html, because
+ * index.html is the head for every route, and a FAQPage block on the privacy
+ * page would be a lie to the crawlers. Express serves the HTML on Render, so
+ * this runs on the live site and is what crawlers and link previews (WhatsApp,
+ * LinkedIn) read. React only keeps <html lang/dir> in sync after that.
  *
- * The Hebrew title/description/OG text below is SEO copy and is pending Ofir's
- * native review, same as the on-page Hebrew copy.
- */
+ * The nine questions come from shared/faq.ts, the same lists the page renders,
+ * so the schema and the visible page can never drift apart. The Hebrew wording
+ * is verbatim from the vault file site/23-hebrew-copy-ben-picks.md, the only
+ * source of Hebrew. Change it there first, then here.
+ * ──────────────────────────────────────────────────────────────────────────── */
 const SITE = "https://gesherpartners.com";
 
+type Lang = "en" | "he";
+
+const HOME_URL: Record<Lang, string> = {
+  en: `${SITE}/`,
+  he: `${SITE}/he/`,
+};
+
 const HREFLANG = [
-  `<link rel="alternate" hreflang="he" href="${SITE}/" />`,
-  `<link rel="alternate" hreflang="en" href="${SITE}/en/" />`,
-  `<link rel="alternate" hreflang="x-default" href="${SITE}/" />`,
+  `<link rel="alternate" hreflang="en" href="${HOME_URL.en}" />`,
+  `<link rel="alternate" hreflang="he" href="${HOME_URL.he}" />`,
+  `<link rel="alternate" hreflang="x-default" href="${HOME_URL.en}" />`,
 ].join("\n    ");
 
-// ENGLISH-ONLY (2026-06-04): the Hebrew site is parked. While this is true the
-// root (/) serves the English head, the Hebrew rewrites below are skipped, and the
-// hreflang alternates are dropped. A single-language site needs no alternates, and
-// pointing hreflang at a hidden Hebrew page would send mixed signals to search and
-// answer engines. To restore the bilingual site, set this to false. See also the
-// App.tsx "/" route and Home.tsx SHOW_LANG_SWITCH.
-const ENGLISH_ONLY: boolean = true;
-
-/* ─── Homepage head (v4, 2026-09-15) ──────────────────────────────────────────
- * The homepage title, description and structured data. These go in here rather
- * than in client/index.html because index.html is the head for every route, and
- * a FAQPage block on the privacy page or the valuation tool would be a lie to
- * the crawlers. Express serves the HTML on Render, so this runs on the live
- * site. (It did not run on Manus, which is why the old note above says the
- * per-language head never took.)
- *
- * The nine questions come from shared/faq.ts, the same list the page renders,
- * so the schema and the visible page can never drift apart.
- * ──────────────────────────────────────────────────────────────────────────── */
-const HOME_TITLE =
-  "Gesher Partners | Sell-side M&amp;A advisor for private businesses in Israel";
-const HOME_DESCRIPTION =
-  "Gesher Partners advises owners of private and family businesses in Israel, 5 to 50M NIS in revenue, on the sale of their company. Structured process, competing buyers, documented valuation before any buyer is approached.";
-
-const PROFESSIONAL_SERVICE_SCHEMA = {
-  "@context": "https://schema.org",
-  "@type": "ProfessionalService",
-  name: "Gesher Partners",
-  url: SITE,
-  description:
-    "Sell-side M&A advisor for private and family businesses in Israel with 5 to 50M NIS in revenue. A real auction with many buyers, run by advisors who have sold their own companies.",
-  areaServed: "IL",
-  founder: [
-    { "@type": "Person", name: "Ofir Ben Haim" },
-    { "@type": "Person", name: "Benjamin Aronson" },
-  ],
-  email: "hello@gesherpartners.com",
+type HomeHead = {
+  title: string; // already HTML-escaped, goes straight into <title>
+  description: string;
+  ogLocale: string;
+  serviceDescription: string;
+  faq: FaqItem[];
 };
 
-const FAQ_SCHEMA = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: FAQ_ITEMS.map((item) => ({
-    "@type": "Question",
-    name: item.q,
-    acceptedAnswer: { "@type": "Answer", text: item.a },
-  })),
+const HOME_HEAD: Record<Lang, HomeHead> = {
+  en: {
+    title: "Gesher Partners | Sell-side M&amp;A advisor for private businesses in Israel",
+    description:
+      "Gesher Partners advises owners of private and family businesses in Israel, 5 to 50M NIS in revenue, on the sale of their company. Structured process, competing buyers, documented valuation before any buyer is approached.",
+    ogLocale: "en_US",
+    serviceDescription:
+      "Sell-side M&A advisor for private and family businesses in Israel with 5 to 50M NIS in revenue. A real auction with many buyers, run by advisors who have sold their own companies.",
+    faq: FAQ_ITEMS,
+  },
+  he: {
+    title: "Gesher Partners | ליווי במכירת עסקים פרטיים בישראל",
+    description:
+      "Gesher Partners מייעצת לבעלי עסקים פרטיים ומשפחתיים בישראל, עם מחזור של 5 עד 50 מיליון ש״ח, במכירת החברה שלהם. תהליך מובנה, תחרות בין קונים, והערכת שווי כתובה לפני שפונים לקונה כלשהו.",
+    ogLocale: "he_IL",
+    // File 23 has no separate ProfessionalService sentence, so the schema
+    // carries the same Hebrew meta description. Same facts, one source.
+    serviceDescription:
+      "Gesher Partners מייעצת לבעלי עסקים פרטיים ומשפחתיים בישראל, עם מחזור של 5 עד 50 מיליון ש״ח, במכירת החברה שלהם. תהליך מובנה, תחרות בין קונים, והערכת שווי כתובה לפני שפונים לקונה כלשהו.",
+    faq: FAQ_ITEMS_HE,
+  },
 };
+
+function professionalServiceSchema(lang: Lang) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    name: "Gesher Partners",
+    url: HOME_URL[lang],
+    inLanguage: lang,
+    description: HOME_HEAD[lang].serviceDescription,
+    areaServed: "IL",
+    founder: [
+      { "@type": "Person", name: "Ofir Ben Haim" },
+      { "@type": "Person", name: "Benjamin Aronson" },
+    ],
+    email: "hello@gesherpartners.com",
+  };
+}
+
+function faqSchema(lang: Lang) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    inLanguage: lang,
+    mainEntity: HOME_HEAD[lang].faq.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: { "@type": "Answer", text: item.a },
+    })),
+  };
+}
 
 // JSON inside a <script> block has to be safe to drop into HTML. The only
 // sequence that can break out is "</", so escape it.
@@ -81,59 +109,60 @@ function jsonLd(data: unknown): string {
   return `<script type="application/ld+json">${json}</script>`;
 }
 
+// Which homepage a request path is, if any. "/he" and "/he/" both render the
+// Hebrew page; the canonical below names "/he/" so search engines see one URL.
+export function homeLang(reqPath: string): Lang | null {
+  if (reqPath === "/") return "en";
+  if (reqPath === "/he" || reqPath === "/he/") return "he";
+  return null;
+}
+
 export function localizeHtml(template: string, url: string): string {
   const reqPath = url.split("?")[0].split("#")[0];
-  const isEnHome = reqPath === "/en" || reqPath === "/en/";
-  const isHeHome = !ENGLISH_ONLY && reqPath === "/";
-  const isRootHome = reqPath === "/"; // English root while ENGLISH_ONLY is true
-  if (!isEnHome && !isHeHome && !isRootHome) return template;
+  const lang = homeLang(reqPath);
+  if (!lang) return template;
 
-  let html = template;
+  const head = HOME_HEAD[lang];
+  let html = template
+    .replace(/<title>[\s\S]*?<\/title>/, `<title>${head.title}</title>`)
+    .replace(
+      /<meta name="description" content="[^"]*"\s*\/>/,
+      `<meta name="description" content="${head.description}" />`
+    )
+    // og:url is the only tag in index.html carrying the bare site URL.
+    .replace('content="https://gesherpartners.com"', `content="${HOME_URL[lang]}"`);
 
-  if (isHeHome) {
+  if (lang === "he") {
+    // The Hebrew page: right-to-left document, and the share preview in
+    // Hebrew too. The English preview text in index.html is left as it is.
     html = html
       .replace(/<html[^>]*>/, '<html lang="he" dir="rtl">')
       .replace(
-        "<title>Sell-Side M&A for private and family businesses in Israel | Gesher Partners</title>",
-        "<title>גשר פרטנרס. ליווי מכירת עסקים משפחתיים בישראל</title>"
+        /<meta property="og:title" content="[^"]*"\s*\/>/,
+        `<meta property="og:title" content="${head.title}" />`
       )
       .replace(
-        'content="Sell-side M&A advisor for private and family businesses in Israel, 5 to 50M NIS in revenue. We run a real auction with serious buyers to get you the best price."',
-        'content="ליווי לצד המוכר לעסקים משפחתיים בישראל, מחזור 5 עד 50 מיליון ש״ח. אנחנו מנהלים תהליך תחרותי אמיתי מול קונים רציניים כדי להשיג לך את המחיר הטוב ביותר."'
+        /<meta property="og:description" content="[^"]*"\s*\/>/,
+        `<meta property="og:description" content="${head.description}" />`
       )
       .replace(
-        /content="Gesher Partners\. Sell-side M&A for private and family businesses in Israel"/g,
-        'content="גשר פרטנרס. ליווי מכירת עסקים משפחתיים בישראל"'
+        /<meta name="twitter:title" content="[^"]*"\s*\/>/,
+        `<meta name="twitter:title" content="${head.title}" />`
       )
       .replace(
-        /content="We help Israeli owners sell their life's work the right way\. A real auction, the right buyers, the best price\."/g,
-        'content="אנחנו עוזרים לבעלים בישראל למכור את מפעל החיים שלהם בדרך הנכונה. תהליך תחרותי אמיתי, הקונים הנכונים, המחיר הטוב ביותר."'
-      )
-      .replace('content="https://gesherpartners.com"', `content="${SITE}/"`);
-  }
-
-  if (isEnHome) {
-    html = html.replace('content="https://gesherpartners.com"', `content="${SITE}/en/"`);
-  }
-
-  // The v4 homepage title and description. English routes only, so the Hebrew
-  // rewrite above keeps its own wording when the Hebrew site comes back.
-  if (isEnHome || (isRootHome && !isHeHome)) {
-    html = html
-      .replace(/<title>[\s\S]*?<\/title>/, `<title>${HOME_TITLE}</title>`)
-      .replace(
-        /<meta name="description" content="[^"]*"\s*\/>/,
-        `<meta name="description" content="${HOME_DESCRIPTION}" />`
+        /<meta name="twitter:description" content="[^"]*"\s*\/>/,
+        `<meta name="twitter:description" content="${head.description}" />`
       );
   }
 
-  const canonical = isEnHome ? `${SITE}/en/` : `${SITE}/`;
-  const alternates = ENGLISH_ONLY ? "" : `\n    ${HREFLANG}`;
-  const schema = `\n    ${jsonLd(PROFESSIONAL_SERVICE_SCHEMA)}\n    ${jsonLd(FAQ_SCHEMA)}`;
-  return html.replace(
-    "</head>",
-    `<link rel="canonical" href="${canonical}" />${alternates}${schema}\n  </head>`
-  );
+  const extra = [
+    `<meta property="og:locale" content="${head.ogLocale}" />`,
+    `<link rel="canonical" href="${HOME_URL[lang]}" />`,
+    HREFLANG,
+    jsonLd(professionalServiceSchema(lang)),
+    jsonLd(faqSchema(lang)),
+  ].join("\n    ");
+  return html.replace("</head>", `${extra}\n  </head>`);
 }
 
 export async function setupVite(app: Express, server: Server) {
@@ -196,7 +225,7 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath, { index: false }));
 
   // fall through to index.html for client routes, localizing the <head> per
-  // language (Hebrew at /, English at /en/). Other routes pass through unchanged.
+  // language (English at /, Hebrew at /he/). Other routes pass through unchanged.
   const indexPath = path.resolve(distPath, "index.html");
   app.use("*", async (req, res) => {
     try {

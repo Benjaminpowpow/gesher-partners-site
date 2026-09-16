@@ -2,13 +2,27 @@
 <!--
   The public pages, and only those. /exit-brief and /test-render are internal
   and are blocked in robots.txt, so they must not appear here.
-  The English mirror at /en/ points at the same page as the root, so it is left
-  out to avoid handing search engines two URLs for one page.
+  The homepage exists in two languages: English at the root, Hebrew at /he/.
+  Each names the other as its twin, with x-default on the English page. The
+  valuation tool, privacy and terms pages exist in English only for now, so
+  they have no /he/ entry yet.
 -->
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://gesherpartners.com/</loc>
-    <lastmod>2026-09-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://gesherpartners.com/" />
+    <xhtml:link rel="alternate" hreflang="he" href="https://gesherpartners.com/he/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://gesherpartners.com/" />
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://gesherpartners.com/he/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://gesherpartners.com/" />
+    <xhtml:link rel="alternate" hreflang="he" href="https://gesherpartners.com/he/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://gesherpartners.com/" />
+    <lastmod>2026-09-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>

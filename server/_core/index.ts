@@ -46,6 +46,11 @@ async function startServer() {
       createContext,
     })
   );
+  // The English homepage moved from /en/ to the root on 2026-09-16 (Hebrew is
+  // at /he/). Anything still holding the old URL lands on the root for good.
+  app.get(["/en", "/en/"], (_req, res) => {
+    res.redirect(301, "/");
+  });
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
