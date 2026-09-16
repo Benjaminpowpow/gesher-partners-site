@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -14,12 +14,19 @@ import TestRender from "./pages/TestRender";
 function Router() {
   return (
     <Switch>
-      {/* ENGLISH-ONLY (2026-06-04): root serves English while the Hebrew site is
-          parked. To restore Hebrew, change the "/" route back to <Home lang="he" />
-          (see also Home.tsx SHOW_LANG_SWITCH and server/_core/vite.ts ENGLISH_ONLY). */}
+      {/* Two languages, two URLs (decided 2026-09-16). English at the root,
+          Hebrew under /he/. The server sends each its own <head>
+          (server/_core/vite.ts) and 301s the old /en/ to the root; the
+          Redirect below only covers a client-side hop to the old URL. */}
       <Route path="/" component={() => <Home lang="en" />} />
-      <Route path="/en" component={() => <Home lang="en" />} />
-      <Route path="/en/" component={() => <Home lang="en" />} />
+      <Route path="/he" component={() => <Home lang="he" />} />
+      <Route path="/he/" component={() => <Home lang="he" />} />
+      <Route path="/en">
+        <Redirect to="/" replace />
+      </Route>
+      <Route path="/en/">
+        <Redirect to="/" replace />
+      </Route>
       <Route path="/valuation" component={Valuation} />
       <Route path="/exit-brief" component={ExitBrief} />
       <Route path="/test-render" component={TestRender} />

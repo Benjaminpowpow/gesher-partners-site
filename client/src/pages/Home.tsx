@@ -16,19 +16,27 @@
  * All styling lives in home.css, scoped under .gesher so the generic class
  * names never bleed into other routes.
  *
- * HEBREW (parked). This page is English only. The old EN/HE string tables and
- * the language switch were removed with the v4 port, because the Hebrew copy
- * described a page that no longer exists. The locked Hebrew source is in the
- * vault at site/10-hebrew-homepage-copy-locked.md, and the old tables are in
- * git history before the v4 port. The Hebrew pass starts from the new English
- * copy: English source, Gemini, Ofir reviews, verbatim back.
+ * HEBREW. One Home component, two copy tables. COPY is the English from
+ * 17-homepage-final-copy.md; COPY_HE is the Hebrew from
+ * 23-hebrew-copy-ben-picks.md, element for element, same keys. The route picks
+ * the language (/ is English, /he/ is Hebrew) and hands it down through
+ * CopyContext. The Hebrew page renders right to left: lang="he" dir="rtl" plus
+ * the .gesher-rtl class on the page root, which home.css keys its few visual
+ * flips off. File 23 is the only source of Hebrew. Never edit Hebrew here
+ * first: change the vault file, then bring the line back here.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { FAQ_ITEMS } from "@shared/faq";
+import { FAQ_ITEMS, FAQ_ITEMS_HE } from "@shared/faq";
 import "./home.css";
 
 /* ─── Copy ────────────────────────────────────────────────────────────────── */
+
+type Lang = "en" | "he";
+
+type FooterLink =
+  | { kind: "anchor"; id: string; label: string }
+  | { kind: "route"; href: string; label: string };
 
 const COPY = {
   nav: {
@@ -210,9 +218,237 @@ const COPY = {
       { kind: "route", href: "/valuation", label: "Quick valuation" },
       { kind: "route", href: "/privacy", label: "Privacy" },
       { kind: "route", href: "/terms", label: "Terms" },
-    ] as const,
+    ] as FooterLink[],
   },
 };
+
+type Copy = typeof COPY;
+
+/**
+ * The Hebrew copy. Same keys as COPY, element for element, verbatim from the
+ * vault file PROJECTS/israel-ai-investment-bank/site/23-hebrew-copy-ben-picks.md.
+ * That file is the only source of Hebrew. A changed line goes there first,
+ * then comes back here.
+ *
+ * Decided to stay in English on the Hebrew page: the tagline under the logo,
+ * the company and partner logos, and the three chart labels inside the SVG in
+ * "why this works" (no Hebrew for them yet). A few strings below are English
+ * because file 23 has no Hebrew line for them yet: the screen-reader labels
+ * (aria) and the thank-you note after the form is sent. Listed in the pull
+ * request for Ofir's review.
+ */
+const COPY_HE: Copy = {
+  nav: {
+    homeAriaLabel: "gesher home",
+    primaryAriaLabel: "Primary",
+    tagline: "Your sell-side advisor",
+    menuAriaLabel: "Menu",
+    closeAriaLabel: "Close menu",
+    talkToUs: "לשיחת ייעוץ",
+    links: [
+      { id: "how", label: "התהליך" },
+      { id: "founders", label: "הצוות" },
+      { id: "sectors", label: "ענפים" },
+      { id: "faq", label: "שאלות ותשובות" },
+    ],
+  },
+  hero: {
+    eyebrow: "עסקים פרטיים ומשפחתיים · מחזור 5 עד 50 מיליון ש״ח",
+    // The English puts the emphasis on "life's work". The Hebrew line from
+    // file 23 is "מפעל חייך. מגיע לו יותר." so the emphasis sits on the
+    // first sentence, and the second follows as the trail.
+    headlineLead: "",
+    headlineEmph: "מפעל חייך.",
+    headlineTrail: " מגיע לו יותר.",
+    lede: "ליווי במכירת חברות.\nמכרנו חברות משלנו, וליווינו אחרים במכירה של שלהם.",
+    ctaTalk: "לשיחת ייעוץ",
+    ctaValuation: "ניתוח שווי ראשוני",
+  },
+  proof: [
+    { value: "+40", unit: "שנה", label: "ליווי בעלי עסקים" },
+    { value: "+20", unit: "חברות", label: "נמכרו. חלקן שלנו." },
+    { value: "12", unit: "ענפים", label: "שבהם ליווינו" },
+  ],
+  logos: {
+    label: "ניסיון מוכח · חברות שהקמנו וליווינו",
+    items: COPY.logos.items,
+  },
+  challenge: {
+    eyebrow: "האתגר",
+    headingLines: ["בנית משהו.", "אין הזדמנות שנייה לעשות את זה נכון."],
+    line: "רוב הבעלים עושים את זה פעם אחת בחיים. הקונה שיושב מולך כבר עשה את זה הרבה פעמים.",
+  },
+  why: {
+    eyebrow: "למה זה עובד",
+    headingLines: ["קונה אחד קובע את המחיר.", "הרבה קונים קובעים את השוק."],
+    paras: [
+      "מתווך מפרסם את העסק שלך ומחכה. מי שמגיע קובע את התנאים.",
+      "אנחנו עושים בדיוק הפוך. מאתרים כל קונה רציני, מסננים, ומביאים את כולם לשולחן אחד, בתאריך אחד. הם מתחרים. התחרות קובעת את המחיר, לא קונה אחד.",
+      "בנק השקעות גדול לא ייקח עסקה בסדר גודל כזה. מתווך לא ינהל תהליך כזה. בשביל זה אנחנו כאן.",
+    ],
+    chartCaption: "תהליך שמראה מה השוק באמת מוכן לשלם",
+    // No separate Hebrew alt text in file 23. The caption line does the job.
+    chartAlt: "תהליך שמראה מה השוק באמת מוכן לשלם",
+  },
+  process: {
+    eyebrow: "התהליך",
+    heading: "איך אנחנו מוכרים את העסק שלך.",
+    lede: "שלושה שלבים. מה קורה, ומה אתה מקבל.",
+    youGet: "אתה מקבל",
+    // Each step's text is one line in file 23. It is split here at the first
+    // full stop, the same split the English makes: the lead sentence in
+    // burgundy serif, the rest as body. No word changes.
+    steps: [
+      {
+        id: 1,
+        roadLabel: "מספר אמיתי",
+        outcome: "טווח שווי אמיתי ותוכנית. למכור עכשיו, למכור אחר כך, או בכלל לא.",
+        lead: "אנחנו נותנים לך הערכת שווי מקצועית.",
+        body: "בדיסקרטיות. בונים מחדש את הדוחות הכספיים שלך מנקודת המבט של הקונה, וממפים כל קונה שירצה את העסק שלך. אנחנו לא פונים לאף קונה בלי האישור שלך.",
+      },
+      {
+        id: 2,
+        roadLabel: "תחרות בין קונים",
+        outcome: "הצעות כתובות, זו לצד זו. אנחנו מנהלים משא ומתן על הטובה שבהן, על המחיר ועל היום שאחרי.",
+        lead: "אנחנו מנהלים תהליך תחרותי.",
+        body: "קונים רציניים, שעברו את הסינון שלנו, מגישים הצעות עד תאריך אחד. אנחנו יושבים איתך בכל פגישה.",
+      },
+      {
+        id: 3,
+        roadLabel: "סגירה",
+        outcome: "העסקה סגורה. הזמן שלך שוב שלך.",
+        lead: "אנחנו סוגרים.",
+        body: "עורך הדין שלך, רואה החשבון שלך ואנחנו, סביב שולחן אחד. כל מסמך מוסבר במילים פשוטות לפני שאתה חותם.",
+      },
+    ],
+  },
+  team: {
+    eyebrow: "הצוות",
+    heading: "צוות שכבר היה בנעליים שלך.",
+    people: [
+      {
+        photo: "/founders/gesher_ofir_final.jpg",
+        name: "רו״ח אופיר בן חיים",
+        role: "שותף מנהל",
+        bio: "מעל 40 שנה מלווה בעלי עסקים בישראל. ראה כל מבנה עסקה שעובד כאן, וגם כמה שלא.",
+      },
+      {
+        photo: "/founders/gesher_ben_final.jpg",
+        name: "בנימין ארונסון",
+        role: "שותף מנהל",
+        bio: "הקים ומכר חברה משלו. הצמיח תחום פעילות מאפס ל-4.9 מיליון דולר הכנסות בשנה תוך 12 חודשים. התחיל את דרכו במיזוגים ורכישות ב-KPMG ישראל.",
+      },
+    ],
+    coda: "אנחנו יודעים איך זה מרגיש למכור משהו שבנית במשך שנים.",
+  },
+  sectors: {
+    eyebrow: "ענפים",
+    heading: "עסקים פרטיים ומשפחתיים ב-12 ענפים.",
+    lede: "תעשייה מסורתית והייטק. הקונה משתנה מענף לענף. התהליך לא.",
+    items: [
+      { icon: "factory", name: "תעשייה", sub: "מתכת, פלסטיק, אריזות" },
+      { icon: "box", name: "יבוא והפצה", sub: "יבואנים, סיטונאים, משווקים" },
+      { icon: "shop", name: "מסחר ושירותים", sub: "קמעונאות, מסחר B2B, תחזוקה" },
+      { icon: "fork", name: "מזון ומסעדנות", sub: "יצרנים, סוחרים, רשתות" },
+      { icon: "house", name: "בנייה ונדל״ן", sub: "קבלנים, חומרי בניין, יזמים" },
+      { icon: "bridge", name: "תשתיות", sub: "עבודות הנדסה אזרחית, מים וחשמל, קבלני משנה" },
+      { icon: "truck", name: "תחבורה ורכב", sub: "ציי רכב, הובלות, מוסכים" },
+      { icon: "screen", name: "טכנולוגיה ותוכנה", sub: "ERP, תוכנה ענפית, שירותי IT" },
+      { icon: "heart", name: "בריאות", sub: "מרפאות, ציוד רפואי, אופטיקה" },
+      { icon: "case", name: "מקצועות חופשיים", sub: "ראיית חשבון, רפואת שיניים, הנדסה" },
+      { icon: "umbrella", name: "סוכנויות ביטוח", sub: "סוכנויות ותיקי ביטוח" },
+      { icon: "plane", name: "תיירות ואירוח", sub: "נסיעות, מלונות, פנאי" },
+    ],
+  },
+  faq: {
+    eyebrow: "שאלות שבעלי עסקים שואלים",
+    heading: "תשובות ישירות.",
+  },
+  band: {
+    eyebrow: "מה מייחד אותנו",
+    headingLines: ["רוב היועצים דוחפים אותך למכור.", "אנחנו אומרים לך מתי לחכות."],
+    line: "בגלל זה בעלי עסקים סומכים עלינו כשמגיע הרגע.",
+    cta: "כשתהיה מוכן",
+  },
+  contact: {
+    eyebrow: "צור קשר",
+    heading: "נתחיל בשיחה.",
+    lede: "ספר לנו איפה אתה עומד. נגיד לך בכנות אם נוכל לעזור.",
+    win: "כשאתה מרוויח, אנחנו מרוויחים.",
+    orEmail: "או במייל",
+    emailAddress: "hello@gesherpartners.com",
+    labels: {
+      name: "שם",
+      reach: "טלפון או מייל",
+      revenue: "מחזור שנתי",
+      message: "משהו שתרצה שנדע",
+    },
+    placeholders: {
+      name: "השם שלך",
+      reach: "איך אפשר לחזור אליך",
+      revenue: "בחר טווח",
+      message: "לא חובה",
+    },
+    revenueOptions: [
+      "פחות מ-5 מיליון ש״ח",
+      "5 עד 10 מיליון ש״ח",
+      "10 עד 20 מיליון ש״ח",
+      "20 עד 50 מיליון ש״ח",
+      "מעל 50 מיליון ש״ח",
+      "מעדיף לא לציין",
+    ],
+    send: "שלח",
+    // No Hebrew for the thank-you note in file 23 yet. English until it lands.
+    thanksHeading: "Thank you.",
+    thanksBody:
+      "We read every note ourselves. You will hear from Ofir or Ben within two business days.",
+  },
+  footer: {
+    ariaLabel: "Footer",
+    disclaimer:
+      "Gesher Partners אינה יועץ השקעות מורשה. אין באתר הזה ייעוץ השקעות, ולא הצעה לקנות או למכור נייר ערך כלשהו.",
+    // The valuation tool, privacy and terms pages exist in English only, so
+    // the Hebrew links go to those pages until Hebrew twins exist.
+    links: [
+      { kind: "anchor", id: "how", label: "התהליך" },
+      { kind: "anchor", id: "sectors", label: "ענפים" },
+      { kind: "anchor", id: "founders", label: "הצוות" },
+      { kind: "anchor", id: "faq", label: "שאלות ותשובות" },
+      { kind: "route", href: "/valuation", label: "ניתוח שווי ראשוני" },
+      { kind: "route", href: "/privacy", label: "פרטיות" },
+      { kind: "route", href: "/terms", label: "תנאי שימוש" },
+    ] as FooterLink[],
+  },
+};
+
+const HOME_COPY: Record<Lang, Copy> = { en: COPY, he: COPY_HE };
+
+/* ─── Language plumbing ───────────────────────────────────────────────────── */
+
+const CopyContext = createContext<{ copy: Copy; lang: Lang }>({ copy: COPY, lang: "en" });
+const useCopy = () => useContext(CopyContext);
+
+// The language switch. "EN / עב", both always visible, the active one bold
+// navy. Real anchors, not client-side routes, so the server sends the right
+// per-language head with the new page. No automatic redirect by browser
+// language anywhere on the site: this switch is the only way across.
+function LangSwitch({ className = "" }: { className?: string }) {
+  const { lang } = useCopy();
+  const isHe = lang === "he";
+  return (
+    <div className={`lang-switch ${className}`.trim()} role="group" aria-label="Language">
+      <a href="/" lang="en" className={isHe ? undefined : "lang-on"} aria-current={isHe ? undefined : "true"}>
+        EN
+      </a>
+      <span className="lang-sep" aria-hidden="true">
+        /
+      </span>
+      <a href="/he/" lang="he" className={isHe ? "lang-on" : undefined} aria-current={isHe ? "true" : undefined}>
+        עב
+      </a>
+    </div>
+  );
+}
 
 /* ─── Media ───────────────────────────────────────────────────────────────── */
 
@@ -270,13 +506,14 @@ function Button({ variant = "primary", size = "md", children, arrow = false, ...
 // The lockup: mark, wordmark, and the line under it. One piece, used in the
 // nav, the mobile menu and the footer.
 function Lockup({ markHeight = 34 }: { markHeight?: number }) {
+  const { copy: C } = useCopy();
   return (
     <span className="lockup">
       <span className="lockup-row">
         <img className="brand-mark" src="/brand/gesher-mark.svg" alt="" style={{ height: markHeight, display: "block" }} />
         <img className="wordmark" src="/brand/gesher-wordmark.svg" alt="gesher" style={{ height: markHeight * 0.85 }} />
       </span>
-      <span className="lockup-tag">{COPY.nav.tagline}</span>
+      <span className="lockup-tag">{C.nav.tagline}</span>
     </span>
   );
 }
@@ -357,6 +594,7 @@ const SECTOR_ICONS: Record<string, React.ReactNode> = {
 /* ─── Nav ─────────────────────────────────────────────────────────────────── */
 
 function Nav({ onTalk }: { onTalk: () => void }) {
+  const { copy: C } = useCopy();
   const [open, setOpen] = useState(false);
 
   // Lock body scroll while the mobile menu is open. Esc closes it.
@@ -384,28 +622,29 @@ function Nav({ onTalk }: { onTalk: () => void }) {
   }
 
   return (
-    <nav className="nav" aria-label={COPY.nav.primaryAriaLabel}>
-      <a href="#top" aria-label={COPY.nav.homeAriaLabel} className="nav-lockup">
+    <nav className="nav" aria-label={C.nav.primaryAriaLabel}>
+      <a href="#top" aria-label={C.nav.homeAriaLabel} className="nav-lockup">
         <Lockup />
       </a>
 
       {/* Desktop links, hidden on mobile via CSS */}
       <div className="nav-links">
-        {COPY.nav.links.map((l) => (
+        {C.nav.links.map((l) => (
           <a key={l.id} href={`#${l.id}`}>
             {l.label}
           </a>
         ))}
         <Button size="sm" onClick={onTalk}>
-          {COPY.nav.talkToUs}
+          {C.nav.talkToUs}
         </Button>
+        <LangSwitch />
       </div>
 
       {/* Mobile hamburger, hidden on desktop via CSS */}
       <button
         type="button"
         className="nav-toggle"
-        aria-label={COPY.nav.menuAriaLabel}
+        aria-label={C.nav.menuAriaLabel}
         aria-expanded={open}
         aria-controls="nav-menu"
         onClick={() => setOpen(true)}
@@ -417,12 +656,12 @@ function Nav({ onTalk }: { onTalk: () => void }) {
 
       {/* Mobile menu sheet */}
       {open && (
-        <div id="nav-menu" className="nav-menu" role="dialog" aria-modal="true" aria-label={COPY.nav.menuAriaLabel}>
+        <div id="nav-menu" className="nav-menu" role="dialog" aria-modal="true" aria-label={C.nav.menuAriaLabel}>
           <div className="nav-menu-bar">
-            <a href="#top" aria-label={COPY.nav.homeAriaLabel} onClick={close} className="nav-lockup">
+            <a href="#top" aria-label={C.nav.homeAriaLabel} onClick={close} className="nav-lockup">
               <Lockup />
             </a>
-            <button type="button" className="nav-toggle" aria-label={COPY.nav.closeAriaLabel} onClick={close}>
+            <button type="button" className="nav-toggle" aria-label={C.nav.closeAriaLabel} onClick={close}>
               <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
                 <path d="M2 2l16 16M18 2L2 18" stroke="currentColor" strokeWidth="1.25" fill="none" strokeLinecap="square" />
               </svg>
@@ -430,7 +669,7 @@ function Nav({ onTalk }: { onTalk: () => void }) {
           </div>
 
           <ul className="nav-menu-list">
-            {COPY.nav.links.map((l) => (
+            {C.nav.links.map((l) => (
               <li key={l.id}>
                 <a
                   href={`#${l.id}`}
@@ -443,6 +682,9 @@ function Nav({ onTalk }: { onTalk: () => void }) {
                 </a>
               </li>
             ))}
+            <li>
+              <LangSwitch className="lang-switch-mobile" />
+            </li>
           </ul>
 
           <div className="nav-menu-cta">
@@ -454,7 +696,7 @@ function Nav({ onTalk }: { onTalk: () => void }) {
               arrow
               style={{ width: "100%" }}
             >
-              {COPY.nav.talkToUs}
+              {C.nav.talkToUs}
             </Button>
           </div>
         </div>
@@ -466,6 +708,7 @@ function Nav({ onTalk }: { onTalk: () => void }) {
 /* ─── Hero (unchanged from the live site) ─────────────────────────────────── */
 
 function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk: () => void }) {
+  const { copy: C } = useCopy();
   return (
     <header className="hero" id="top">
       {HERO_VIDEO && (
@@ -485,21 +728,21 @@ function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk
 
       <div className="container hero-container">
         <div className="hero-copy">
-          <p className="eyebrow">{COPY.hero.eyebrow}</p>
+          <p className="eyebrow">{C.hero.eyebrow}</p>
           <h1 className="display hero-headline">
-            {COPY.hero.headlineLead}{" "}
-            <span className="hl-emph emph-italic">{COPY.hero.headlineEmph}</span>
-            {COPY.hero.headlineTrail}
+            {C.hero.headlineLead && <>{C.hero.headlineLead} </>}
+            <span className="hl-emph emph-italic">{C.hero.headlineEmph}</span>
+            {C.hero.headlineTrail}
           </h1>
           <p className="lede">
-            <Lines lines={COPY.hero.lede.split("\n")} />
+            <Lines lines={C.hero.lede.split("\n")} />
           </p>
           <div className="hero-actions">
             <Button size="lg" onClick={onTalk} arrow>
-              {COPY.hero.ctaTalk}
+              {C.hero.ctaTalk}
             </Button>
             <Button size="lg" variant="outline" onClick={onOpenValuation}>
-              {COPY.hero.ctaValuation}
+              {C.hero.ctaValuation}
             </Button>
           </div>
         </div>
@@ -511,11 +754,12 @@ function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk
 /* ─── Proof strip ─────────────────────────────────────────────────────────── */
 
 function ProofStrip() {
+  const { copy: C } = useCopy();
   return (
     <section className="proof">
       <div className="container">
         <div className="proof-row">
-          {COPY.proof.map((s, i) => (
+          {C.proof.map((s, i) => (
             <div className="proof-cell" key={i}>
               <div className="proof-n">
                 {s.value}
@@ -539,13 +783,14 @@ function ProofStrip() {
  * the logos wrap into a still, centred row (CSS).
  */
 function LogoStrip() {
+  const { copy: C } = useCopy();
   const set = (hidden: boolean) => (
     <div className="marquee-set" aria-hidden={hidden ? true : undefined}>
       {/* No loading="lazy" here on purpose. The browser only loads a lazy image
           when it comes into view, and these sit on a track that slides left,
           so a logo that starts off screen is never asked for and the slot stays
           blank. Seven small logos load eagerly without a fuss. */}
-      {COPY.logos.items.map((l, i) => (
+      {C.logos.items.map((l, i) => (
         <img key={i} src={l.src} alt={hidden ? "" : l.alt} className={l.tall ? "tall" : undefined} />
       ))}
     </div>
@@ -553,9 +798,9 @@ function LogoStrip() {
   return (
     <section className="logostrip">
       <div className="container">
-        <p className="eyebrow logostrip-label">{COPY.logos.label}</p>
+        <p className="eyebrow logostrip-label">{C.logos.label}</p>
       </div>
-      <div className="marquee" aria-label={COPY.logos.items.map((l) => l.alt).join(", ")}>
+      <div className="marquee" aria-label={C.logos.items.map((l) => l.alt).join(", ")}>
         <div className="marquee-track">
           {set(false)}
           {set(true)}
@@ -568,14 +813,15 @@ function LogoStrip() {
 /* ─── The challenge ───────────────────────────────────────────────────────── */
 
 function Challenge() {
+  const { copy: C } = useCopy();
   return (
     <section className="section challenge">
       <div className="container">
-        <p className="eyebrow">{COPY.challenge.eyebrow}</p>
+        <p className="eyebrow">{C.challenge.eyebrow}</p>
         <h2 className="display">
-          <Lines lines={COPY.challenge.headingLines} />
+          <Lines lines={C.challenge.headingLines} />
         </h2>
-        <p className="lede challenge-line">{COPY.challenge.line}</p>
+        <p className="lede challenge-line">{C.challenge.line}</p>
       </div>
     </section>
   );
@@ -584,15 +830,16 @@ function Challenge() {
 /* ─── Why this works ──────────────────────────────────────────────────────── */
 
 function WhyThisWorks() {
+  const { copy: C } = useCopy();
   return (
     <section className="section why" id="why">
       <div className="container why-grid">
         <div>
-          <p className="eyebrow">{COPY.why.eyebrow}</p>
+          <p className="eyebrow">{C.why.eyebrow}</p>
           <h2 className="display">
-            <Lines lines={COPY.why.headingLines} />
+            <Lines lines={C.why.headingLines} />
           </h2>
-          {COPY.why.paras.map((p, i) => (
+          {C.why.paras.map((p, i) => (
             <p className="lede why-para" key={i}>
               {p}
             </p>
@@ -602,7 +849,7 @@ function WhyThisWorks() {
           {/* One buyer pays the one-offer level. Competitive bidding stacks a
               burgundy gap on top of that same level, and the gap is the
               seller's upside. Heights are illustrative, not a real deal. */}
-          <svg className="gapchart" viewBox="0 0 520 300" role="img" aria-label={COPY.why.chartAlt}>
+          <svg className="gapchart" viewBox="0 0 520 300" role="img" aria-label={C.why.chartAlt}>
             <line x1="20" y1="256" x2="500" y2="256" stroke="#DCD4C4" strokeWidth="1" />
             <line x1="20" y1="150" x2="440" y2="150" stroke="#6F6757" strokeWidth="1" strokeDasharray="4 5" />
             <text x="24" y="142" fontFamily="Newsreader,Georgia,serif" fontStyle="italic" fontSize="13" fill="#6F6757">
@@ -649,7 +896,7 @@ function WhyThisWorks() {
               <text x="318" y="282">COMPETITIVE BIDDING</text>
             </g>
           </svg>
-          <p className="chart-cap">{COPY.why.chartCaption}</p>
+          <p className="chart-cap">{C.why.chartCaption}</p>
         </div>
       </div>
     </section>
@@ -688,6 +935,7 @@ type RoadProps = {
 };
 
 function Road({ variant, current, onPick }: RoadProps) {
+  const { copy: C, lang } = useCopy();
   const desktop = variant === "desktop";
   const path = desktop
     ? "M20 108 C 260 108, 420 96, 560 78 S 900 34, 1040 26"
@@ -705,7 +953,21 @@ function Road({ variant, current, onPick }: RoadProps) {
         { s: 3, cx: 336, cy: 26, ly: 62 },
       ];
   const r = desktop ? 16 : 14;
-  const labelSize = desktop ? 10.5 : 8.5;
+
+  // Hebrew reads right to left, so the road does too: step 1 on the right,
+  // step 3 on the left. The three path strokes are mirrored as a group, and
+  // each stone's x is mirrored by hand so the number and the label stay
+  // upright. The fill still runs from the path start, so the animation is
+  // the same, only mirrored.
+  const rtl = lang === "he";
+  const W = desktop ? 1060 : 375;
+  const mx = (x: number) => (rtl ? W - x : x);
+
+  // The road labels are uppercase Latin with wide tracking in English. Hebrew
+  // has no uppercase and does not track, so it gets its own face and size.
+  const labelFont = rtl ? "Heebo,Inter,system-ui,sans-serif" : "Inter,system-ui,sans-serif";
+  const labelSize = rtl ? (desktop ? 12 : 9.5) : desktop ? 10.5 : 8.5;
+  const labelSpacing = rtl ? 0 : desktop ? 1.2 : 1;
 
   return (
     <svg
@@ -713,25 +975,27 @@ function Road({ variant, current, onPick }: RoadProps) {
       viewBox={desktop ? "0 0 1060 150" : "0 0 375 120"}
       aria-hidden="true"
     >
-      <path d={path} stroke="#DCD4C4" strokeWidth={width} fill="none" strokeLinecap="round" />
-      <path
-        className="road-fill"
-        d={path}
-        stroke="#16243B"
-        strokeWidth={width}
-        fill="none"
-        strokeLinecap="round"
-        pathLength={100}
-        strokeDasharray={100}
-        strokeDashoffset={ROAD_OFFSET[current]}
-      />
-      <path
-        d={path}
-        stroke="#F5F0E6"
-        strokeWidth={desktop ? 1.5 : 1.2}
-        fill="none"
-        strokeDasharray={desktop ? "6 8" : "4 6"}
-      />
+      <g transform={rtl ? `translate(${W} 0) scale(-1 1)` : undefined}>
+        <path d={path} stroke="#DCD4C4" strokeWidth={width} fill="none" strokeLinecap="round" />
+        <path
+          className="road-fill"
+          d={path}
+          stroke="#16243B"
+          strokeWidth={width}
+          fill="none"
+          strokeLinecap="round"
+          pathLength={100}
+          strokeDasharray={100}
+          strokeDashoffset={ROAD_OFFSET[current]}
+        />
+        <path
+          d={path}
+          stroke="#F5F0E6"
+          strokeWidth={desktop ? 1.5 : 1.2}
+          fill="none"
+          strokeDasharray={desktop ? "6 8" : "4 6"}
+        />
+      </g>
       <g className="road-btns" fontFamily="Newsreader,Georgia,serif" fontSize={desktop ? 17 : 15} fontWeight="500" textAnchor="middle">
         {stones.map((st, i) => (
           <g
@@ -740,20 +1004,20 @@ function Road({ variant, current, onPick }: RoadProps) {
             onClick={() => onPick(st.s)}
             style={{ cursor: "pointer" }}
           >
-            <circle cx={st.cx} cy={st.cy} r={r} />
-            <text x={st.cx} y={st.cy + (desktop ? 6 : 5)}>
+            <circle cx={mx(st.cx)} cy={st.cy} r={r} />
+            <text x={mx(st.cx)} y={st.cy + (desktop ? 6 : 5)}>
               {st.s}
             </text>
             <text
               className="lbl"
-              x={st.cx}
+              x={mx(st.cx)}
               y={st.ly}
-              fontFamily="Inter,system-ui,sans-serif"
+              fontFamily={labelFont}
               fontSize={labelSize}
               fontWeight="600"
-              letterSpacing={desktop ? 1.2 : 1}
+              letterSpacing={labelSpacing}
             >
-              {COPY.process.steps[i].roadLabel}
+              {C.process.steps[i].roadLabel}
             </text>
           </g>
         ))}
@@ -789,6 +1053,7 @@ function CheckIcon() {
  * it. If the visitor asked their device to reduce motion, it never moves.
  */
 function ProcessSpotlight() {
+  const { copy: C } = useCopy();
   const rootRef = useRef<HTMLDivElement>(null);
   const spotsRef = useRef<HTMLDivElement>(null);
 
@@ -864,17 +1129,17 @@ function ProcessSpotlight() {
   }
 
   const rendered = isPhone && slide > 0 ? [...order, order[0]] : order;
-  const stepById = (id: number) => COPY.process.steps.find((s) => s.id === id)!;
+  const stepById = (id: number) => C.process.steps.find((s) => s.id === id)!;
 
   return (
     <section className="section process" id="how">
       <div className="container">
         <div className="process-intro">
           <div>
-            <p className="eyebrow">{COPY.process.eyebrow}</p>
-            <h2 className="display">{COPY.process.heading}</h2>
+            <p className="eyebrow">{C.process.eyebrow}</p>
+            <h2 className="display">{C.process.heading}</h2>
           </div>
-          <p className="lede">{COPY.process.lede}</p>
+          <p className="lede">{C.process.lede}</p>
         </div>
 
         <div
@@ -887,7 +1152,7 @@ function ProcessSpotlight() {
           <Road variant="phone" current={current} onPick={pick} />
 
           <div className="sp-pills" role="group" aria-label="Steps">
-            {COPY.process.steps.map((s) => (
+            {C.process.steps.map((s) => (
               <button
                 key={s.id}
                 type="button"
@@ -937,7 +1202,7 @@ function ProcessSpotlight() {
                   >
                     <small>
                       <CheckIcon />
-                      {COPY.process.youGet}
+                      {C.process.youGet}
                     </small>
                     <h3>{s.outcome}</h3>
                     <p>
@@ -957,13 +1222,14 @@ function ProcessSpotlight() {
 /* ─── The team ────────────────────────────────────────────────────────────── */
 
 function Team() {
+  const { copy: C } = useCopy();
   return (
     <section className="section v4-founders" id="founders">
       <div className="container">
-        <p className="eyebrow">{COPY.team.eyebrow}</p>
-        <h2 className="display">{COPY.team.heading}</h2>
+        <p className="eyebrow">{C.team.eyebrow}</p>
+        <h2 className="display">{C.team.heading}</h2>
         <div className="people">
-          {COPY.team.people.map((p) => (
+          {C.team.people.map((p) => (
             <div className="person" key={p.name}>
               <img src={p.photo} alt={p.name} loading="lazy" />
               <div>
@@ -974,7 +1240,7 @@ function Team() {
             </div>
           ))}
         </div>
-        <p className="coda">{COPY.team.coda}</p>
+        <p className="coda">{C.team.coda}</p>
       </div>
     </section>
   );
@@ -983,18 +1249,19 @@ function Team() {
 /* ─── Sectors ─────────────────────────────────────────────────────────────── */
 
 function Sectors() {
+  const { copy: C } = useCopy();
   return (
     <section className="section sectors" id="sectors">
       <div className="container">
         <div className="sectors-top">
           <div>
-            <p className="eyebrow">{COPY.sectors.eyebrow}</p>
-            <h2 className="display">{COPY.sectors.heading}</h2>
+            <p className="eyebrow">{C.sectors.eyebrow}</p>
+            <h2 className="display">{C.sectors.heading}</h2>
           </div>
-          <p className="lede">{COPY.sectors.lede}</p>
+          <p className="lede">{C.sectors.lede}</p>
         </div>
         <div className="sgrid">
-          {COPY.sectors.items.map((s) => (
+          {C.sectors.items.map((s) => (
             <div key={s.name}>
               <span className="ico" aria-hidden="true">
                 <svg viewBox="0 0 24 24">{SECTOR_ICONS[s.icon]}</svg>
@@ -1012,16 +1279,17 @@ function Sectors() {
 /* ─── Questions ───────────────────────────────────────────────────────────── */
 
 function Faq() {
+  const { copy: C, lang } = useCopy();
   return (
     <section className="section faq" id="faq">
       <div className="container">
         <div className="faq-top">
           <div>
-            <p className="eyebrow">{COPY.faq.eyebrow}</p>
-            <h2 className="display">{COPY.faq.heading}</h2>
+            <p className="eyebrow">{C.faq.eyebrow}</p>
+            <h2 className="display">{C.faq.heading}</h2>
           </div>
           <div className="qs">
-            {FAQ_ITEMS.map((item) => (
+            {(lang === "he" ? FAQ_ITEMS_HE : FAQ_ITEMS).map((item) => (
               <details key={item.q}>
                 <summary>
                   <h3>{item.q}</h3>
@@ -1039,18 +1307,19 @@ function Faq() {
 /* ─── Navy band ───────────────────────────────────────────────────────────── */
 
 function Band({ onTalk }: { onTalk: () => void }) {
+  const { copy: C } = useCopy();
   return (
     <section className="band">
       <div className="container band-grid">
         <div>
-          <p className="eyebrow band-eyebrow">{COPY.band.eyebrow}</p>
+          <p className="eyebrow band-eyebrow">{C.band.eyebrow}</p>
           <h2 className="display">
-            <Lines lines={COPY.band.headingLines} />
+            <Lines lines={C.band.headingLines} />
           </h2>
-          <p className="band-line">{COPY.band.line}</p>
+          <p className="band-line">{C.band.line}</p>
         </div>
         <Button variant="on-navy-outline" onClick={onTalk}>
-          {COPY.band.cta}
+          {C.band.cta}
         </Button>
       </div>
     </section>
@@ -1060,12 +1329,13 @@ function Band({ onTalk }: { onTalk: () => void }) {
 /* ─── Contact ─────────────────────────────────────────────────────────────── */
 
 function Contact() {
+  const { copy: C } = useCopy();
   const [submitted, setSubmitted] = useState(false);
   const [name, setName] = useState("");
   const [reach, setReach] = useState("");
   const [revenue, setRevenue] = useState("");
   const [message, setMessage] = useState("");
-  const { labels, placeholders, revenueOptions } = COPY.contact;
+  const { labels, placeholders, revenueOptions } = C.contact;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -1092,22 +1362,22 @@ function Contact() {
     <section className="section contact" id="contact">
       <div className="container contact-grid">
         <div>
-          <p className="eyebrow">{COPY.contact.eyebrow}</p>
-          <h2 className="display">{COPY.contact.heading}</h2>
-          <p className="lede">{COPY.contact.lede}</p>
-          <p className="contact-win">{COPY.contact.win}</p>
+          <p className="eyebrow">{C.contact.eyebrow}</p>
+          <h2 className="display">{C.contact.heading}</h2>
+          <p className="lede">{C.contact.lede}</p>
+          <p className="contact-win">{C.contact.win}</p>
           <p className="contact-mail">
-            {COPY.contact.orEmail}{" "}
-            <a href={`mailto:${COPY.contact.emailAddress}`}>{COPY.contact.emailAddress}</a>
+            {C.contact.orEmail}{" "}
+            <a href={`mailto:${C.contact.emailAddress}`}>{C.contact.emailAddress}</a>
           </p>
         </div>
 
         {submitted ? (
           <div className="contact-thanks">
             <h3 className="serif" style={{ marginBottom: 8 }}>
-              {COPY.contact.thanksHeading}
+              {C.contact.thanksHeading}
             </h3>
-            <p style={{ margin: 0 }}>{COPY.contact.thanksBody}</p>
+            <p style={{ margin: 0 }}>{C.contact.thanksBody}</p>
           </div>
         ) : (
           <form className="form" onSubmit={handleSubmit}>
@@ -1155,7 +1425,7 @@ function Contact() {
             </div>
             <div className="form-actions">
               <Button type="submit" size="lg" arrow>
-                {COPY.contact.send}
+                {C.contact.send}
               </Button>
             </div>
           </form>
@@ -1168,6 +1438,7 @@ function Contact() {
 /* ─── Footer ──────────────────────────────────────────────────────────────── */
 
 function Footer() {
+  const { copy: C } = useCopy();
   const [, navigate] = useLocation();
   return (
     <footer className="footer">
@@ -1176,8 +1447,8 @@ function Footer() {
           <div className="footer-brand">
             <Lockup markHeight={30} />
           </div>
-          <div className="footer-links" aria-label={COPY.footer.ariaLabel}>
-            {COPY.footer.links.map((l) =>
+          <div className="footer-links" aria-label={C.footer.ariaLabel}>
+            {C.footer.links.map((l) =>
               l.kind === "anchor" ? (
                 <a key={l.label} href={`#${l.id}`}>
                   {l.label}
@@ -1195,9 +1466,10 @@ function Footer() {
                 </a>
               )
             )}
+            <LangSwitch />
           </div>
         </div>
-        <div className="footer-bottom">{COPY.footer.disclaimer}</div>
+        <div className="footer-bottom">{C.footer.disclaimer}</div>
       </div>
     </footer>
   );
@@ -1205,17 +1477,23 @@ function Footer() {
 
 /* ─── Page ────────────────────────────────────────────────────────────────── */
 
-export default function Home({ lang = "en" }: { lang?: "en" | "he" }) {
+export default function Home({ lang = "en" }: { lang?: Lang }) {
   const [, navigate] = useLocation();
+  const copy = HOME_COPY[lang];
+  const dir = lang === "he" ? "rtl" : "ltr";
 
-  // Keep the document root in sync for client-side navigation. English only
-  // for now; the prop stays so the Hebrew route can come back without a
-  // change in App.tsx.
+  // The server sets <html lang dir> on first load (server/_core/vite.ts).
+  // This keeps it right after a client-side hop, and puts it back to English
+  // on the way out, since every other route is English.
   useEffect(() => {
     const el = document.documentElement;
-    el.lang = "en";
-    el.setAttribute("dir", "ltr");
-  }, [lang]);
+    el.lang = lang;
+    el.setAttribute("dir", dir);
+    return () => {
+      el.lang = "en";
+      el.setAttribute("dir", "ltr");
+    };
+  }, [lang, dir]);
 
   function scrollTo(id: string) {
     const el = document.getElementById(id);
@@ -1225,24 +1503,26 @@ export default function Home({ lang = "en" }: { lang?: "en" | "he" }) {
   const talk = () => scrollTo("contact");
 
   return (
-    <div className="gesher" lang="en" dir="ltr">
-      <header className="site-header">
-        <div className="container">
-          <Nav onTalk={talk} />
-        </div>
-      </header>
-      <Hero onOpenValuation={() => navigate("/valuation")} onTalk={talk} />
-      <ProofStrip />
-      <LogoStrip />
-      <Challenge />
-      <WhyThisWorks />
-      <ProcessSpotlight />
-      <Team />
-      <Sectors />
-      <Faq />
-      <Band onTalk={talk} />
-      <Contact />
-      <Footer />
-    </div>
+    <CopyContext.Provider value={{ copy, lang }}>
+      <div className={lang === "he" ? "gesher gesher-rtl" : "gesher"} lang={lang} dir={dir}>
+        <header className="site-header">
+          <div className="container">
+            <Nav onTalk={talk} />
+          </div>
+        </header>
+        <Hero onOpenValuation={() => navigate("/valuation")} onTalk={talk} />
+        <ProofStrip />
+        <LogoStrip />
+        <Challenge />
+        <WhyThisWorks />
+        <ProcessSpotlight />
+        <Team />
+        <Sectors />
+        <Faq />
+        <Band onTalk={talk} />
+        <Contact />
+        <Footer />
+      </div>
+    </CopyContext.Provider>
   );
 }

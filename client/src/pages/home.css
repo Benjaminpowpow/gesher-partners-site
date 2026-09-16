@@ -26,8 +26,8 @@
   --border-on-navy: rgba(245, 240, 230, 0.18);
   --font-serif: "Newsreader", "Source Serif Pro", Georgia, "Times New Roman", serif;
   --font-sans:  "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-hebrew-serif: "Frank Ruhl Libre", "Newsreader", Georgia, serif; /* parked */
-  --font-hebrew-sans:  "Heebo", "Inter", sans-serif;                    /* parked */
+  --font-hebrew-serif: "Frank Ruhl Libre", "Newsreader", Georgia, serif;
+  --font-hebrew-sans:  "Heebo", "Inter", sans-serif;
   --fs-h1: clamp(42px, 5vw, 60px);
   --fs-h2: clamp(30px, 3.2vw, 40px);
   --fs-h3: 22px;
@@ -79,19 +79,36 @@
 .gesher {
 /* Gesher marketing-site UI kit styles. Imports the design-system tokens. */
 
-/* ---------- Hebrew (parked) ----------
-   The design system scopes :lang(he) font swaps to `.gesher`. The marketing
-   site doesn't use that class, so re-declare them at root scope. Marking a
-   subtree with lang="he" + dir="rtl" auto-routes to Frank Ruhl Libre + Heebo
-   and mirrors the layout. No-op while window.LOCALE === 'en'. */
-&[lang="he"] { font-family: var(--font-hebrew-sans); }
-&[lang="he"] h1, &[lang="he"] h2, &[lang="he"] h3,
-&[lang="he"] .display, &[lang="he"] .tag-italic,
-&[lang="he"] .founder-name, &[lang="he"] .founder-coda,
-&[lang="he"] .selectivity .quote {
-  font-family: var(--font-hebrew-serif);
-  font-weight: 400;
+/* ---------- Hebrew ----------
+   Home.tsx marks the page root with lang="he" dir="rtl" and the .gesher-rtl
+   class for the Hebrew page. Swapping the two font tokens here moves every
+   rule that reads var(--font-serif) or var(--font-sans) to Frank Ruhl Libre
+   and Heebo in one go, so no rule below needs a Hebrew twin. Both faces are
+   loaded in client/index.html. Layout follows dir="rtl" on its own because the
+   spacing rules use logical properties; the few visual flips that do not
+   (hero wash, hero video, arrows, select chevron, the road) are keyed off
+   .gesher-rtl further down or handled in Home.tsx. */
+&[lang="he"] {
+  --font-serif: var(--font-hebrew-serif);
+  --font-sans: var(--font-hebrew-sans);
 }
+/* The tagline under the logo stays in English, in the English face. */
+&[lang="he"] .lockup-tag { font-family: "Newsreader", "Source Serif Pro", Georgia, "Times New Roman", serif; }
+/* Neither Hebrew face has an italic. The browser would slant it by force.
+   (.hero is in the selector to outrank the .hero .hl-emph.emph-italic rule.) */
+&[lang="he"] .hero .hl-emph.emph-italic,
+&[lang="he"] .proof-n small { font-style: normal; }
+/* Wide tracking is an uppercase Latin habit. Hebrew has no uppercase, so the
+   eyebrow labels get a lighter hand and the big serifs get none. */
+&[lang="he"] .eyebrow,
+&[lang="he"] .chart-cap,
+&[lang="he"] .spot small,
+&[lang="he"] .person .role { letter-spacing: 0.04em; }
+&[lang="he"] h1.display,
+&[lang="he"] h2.display { letter-spacing: 0; }
+/* The logos are Latin wordmarks and the marquee's slide-left maths assumes a
+   left-to-right track. Keep that strip LTR on the Hebrew page. */
+&.gesher-rtl .marquee { direction: ltr; }
 
 /* ---------- Hero (full-bleed video background) ----------
    Full-bleed video edge to edge. A cream wash on top keeps the left copy
@@ -332,6 +349,8 @@ p:last-child { margin-bottom: 0; }
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1;
+  /* Always "EN / עב" in that order, on both pages. */
+  direction: ltr;
 }
 .lang-switch a {
   color: var(--taupe);
