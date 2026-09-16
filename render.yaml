@@ -62,6 +62,12 @@ services:
       - key: EXIT_BRIEF_DAILY_CAP
         sync: false
 
+      # Which model writes the Brief. Blank means claude-haiku-4-5, the cheapest
+      # one. If the Briefs come back thin or generic, put claude-sonnet-5 here
+      # and save. It costs about 11 cents more per Brief and needs no deploy.
+      - key: EXIT_BRIEF_MODEL
+        sync: false
+
       # The temporary lead list. Every contact-form submission also writes one
       # row to a Google Sheet. This is the Apps Script web app URL, the long
       # one ending in /exec. Treat it as a secret: anyone holding it can add

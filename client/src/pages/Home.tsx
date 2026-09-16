@@ -404,14 +404,13 @@ const COPY_HE: Copy = {
       "מעדיף לא לציין",
     ],
     send: "שלח",
-    // TODO(hebrew): English placeholders. "sending" and "sendFailed" are new in
-    // session 2 and have no Hebrew line in file 23 yet. The Gemini prompt for
-    // sendFailed is in the session 2 notes; the line lands with Ofir's review of
-    // this page. Until then a Hebrew-page owner whose note fails sees English,
-    // which is still better than a thank-you card that lied to him.
+    // TODO(hebrew): still English. The button says this for a second while the
+    // form is in flight. Lands with Ofir's review of the page.
     sending: "Sending",
+    // Hebrew, approved by Ben on 2026-09-16, pasted verbatim. Ofir still sees it
+    // in his review of the whole page.
     sendFailed:
-      "Your note did not go through. Please try again, or write to us at office@gesherpartners.com.",
+      "ההודעה לא נשלחה. אפשר לנסות שוב, או לכתוב לנו ישירות: office@gesherpartners.com",
     // No Hebrew for the thank-you note in file 23 yet. English until it lands.
     thanksHeading: "Thank you.",
     thanksBody:
