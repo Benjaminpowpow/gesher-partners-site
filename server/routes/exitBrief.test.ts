@@ -1,6 +1,42 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { dailyCap, todayKey } from "./exitBrief";
 
 describe("API Routes", () => {
+  // The daily cap is the only thing standing between a bored visitor and the
+  // Anthropic bill, so these test the real functions, not a copy of them.
+  describe("Daily Brief cap", () => {
+    const original = process.env.EXIT_BRIEF_DAILY_CAP;
+    afterEach(() => {
+      if (original === undefined) delete process.env.EXIT_BRIEF_DAILY_CAP;
+      else process.env.EXIT_BRIEF_DAILY_CAP = original;
+    });
+
+    it("defaults to 10 when the env var is not set", () => {
+      delete process.env.EXIT_BRIEF_DAILY_CAP;
+      expect(dailyCap()).toBe(10);
+    });
+
+    it("reads a number out of the env var", () => {
+      process.env.EXIT_BRIEF_DAILY_CAP = "25";
+      expect(dailyCap()).toBe(25);
+    });
+
+    it("falls back to 10 on junk, so a typo never removes the cap", () => {
+      for (const junk of ["", "ten", "0", "-5", "abc10"]) {
+        process.env.EXIT_BRIEF_DAILY_CAP = junk;
+        expect(dailyCap()).toBe(10);
+      }
+    });
+
+    it("counts the day in Israel, not in UTC", () => {
+      // 00:30 UTC on Jan 2 is already 02:30 on Jan 2 in Jerusalem.
+      expect(todayKey(new Date("2026-01-02T00:30:00Z"))).toBe("2026-01-02");
+      // 22:30 UTC on Jan 1 is 00:30 on Jan 2 in Jerusalem: a new day for the
+      // seller, still yesterday for the server clock.
+      expect(todayKey(new Date("2026-01-01T22:30:00Z"))).toBe("2026-01-02");
+    });
+  });
+
   describe("Rate Limiting", () => {
     it("should reject a second Brief request from the same IP within 60 seconds", async () => {
       // Simulate rate limiting logic
