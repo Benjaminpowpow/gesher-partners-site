@@ -180,7 +180,7 @@ const COPY = {
     lede: "Tell us where you are. We will tell you honestly whether we can help.",
     win: "When you win, we win.",
     orEmail: "Or email",
-    emailAddress: "hello@gesherpartners.com",
+    emailAddress: "office@gesherpartners.com",
     labels: {
       name: "Name",
       reach: "Phone or email",
@@ -376,7 +376,7 @@ const COPY_HE: Copy = {
     lede: "ספר לנו איפה אתה עומד. נגיד לך בכנות אם נוכל לעזור.",
     win: "כשאתה מרוויח, אנחנו מרוויחים.",
     orEmail: "או במייל",
-    emailAddress: "hello@gesherpartners.com",
+    emailAddress: "office@gesherpartners.com",
     labels: {
       name: "שם",
       reach: "טלפון או מייל",
@@ -1344,8 +1344,8 @@ function Contact() {
     // email when it looks like one, otherwise as the phone. The server accepts
     // either, and only sets reply-to when there is a real address.
     const looksLikeEmail = reach.includes("@");
-    const composed = [message.trim(), revenue && `Revenue: ${revenue}`].filter(Boolean).join("\n");
-    // Fire and forget. The thank-you shows regardless; the lead is best-effort.
+    // Revenue used to be glued onto the message. It goes as its own field now
+    // so it lands in its own column on the lead sheet.
     fetch("/api/contact", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1353,7 +1353,10 @@ function Contact() {
         name: name.trim(),
         email: looksLikeEmail ? reach.trim() : undefined,
         phone: looksLikeEmail ? undefined : reach.trim(),
-        message: composed || "(no message)",
+        revenue: revenue || undefined,
+        message: message.trim() || "(no message)",
+        // Tells us whether the lead came off the English page or /he/.
+        sourcePage: window.location.pathname,
       }),
     }).catch(() => {});
   }

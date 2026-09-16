@@ -727,12 +727,12 @@ export default function ExitBrief() {
                   }}
                 >
                   <p style={{ fontSize: 16, lineHeight: 1.6, marginBottom: 20 }}>
-                    Want the full overview. Book a 30 minute call with Ofir Ben Haim.
+                    Want the full overview. Talk to Ofir Ben Haim.
                   </p>
+                  {/* No booking tool on the site yet, so this goes to the
+                      contact form on the home page. */}
                   <a
-                    href="https://cal.com/ofir"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="/#contact"
                     style={{
                       display: "inline-block",
                       background: "white",
@@ -752,7 +752,7 @@ export default function ExitBrief() {
                       (e.currentTarget as HTMLAnchorElement).style.opacity = "1";
                     }}
                   >
-                    Book a call
+                    Talk to us
                   </a>
                 </div>
               </div>
