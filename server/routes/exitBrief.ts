@@ -227,6 +227,7 @@ function valuationBlockHtml(v?: {
   revenue?: string;
   profit?: string;
   ownerSalary?: string;
+  timeToSell?: string;
 }): string {
   if (!v || !v.site) return "";
   const row = (label: string, value?: string) =>
@@ -240,9 +241,10 @@ function valuationBlockHtml(v?: {
         ${row("Company", v.company)}
         ${row("Website", v.site)}
         ${row("Range shown", v.range)}
-        ${row("Revenue band", v.revenue)}
-        ${row("Profit band", v.profit)}
-        ${row("Owner salary band", v.ownerSalary)}
+        ${row("Revenue", v.revenue)}
+        ${row("Pre-tax profit", v.profit)}
+        ${row("Owner salary", v.ownerSalary)}
+        ${row("Wants to sell", v.timeToSell)}
         ${row("Brief ID", v.briefId)}
       </table>
     </div>
@@ -380,13 +382,18 @@ async function handleExitBrief(req: Request, res: Response) {
     revenue?: string;
     pretax_profit?: string;
     owner_salary?: string;
+    /** "Within six months", "Just exploring". Words, already, not a code. */
+    time_to_sell?: string;
     // Tolerate the old field names during the transition.
     ebitda?: string;
     sde?: string;
   };
   const { url, revenue } = body;
   const pretaxProfit = body.pretax_profit ?? body.ebitda;
+  // The front door stopped asking for this on Sep 17. Still read, because an
+  // older tab left open still sends it and there is no reason to drop it.
   const ownerSalary = body.owner_salary ?? body.sde;
+  const timeToSell = body.time_to_sell;
 
   if (!url) {
     res.status(400).json({ error: "A company website URL is required." });
@@ -424,11 +431,14 @@ async function handleExitBrief(req: Request, res: Response) {
 
   // Build user message
   let userMessage = `URL: ${normalizedUrl}`;
-  if (revenue || pretaxProfit || ownerSalary) {
+  if (revenue || pretaxProfit || ownerSalary || timeToSell) {
     const parts: string[] = [];
     if (revenue) parts.push(`revenue NIS ${revenue}`);
     if (pretaxProfit) parts.push(`pre-tax profit NIS ${pretaxProfit}`);
     if (ownerSalary) parts.push(`owner salary NIS ${ownerSalary}`);
+    // Not a valuation input. It is here so the brief can read the room: a man
+    // six months out needs different words from a man who is just curious.
+    if (timeToSell) parts.push(`wants to sell: ${timeToSell}`);
     userMessage += `\nIntake: ${parts.join(", ")}`;
   }
 
@@ -560,6 +570,7 @@ async function handleExitBrief(req: Request, res: Response) {
       revenue: revenue ? `NIS ${revenue}` : "",
       profit: pretaxProfit ? `NIS ${pretaxProfit}` : "",
       ownerSalary: ownerSalary ? `NIS ${ownerSalary}` : "",
+      timeToSell: timeToSell ?? "",
       vertical: meta.vertical_matched,
       path: meta.path_used,
       seconds: ((Date.now() - startedAt) / 1000).toFixed(1),
@@ -607,6 +618,7 @@ async function handleContact(req: Request, res: Response) {
         revenue?: string;
         profit?: string;
         ownerSalary?: string;
+        timeToSell?: string;
       };
     };
 
@@ -637,6 +649,7 @@ async function handleContact(req: Request, res: Response) {
     valuationProfit: valuation?.profit,
     valuationOwnerSalary: valuation?.ownerSalary,
     valuationBriefId: valuation?.briefId,
+    valuationTimeToSell: valuation?.timeToSell,
     // The page the form sat on. Falls back to the referring URL when the form
     // does not send one.
     sourcePage: sourcePage ?? sourcePageFromReferer(req),
@@ -735,6 +748,7 @@ async function handlePdfRequest(req: Request, res: Response) {
     revenue: req.body?.revenueBand as string | undefined,
     profit: req.body?.profitBand as string | undefined,
     ownerSalary: req.body?.ownerSalaryBand as string | undefined,
+    timeToSell: req.body?.timeToSell as string | undefined,
   };
 
   if (!name || !email || !briefId) {

@@ -30,6 +30,8 @@ export interface ValuationRow {
   revenue?: string;
   profit?: string;
   ownerSalary?: string;
+  /** "Within six months", "Just exploring". Words, as he picked them. */
+  timeToSell?: string;
   /** Which vertical the engine matched, and which path it priced on. */
   vertical?: string;
   path?: string;
@@ -70,6 +72,8 @@ export interface LeadRow {
    * two tabs are strangers and the only place the link exists is the email.
    */
   valuationBriefId?: string;
+  /** How soon he says he wants out. The field that decides who Ben calls today. */
+  valuationTimeToSell?: string;
 }
 
 /**
@@ -94,6 +98,7 @@ export async function appendLeadRow(row: LeadRow): Promise<boolean> {
     valuationProfit: row.valuationProfit ?? "",
     valuationOwnerSalary: row.valuationOwnerSalary ?? "",
     valuationBriefId: row.valuationBriefId ?? "",
+    valuationTimeToSell: row.valuationTimeToSell ?? "",
   });
 }
 

@@ -152,11 +152,53 @@
 }
 .hero-container { position: relative; width: 100%; }
 .hero-copy { max-width: 36rem; }
-.hero-actions {
+/* .hero-actions held the hero's two buttons. The website box replaced them on
+   Sep 17. Kept nowhere: the rule went with the markup. */
+
+/* The website box that replaced the hero's two buttons. It sits on the video,
+   so the input is solid rather than translucent: an owner has to be able to
+   read what he is typing over a moving picture. */
+.hero-valuation {
   display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
   margin-top: 24px;
+  max-width: 560px;
+}
+.hero-valuation-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--warm-white, #FAF7F0);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  padding: 0 18px;
+  font-family: var(--font-sans);
+  font-size: 17px;
+  color: var(--near-black);
+  min-height: 56px;
+  line-height: 1.4;
+  transition: border-color 160ms ease;
+}
+.hero-valuation-input::placeholder { color: var(--taupe); opacity: 1; }
+.hero-valuation-input:hover { border-color: #C8BFAB; }
+.hero-valuation-input:focus { outline: none; border-color: var(--navy); }
+
+/* For labels that exist for a screen reader and are never drawn. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  .hero-valuation { flex-direction: column; gap: 10px; max-width: none; }
 }
 .hero .eyebrow { margin-bottom: 28px; }
 .hero h1.hero-headline { margin-bottom: 26px; max-width: 18ch; }
@@ -207,7 +249,7 @@
   }
   .hero-copy { max-width: none; margin: 0; }
   .hl-emph { white-space: normal; }
-  .hero-actions { margin-top: var(--hero-actions-mobile-gap, 40px); }
+  .hero-valuation { margin-top: var(--hero-actions-mobile-gap, 40px); }
   .hero-wash {
     background: linear-gradient(
       to bottom,

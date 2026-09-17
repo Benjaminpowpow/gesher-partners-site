@@ -48,9 +48,11 @@ interface Company {
 
 interface Ctx {
   url: string;
+  /** What he typed, verbatim. parseAmount turns it into a number at send time. */
   revenue: string;
   profit: string;
-  ownerSalary: string;
+  /** One of TIME_TO_SELL. The one field here that tells Ben who to call today. */
+  timeToSell: string;
   briefId?: string;
   company?: Company;
   resultMd?: string;
@@ -73,51 +75,72 @@ interface StateProps {
   setCtx: React.Dispatch<React.SetStateAction<Ctx>>;
 }
 
-// ─── Range buckets (front door + lead modal) ─────────────────────────────────
-const REVENUE_RANGES = [
-  { value: "under-5m", label: "under 5M" },
-  { value: "5-10m", label: "5 to 10M" },
-  { value: "10-20m", label: "10 to 20M" },
-  { value: "20-50m", label: "20 to 50M" },
-  { value: "50m-plus", label: "50M plus" },
-];
-const PROFIT_RANGES = [
-  { value: "under-500k", label: "under 500K" },
-  { value: "500k-1m", label: "500K to 1M" },
-  { value: "1-3m", label: "1M to 3M" },
-  { value: "3-8m", label: "3M to 8M" },
-  { value: "8m-plus", label: "8M plus" },
-];
-const OWNER_SALARY_RANGES = [
-  { value: "under-300k", label: "under 300K" },
-  { value: "300-500k", label: "300K to 500K" },
-  { value: "500k-1m", label: "500K to 1M" },
-  { value: "1-2m", label: "1M to 2M" },
-  { value: "2m-plus", label: "2M plus" },
+// ─── Intake ──────────────────────────────────────────────────────────────────
+// Revenue and profit used to be dropdowns of bands, and the engine was handed
+// the midpoint of whichever band he picked. So an owner turning over 21M and one
+// turning over 49M both arrived as 35M. Ben killed the bands on Sep 17: he types
+// the number now, and the engine gets the number he typed.
+//
+// Owner salary is gone entirely. It was the third box in a row of three, it is
+// the most personal thing on the page, and it was asked before the man had any
+// reason to trust us.
+
+// How long until he wants to be out. The one thing on this form that tells Ben
+// who to call today, which is what Ofir keeps asking for.
+const TIME_TO_SELL = [
+  { value: "under-6m", label: "Within six months" },
+  { value: "6-12m", label: "Six to twelve months" },
+  { value: "1-2y", label: "One to two years" },
+  { value: "over-2y", label: "Over two years" },
+  { value: "exploring", label: "Just exploring" },
 ];
 
-// Bucket -> NIS midpoint. The engine wants a number; the seller picks a range.
-const REVENUE_MIDPOINTS: Record<string, number> = {
-  "under-5m": 3_000_000,
-  "5-10m": 7_500_000,
-  "10-20m": 15_000_000,
-  "20-50m": 35_000_000,
-  "50m-plus": 60_000_000,
-};
-const PROFIT_MIDPOINTS: Record<string, number> = {
-  "under-500k": 300_000,
-  "500k-1m": 750_000,
-  "1-3m": 2_000_000,
-  "3-8m": 5_500_000,
-  "8m-plus": 10_000_000,
-};
-const SALARY_MIDPOINTS: Record<string, number> = {
-  "under-300k": 200_000,
-  "300-500k": 400_000,
-  "500k-1m": 750_000,
-  "1-2m": 1_500_000,
-  "2m-plus": 2_500_000,
-};
+/**
+ * Read a number the way a business owner writes one.
+ *
+ * "12M", "1.2m", "₪4,500,000", "750000", "2.5 million", "12 מיליון" all have to
+ * land on the same number, because this box replaced a dropdown and the whole
+ * point of losing the dropdown was that he stops rounding himself into a bucket.
+ *
+ * Returns undefined when there is no number in there at all, which the caller
+ * treats as "he skipped it", not as an error.
+ */
+function parseAmount(raw: string): number | undefined {
+  const text = raw.trim().toLowerCase();
+  if (!text) return undefined;
+
+  // Strip currency marks, spaces and thousands separators, keep digits and dot.
+  const digits = text.replace(/[^0-9.]/g, "");
+  if (!digits || digits === ".") return undefined;
+  const n = Number(digits);
+  if (!isFinite(n) || n <= 0) return undefined;
+
+  // A trailing unit multiplies. "1.2m" is 1,200,000, not 1.2.
+  if (/(m|mm|million|מיליון)\s*$/.test(text)) return Math.round(n * 1_000_000);
+  if (/(k|thousand|אלף)\s*$/.test(text)) return Math.round(n * 1_000);
+
+  // No unit. A bare "12" from a man being asked his annual revenue in shekels
+  // means twelve million, not twelve shekels. Anything under a thousand is read
+  // as millions; everything above it is taken at face value.
+  if (n < 1_000) return Math.round(n * 1_000_000);
+  return Math.round(n);
+}
+
+// What we show back to him under the box, so he can see we read it the way he
+// meant it before he presses the button.
+function formatAmount(n: number): string {
+  if (n >= 1_000_000) {
+    const m = n / 1_000_000;
+    return `NIS ${m % 1 === 0 ? m : m.toFixed(1)}M`;
+  }
+  if (n >= 1_000) return `NIS ${Math.round(n / 1_000)}K`;
+  return `NIS ${n}`;
+}
+
+// The line that has to sit under every number this tool produces. It is a read
+// off a website and a couple of figures, not a valuation anyone should sign.
+const ESTIMATE_DISCLAIMER =
+  "This is an estimate, not a valuation. It is built from public information and whatever you tell us here, in about a minute. A real number needs your financials and a proper look. Nothing here is an offer, or advice to buy or sell.";
 
 // The three real stages of a run. The page advances them off the live stream
 // (read -> learn when the web search starts -> write when text arrives), not a timer.
@@ -149,14 +172,33 @@ const SUCCESS_STATS = [
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-// Turn a bucket value back into the words the owner actually saw ("5 to 10M").
-// The lead email should read the way the screen read, not "5-10m".
-function labelFor(
-  ranges: ReadonlyArray<{ value: string; label: string }>,
-  value?: string,
-): string | undefined {
+// The lead email should read the way the screen read: "Within six months", not
+// "under-6m".
+function labelForTimeToSell(value?: string): string | undefined {
   if (!value) return undefined;
-  return ranges.find((r) => r.value === value)?.label;
+  return TIME_TO_SELL.find((o) => o.value === value)?.label;
+}
+
+// What he typed, tidied for a human to read in an email. Undefined when he
+// left the box empty, so the email says "(none)" instead of "NIS NaN".
+function amountLabel(raw?: string): string | undefined {
+  const n = parseAmount(raw ?? "");
+  return n ? formatAmount(n) : undefined;
+}
+
+// The website the home page hero passed along, if there was one. A domain and
+// nothing else: anything with a slash, a space or an @ in it did not come from
+// that box and is not going into the form.
+function readSiteParam(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    const raw = new URLSearchParams(window.location.search).get("site") ?? "";
+    const trimmed = raw.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+    if (!trimmed || trimmed.length > 200) return "";
+    return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(trimmed) ? trimmed : "";
+  } catch {
+    return "";
+  }
 }
 
 // Deliberately loose. Something before the @, something after it, a dot, and
@@ -275,49 +317,45 @@ function CompanyLogo({
   );
 }
 
-function NumberSelect({
+// NumberSelect lived here: the "Pick a range" dropdown used by both the front
+// door and the lead popup. Both ask for typed numbers now. Removed Sep 17.
+
+// A number the owner types, with what we read it as shown back underneath.
+function AmountField({
   id,
   label,
+  hint,
   value,
   onChange,
-  options,
 }: {
   id: string;
   label: string;
+  hint: string;
   value: string;
   onChange: (v: string) => void;
-  options: { value: string; label: string }[];
 }) {
+  const parsed = parseAmount(value);
   return (
     <div className="v-field">
       <label htmlFor={id} className="v-field-label">
         {label}
       </label>
-      <div className="v-select-wrap">
-        <select
-          id={id}
-          className="v-select"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        >
-          <option value="">Pick a range</option>
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        <svg className="v-select-chev" viewBox="0 0 12 12" aria-hidden="true">
-          <path
-            d="M2.5 4.5L6 8l3.5-3.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
+      <input
+        id={id}
+        type="text"
+        className="v-input"
+        placeholder={hint}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        inputMode="decimal"
+        autoComplete="off"
+        spellCheck={false}
+      />
+      {/* He sees us read his number back before he commits to it. "12" coming
+          back as NIS 12M is the difference between trust and a support email. */}
+      <p className="v-field-echo">
+        {parsed ? `We read that as ${formatAmount(parsed)}` : "Type it however you like. 12M, 1.2m, 750000."}
+      </p>
     </div>
   );
 }
@@ -325,37 +363,39 @@ function NumberSelect({
 // ─── Front door ──────────────────────────────────────────────────────────────
 function FrontDoorState({ ctx, go }: StateProps) {
   const [url, setUrl] = useState(ctx.url || "");
-  const [expanded, setExpanded] = useState(
-    Boolean(ctx.revenue || ctx.profit || ctx.ownerSalary),
-  );
+  const [timeToSell, setTimeToSell] = useState(ctx.timeToSell || "");
   const [revenue, setRevenue] = useState(ctx.revenue || "");
   const [profit, setProfit] = useState(ctx.profit || "");
-  const [ownerSalary, setOwnerSalary] = useState(ctx.ownerSalary || "");
+  const [touched, setTouched] = useState(false);
+
+  const urlBad = !url.trim();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setTouched(true);
     const normalized = normalizeUrl(url);
     if (!normalized) return;
-    go("working", { url: normalized, revenue, profit, ownerSalary });
+    go("working", { url: normalized, timeToSell, revenue, profit });
   }
 
   return (
     <section className="v-front">
       <div className="v-front-inner">
-        <h1 className="v-front-h1">What is your business worth?</h1>
+        <h1 className="v-front-h1">Tell us about your business.</h1>
         <p className="v-front-lede">
-          Paste your website. Get an honest range in about a minute.
+          Your website is all we need to start. Your numbers make the range a great
+          deal sharper.
         </p>
 
         <form className="v-front-form" onSubmit={handleSubmit} noValidate>
-          <div className="v-url-row">
-            <label htmlFor="v-url" className="v-visually-hidden">
+          <div className="v-field">
+            <label htmlFor="v-url" className="v-field-label">
               Your website
             </label>
             <input
               id="v-url"
-              type="url"
-              className="v-input"
+              type="text"
+              className={"v-input" + (touched && urlBad ? " has-error" : "")}
               placeholder="yourcompany.co.il"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
@@ -365,53 +405,79 @@ function FrontDoorState({ ctx, go }: StateProps) {
               autoCapitalize="off"
               required
             />
-            <button type="submit" className="v-btn v-btn-primary v-submit">
-              Get my valuation
-            </button>
+            {touched && urlBad && (
+              <p className="v-field-error" role="alert">
+                We need your website to start.
+              </p>
+            )}
           </div>
 
-          {!expanded && (
-            <button
-              type="button"
-              className="v-expand-link"
-              onClick={() => setExpanded(true)}
-              aria-expanded="false"
-              aria-controls="v-numbers"
-            >
-              add your numbers for a tighter range, we never share them
-            </button>
-          )}
-
-          {expanded && (
-            <div id="v-numbers" className="v-numbers v-fade-in">
-              <NumberSelect
-                id="v-rev"
-                label="Last full year revenue (NIS)"
-                value={revenue}
-                onChange={setRevenue}
-                options={REVENUE_RANGES}
-              />
-              <NumberSelect
-                id="v-profit"
-                label="Last full year pre-tax profit (NIS)"
-                value={profit}
-                onChange={setProfit}
-                options={PROFIT_RANGES}
-              />
-              <NumberSelect
-                id="v-owner"
-                label="Owner salary (NIS)"
-                value={ownerSalary}
-                onChange={setOwnerSalary}
-                options={OWNER_SALARY_RANGES}
-              />
+          <div className="v-field">
+            <label htmlFor="v-when" className="v-field-label">
+              When would you want to sell
+            </label>
+            <div className="v-select-wrap">
+              <select
+                id="v-when"
+                className="v-select"
+                value={timeToSell}
+                onChange={(e) => setTimeToSell(e.target.value)}
+              >
+                <option value="">Select...</option>
+                {TIME_TO_SELL.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <svg className="v-select-chev" viewBox="0 0 12 12" aria-hidden="true">
+                <path
+                  d="M2.5 4.5L6 8l3.5-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
-          )}
+          </div>
+
+          <AmountField
+            id="v-rev"
+            label="Approximate annual revenue (NIS)"
+            hint="e.g. 12M"
+            value={revenue}
+            onChange={setRevenue}
+          />
+          <AmountField
+            id="v-profit"
+            label="Approximate annual pre-tax profit (NIS)"
+            hint="e.g. 1.5M"
+            value={profit}
+            onChange={setProfit}
+          />
+
+          <p className="v-front-confidential">
+            <svg viewBox="0 0 16 16" aria-hidden="true" className="v-lock">
+              <path
+                d="M4.5 7V5a3.5 3.5 0 017 0v2M3.5 7h9v6.5h-9z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            100% confidential. We never share your numbers.
+          </p>
+
+          <button type="submit" className="v-btn v-btn-primary v-btn-block">
+            Get my valuation
+          </button>
         </form>
 
-        <p className="v-front-privacy">
-          Strictly private. We never share your numbers.
-        </p>
+        <p className="v-disclaimer">{ESTIMATE_DISCLAIMER}</p>
       </div>
     </section>
   );
@@ -492,13 +558,13 @@ function WorkingState({ ctx, go }: StateProps) {
 
     async function run() {
       try {
+        // His own figures, not the midpoint of a band he was made to pick.
         const payload: Record<string, string> = { url: ctx.url };
-        if (ctx.revenue && REVENUE_MIDPOINTS[ctx.revenue])
-          payload.revenue = String(REVENUE_MIDPOINTS[ctx.revenue]);
-        if (ctx.profit && PROFIT_MIDPOINTS[ctx.profit])
-          payload.pretax_profit = String(PROFIT_MIDPOINTS[ctx.profit]);
-        if (ctx.ownerSalary && SALARY_MIDPOINTS[ctx.ownerSalary])
-          payload.owner_salary = String(SALARY_MIDPOINTS[ctx.ownerSalary]);
+        const rev = parseAmount(ctx.revenue);
+        const prof = parseAmount(ctx.profit);
+        if (rev) payload.revenue = String(rev);
+        if (prof) payload.pretax_profit = String(prof);
+        if (ctx.timeToSell) payload.time_to_sell = labelForTimeToSell(ctx.timeToSell) ?? "";
 
         const res = await fetch("/api/exit-brief", {
           method: "POST",
@@ -797,6 +863,11 @@ function ResultState({ ctx, go }: StateProps) {
               </>
             )}
           </article>
+
+          {/* The number he just read, said plainly for what it is. It sits under
+              the range, not buried in a footer, because this is the screen where
+              a man decides what to believe. */}
+          <p className="v-disclaimer">{ESTIMATE_DISCLAIMER}</p>
         </div>
       </div>
 
@@ -812,9 +883,10 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
   const [name, setName] = useState(ctx.lead?.name || "");
   const [email, setEmail] = useState(ctx.lead?.email || "");
   const [phone, setPhone] = useState(ctx.lead?.phone || "");
-  const [revenue, setRevenue] = useState(ctx.revenue || "");
-  const [profit, setProfit] = useState(ctx.profit || "");
-  const [ownerSalary, setOwnerSalary] = useState(ctx.ownerSalary || "");
+  // This box used to ask for revenue, profit and owner salary a second time.
+  // The front door asks for them now, before the range is built, which is the
+  // only moment they can change the answer. Asking again here made an owner
+  // fill in numbers that were never going to be used. Cut Sep 17.
   const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -869,7 +941,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
     if (!valid || submitting) return;
 
     const lead = { name: name.trim(), email: email.trim(), phone: phone.trim() };
-    setCtx((c) => ({ ...c, lead, revenue, profit, ownerSalary }));
+    setCtx((c) => ({ ...c, lead }));
     setSubmitting(true);
 
     try {
@@ -877,19 +949,19 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
         ...lead,
         briefId: ctx.briefId || "",
       };
-      // Numbers for the engine and the record.
-      if (revenue && REVENUE_MIDPOINTS[revenue])
-        payload.revenue = String(REVENUE_MIDPOINTS[revenue]);
-      if (profit && PROFIT_MIDPOINTS[profit])
-        payload.pretax_profit = String(PROFIT_MIDPOINTS[profit]);
-      if (ownerSalary && SALARY_MIDPOINTS[ownerSalary])
-        payload.owner_salary = String(SALARY_MIDPOINTS[ownerSalary]);
-      // The same numbers as the words he actually picked, plus what he was
-      // shown. Ben opens this email before a call and should not have to
-      // translate "7500000" back into "5 to 10M" in his head.
-      payload.revenueBand = labelFor(REVENUE_RANGES, revenue) ?? "";
-      payload.profitBand = labelFor(PROFIT_RANGES, profit) ?? "";
-      payload.ownerSalaryBand = labelFor(OWNER_SALARY_RANGES, ownerSalary) ?? "";
+      // What he told us at the front door, carried through so Ben opens this
+      // email and sees the man, his numbers and his timing in one place.
+      const rev = parseAmount(ctx.revenue);
+      const prof = parseAmount(ctx.profit);
+      if (rev) {
+        payload.revenue = String(rev);
+        payload.revenueBand = formatAmount(rev);
+      }
+      if (prof) {
+        payload.pretax_profit = String(prof);
+        payload.profitBand = formatAmount(prof);
+      }
+      payload.timeToSell = labelForTimeToSell(ctx.timeToSell) ?? "";
       payload.site = ctx.company?.domain || ctx.url || "";
       payload.companyName = ctx.company?.name ?? "";
       payload.rangeShown = ctx.rangeText ?? "";
@@ -911,7 +983,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
       setSubmitting(false);
       return;
     }
-    go("success", { lead, revenue, profit, ownerSalary });
+    go("success", { lead });
   }
 
   function handleBackdrop(e: React.MouseEvent) {
@@ -996,30 +1068,8 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
             </div>
 
             <p className="v-modal-quiet">
-              Add your numbers and we will sharpen this before we speak. We never share them.
+              100% confidential. We never share your numbers.
             </p>
-
-            <NumberSelect
-              id="lc-rev"
-              label="Last full year revenue (NIS)"
-              value={revenue}
-              onChange={setRevenue}
-              options={REVENUE_RANGES}
-            />
-            <NumberSelect
-              id="lc-profit"
-              label="Last full year pre-tax profit (NIS)"
-              value={profit}
-              onChange={setProfit}
-              options={PROFIT_RANGES}
-            />
-            <NumberSelect
-              id="lc-owner"
-              label="Owner salary (NIS)"
-              value={ownerSalary}
-              onChange={setOwnerSalary}
-              options={OWNER_SALARY_RANGES}
-            />
 
             {/* A field he has to fix comes first. Only once the form is clean
                 does a failed send get to speak, so the two never argue. */}
@@ -1199,9 +1249,9 @@ function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
                   site: ctx.company?.domain || ctx.url,
                   company: ctx.company?.name,
                   range: ctx.rangeText,
-                  revenue: labelFor(REVENUE_RANGES, ctx.revenue),
-                  profit: labelFor(PROFIT_RANGES, ctx.profit),
-                  ownerSalary: labelFor(OWNER_SALARY_RANGES, ctx.ownerSalary),
+                  revenue: amountLabel(ctx.revenue),
+                  profit: amountLabel(ctx.profit),
+                  timeToSell: labelForTimeToSell(ctx.timeToSell),
                 },
               }
             : {}),
@@ -1353,10 +1403,13 @@ export default function Valuation() {
   const [state, setState] = useState<ScreenId>("front-door");
   const [talkOpen, setTalkOpen] = useState(false);
   const [ctx, setCtx] = useState<Ctx>({
-    url: "",
+    // The home page hero asks for the website and sends it here in ?site=, so
+    // the box on this page is already filled when he arrives and he does not
+    // have to type it twice. Read once, on mount.
+    url: readSiteParam(),
     revenue: "",
     profit: "",
-    ownerSalary: "",
+    timeToSell: "",
   });
 
   const go: Go = (next, patch) => {
