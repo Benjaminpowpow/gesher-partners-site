@@ -42,7 +42,11 @@ var TABS = {
     'Valuation range',
     'Valuation revenue band',
     'Valuation profit band',
-    'Valuation owner salary band'
+    'Valuation owner salary band',
+    // The only thing tying this row to its row on the Valuations tab, where the
+    // brief and the cost live. Added Sep 17, after the first real test showed
+    // the two tabs had no way to find each other.
+    'Valuation brief ID'
   ],
   Valuations: [
     'Date',
@@ -79,7 +83,8 @@ var FIELDS = {
     'valuationRange',
     'valuationRevenue',
     'valuationProfit',
-    'valuationOwnerSalary'
+    'valuationOwnerSalary',
+    'valuationBriefId'
   ],
   Valuations: [
     'site',
@@ -192,6 +197,21 @@ function getOrCreateTab(name, headers) {
     sheet.appendRow(headers);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
     sheet.setFrozenRows(1);
+    return sheet;
+  }
+
+  // A tab that already has rows keeps the header row it was born with. So when
+  // a column gets added to the list above, the new values land in a column with
+  // no name over it. This writes the missing names in. It only ever adds to the
+  // right of what is there, never renames or moves an existing column, so the
+  // rows already in the sheet are not touched.
+  var width = sheet.getLastColumn();
+  if (width < headers.length) {
+    var missing = headers.slice(width);
+    sheet
+      .getRange(1, width + 1, 1, missing.length)
+      .setValues([missing])
+      .setFontWeight('bold');
   }
   return sheet;
 }
