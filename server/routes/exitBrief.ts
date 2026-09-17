@@ -3,7 +3,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import { createHash } from "node:crypto";
 import { EXIT_BRIEF_SYSTEM_PROMPT } from "../lib/exitBriefSkill";
-import { appendLeadRow } from "../lib/leadsSheet";
+import {
+  appendLeadRow,
+  appendValuationRow,
+  markValuationBriefRequested,
+} from "../lib/leadsSheet";
 import { insertValuationLead, markValuationLeadPdfRequested } from "../db";
 import { nanoid } from "nanoid";
 
@@ -54,6 +58,43 @@ const BRIEF_MAX_TOKENS = WANTS_ADAPTIVE_THINKING ? 16_000 : 8_000;
 // Israeli company and saves 2 cents a Brief, which is real money next to what
 // the model itself costs now.
 const MAX_WEB_SEARCHES = 4;
+
+// What a run costs, so the Sheet can show it per Brief instead of Ben guessing
+// from the Anthropic console at the end of the month.
+//
+// Dollars per million tokens, straight off the Anthropic pricing page. If you
+// put a model in EXIT_BRIEF_MODEL that is not listed here, the cost column goes
+// blank rather than lying. Add the row when you add the model.
+const MODEL_RATES: Record<
+  string,
+  { input: number; output: number; cacheRead: number; cacheWrite: number }
+> = {
+  "claude-haiku-4-5": { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
+  "claude-sonnet-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
+  "claude-opus-5": { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+};
+
+// Web search is billed on its own, the same on every model.
+const WEB_SEARCH_COST = 0.01;
+
+function runCostUsd(u: {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+  webSearches: number;
+}): string {
+  const rate = MODEL_RATES[BRIEF_MODEL];
+  if (!rate) return "";
+  // input_tokens from the API excludes what was read from cache, so the two do
+  // not double count. Cache writes are not broken out on this path, so a first
+  // run of the day reads a little cheap here. It is a floor, not a guess.
+  const dollars =
+    (u.inputTokens / 1e6) * rate.input +
+    (u.outputTokens / 1e6) * rate.output +
+    (u.cachedInputTokens / 1e6) * rate.cacheRead +
+    u.webSearches * WEB_SEARCH_COST;
+  return dollars.toFixed(4);
+}
 
 // ─── Spend guards on POST /api/exit-brief ───────────────────────────────────
 // Two gates, because they stop two different things.
@@ -159,6 +200,84 @@ function domainFromUrl(url: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+// There is no booking tool. Every "talk to us" anywhere, page or email, goes to
+// the contact form on the home page. One constant, so when a real calendar
+// exists this changes in one place.
+const CONTACT_URL = "https://gesherpartners.com/#contact";
+
+// Anyone can POST to /api/contact, so anything that came off the wire gets
+// escaped before it lands in an email we are going to open and read.
+function esc(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// The "he just ran a valuation" block at the top of the lead email. Nothing at
+// all when he did not, so a plain contact form email looks exactly as it did.
+function valuationBlockHtml(v?: {
+  briefId?: string;
+  site?: string;
+  company?: string;
+  range?: string;
+  revenue?: string;
+  profit?: string;
+  ownerSalary?: string;
+}): string {
+  if (!v || !v.site) return "";
+  const row = (label: string, value?: string) =>
+    value
+      ? `<tr><td style="padding: 6px 8px; font-weight: bold; width: 130px;">${esc(label)}</td><td style="padding: 6px 8px;">${esc(value)}</td></tr>`
+      : "";
+  return `
+    <div style="background: #F8F4ED; border-left: 4px solid #1B3A5C; padding: 16px 12px; margin-bottom: 24px;">
+      <p style="margin: 0 0 8px; font-weight: bold; color: #1B3A5C;">This lead ran a Valuation Snapshot first.</p>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        ${row("Company", v.company)}
+        ${row("Website", v.site)}
+        ${row("Range shown", v.range)}
+        ${row("Revenue band", v.revenue)}
+        ${row("Profit band", v.profit)}
+        ${row("Owner salary band", v.ownerSalary)}
+        ${row("Brief ID", v.briefId)}
+      </table>
+    </div>
+  `;
+}
+
+// The Brief is markdown. An owner opening it in Gmail should not see "##" and
+// "**". This turns the three cards into plain, readable email HTML: headings,
+// bold, paragraphs, nothing clever. Everything is escaped first, so a model that
+// ever emitted a tag cannot put it in somebody's inbox.
+function briefToEmailHtml(markdown: string): string {
+  return markdown
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => {
+      const heading = block.match(/^##\s+(.*)$/m);
+      if (heading && block.split("\n").length === 1) {
+        return `<h2 style="font-size: 19px; color: #1B3A5C; margin: 28px 0 10px;">${esc(heading[1])}</h2>`;
+      }
+      const body = esc(block)
+        // The engine ends every Range card with "**Talk to us.**". In an email
+        // that is a dead sentence unless it goes somewhere, so it becomes the
+        // link to the contact form. Done before the plain bold rule below, so
+        // this one wins.
+        .replace(
+          /\*\*Talk to us\.\*\*/g,
+          `<a href="${CONTACT_URL}" style="color: #1B3A5C; font-weight: bold;">Talk to us.</a>`,
+        )
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/^\s*[-*•]\s+/gm, "")
+        .replace(/\n/g, "<br>");
+      return `<p style="margin: 0 0 14px; line-height: 1.7;">${body}</p>`;
+    })
+    .join("\n");
 }
 
 function stripThinkingTraces(markdown: string): string {
@@ -318,7 +437,12 @@ async function handleExitBrief(req: Request, res: Response) {
   let fullMarkdown = "";
   const startedAt = Date.now();
   // Token usage, read off the stream for the leads row (cost per valuation).
-  const usage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
+  const usage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cachedInputTokens: 0,
+    webSearches: 0,
+  };
 
   try {
     const stream = await anthropic.messages.create({
@@ -387,6 +511,12 @@ async function handleExitBrief(req: Request, res: Response) {
         res.write(JSON.stringify({ type: "chunk", data: chunk }) + "\n");
       } else if (event.type === "message_delta") {
         usage.outputTokens = event.usage.output_tokens ?? usage.outputTokens;
+        // How many searches actually ran. Billed separately from tokens, so the
+        // cost column needs it. The API reports the running total, not a delta.
+        const served = (
+          event.usage as { server_tool_use?: { web_search_requests?: number } }
+        ).server_tool_use?.web_search_requests;
+        if (typeof served === "number") usage.webSearches = served;
       }
     }
 
@@ -418,6 +548,28 @@ async function handleExitBrief(req: Request, res: Response) {
       ipHash: hashIp(ip),
     });
 
+    // And the row Ben can actually open. The database above needs a MySQL
+    // server that does not exist; this is the Google Sheet, which is free.
+    // Written for every run, including the ones where nobody leaves a name,
+    // because a stranger reading his range and walking is the thing Ben most
+    // needs to be able to count. Fire and forget, never blocks the seller.
+    void appendValuationRow({
+      site: domainFromUrl(normalizedUrl) ?? normalizedUrl,
+      company: meta.company_name,
+      range: meta.range_text,
+      revenue: revenue ? `NIS ${revenue}` : "",
+      profit: pretaxProfit ? `NIS ${pretaxProfit}` : "",
+      ownerSalary: ownerSalary ? `NIS ${ownerSalary}` : "",
+      vertical: meta.vertical_matched,
+      path: meta.path_used,
+      seconds: ((Date.now() - startedAt) / 1000).toFixed(1),
+      cost: runCostUsd(usage),
+      // Flips to "yes" only if he comes back and asks for the brief.
+      askedForBrief: "no",
+      briefId,
+      brief: resultMd,
+    });
+
     // Send completion with the parsed meta so the page renders clean fields.
     res.write(
       JSON.stringify({ type: "done", briefId, meta, result_md: resultMd }) + "\n",
@@ -432,100 +584,31 @@ async function handleExitBrief(req: Request, res: Response) {
   }
 }
 
-// ─── Route: POST /api/exit-brief/pdf ────────────────────────────────────────
-async function handleExitBriefPdf(req: Request, res: Response) {
-  const { briefId, name, email } = req.body as {
-    briefId?: string;
-    name?: string;
-    email?: string;
-  };
-
-  if (!briefId || !name || !email) {
-    res.status(400).json({ error: "briefId, name, and email are required." });
-    return;
-  }
-
-  const fullMarkdown = briefStore.get(briefId);
-  if (!fullMarkdown) {
-    res.status(404).json({
-      error: "Brief not found. It may have expired. Please generate a new one.",
-    });
-    return;
-  }
-
-  const resendKey = process.env.RESEND_API_KEY;
-  const notifyEmail = NOTIFY_EMAIL;
-
-  if (!resendKey) {
-    res.status(500).json({
-      error: "Email delivery is not configured. Please contact us directly.",
-    });
-    return;
-  }
-
-  const resend = new Resend(resendKey);
-  const sellerMarkdown = stripThinkingTraces(fullMarkdown);
-
-  try {
-    // Email to the seller with the brief content
-    // (PDF generation via @react-pdf/renderer is Phase 2 work)
-    await resend.emails.send({
-      from: sender("Gesher"),
-      to: email,
-      subject: "Your Valuation Snapshot from Gesher",
-      html: `
-        <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1B3A5C;">
-          <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 8px;">Your Valuation Snapshot</h1>
-          <p style="font-size: 16px; color: #666; margin-bottom: 32px;">Hi ${name}, here is your Valuation Snapshot from Gesher.</p>
-          <div style="background: #F8F4ED; padding: 32px; border-radius: 8px; font-family: Georgia, serif; font-size: 15px; line-height: 1.7; white-space: pre-wrap; word-wrap: break-word;">${sellerMarkdown.substring(0, 8000)}</div>
-          <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #ddd;">
-            <p style="font-size: 15px; color: #333;">Want to go deeper? Talk to Ofir Ben Haim.</p>
-            <a href="https://gesherpartners.com/#contact" style="display: inline-block; background: #1B3A5C; color: white; padding: 14px 28px; border-radius: 4px; text-decoration: none; font-family: Arial, sans-serif; font-size: 15px; margin-top: 12px;">Talk to us</a>
-          </div>
-          <p style="font-size: 12px; color: #999; margin-top: 32px;">Strictly private. Built from public sources. Not an offer or a valuation opinion.</p>
-        </div>
-      `,
-    });
-
-    // Notification to Ben with full details including thinking trace
-    await resend.emails.send({
-      from: sender("Gesher Lead"),
-      to: notifyEmail,
-      subject: `New Valuation Snapshot lead: ${name} <${email}>`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 32px 20px;">
-          <h2 style="color: #1B3A5C;">New Valuation Snapshot PDF Request</h2>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 120px;">Name</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${name}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Email</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${email}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Brief ID</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${briefId}</td></tr>
-          </table>
-          <h3 style="color: #1B3A5C;">Full brief (seller copy)</h3>
-          <pre style="background: #f5f5f5; padding: 20px; border-radius: 4px; font-size: 13px; white-space: pre-wrap; overflow-wrap: break-word;">${fullMarkdown}</pre>
-        </div>
-      `,
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("[exit-brief/pdf] Email error:", err);
-    res.status(500).json({ error: "Failed to send email. Please try again." });
-  }
-}
-
 // ─── Route: POST /api/contact ────────────────────────────────────────────────
 async function handleContact(req: Request, res: Response) {
-  const { name, email, phone, role, company, revenue, stage, message, sourcePage } = req.body as {
-    name?: string;
-    email?: string;
-    phone?: string;
-    role?: string;
-    company?: string;
-    revenue?: string;
-    stage?: string;
-    message?: string;
-    sourcePage?: string;
-  };
+  const { name, email, phone, role, company, revenue, stage, message, sourcePage, valuation } =
+    req.body as {
+      name?: string;
+      email?: string;
+      phone?: string;
+      role?: string;
+      company?: string;
+      revenue?: string;
+      stage?: string;
+      message?: string;
+      sourcePage?: string;
+      // Set when the owner came off the valuation tool. See
+      // client/src/lib/valuationHandoff.ts for how it gets here.
+      valuation?: {
+        briefId?: string;
+        site?: string;
+        company?: string;
+        range?: string;
+        revenue?: string;
+        profit?: string;
+        ownerSalary?: string;
+      };
+    };
 
   // The homepage form asks for one contact field, "Phone or email", because a
   // 60-year-old owner is far likelier to leave a mobile number than an address.
@@ -542,10 +625,17 @@ async function handleContact(req: Request, res: Response) {
     name,
     email,
     phone,
-    company,
+    // The home form does not ask for a company. If he ran a valuation, we know
+    // it anyway, so the column stops being empty for the leads that matter most.
+    company: company ?? valuation?.company,
     revenue,
     stage,
     message,
+    valuationSite: valuation?.site,
+    valuationRange: valuation?.range,
+    valuationRevenue: valuation?.revenue,
+    valuationProfit: valuation?.profit,
+    valuationOwnerSalary: valuation?.ownerSalary,
     // The page the form sat on. Falls back to the referring URL when the form
     // does not send one.
     sourcePage: sourcePage ?? sourcePageFromReferer(req),
@@ -575,21 +665,24 @@ async function handleContact(req: Request, res: Response) {
       // Only a real address can be replied to. A phone number in reply-to would
       // make every reply bounce.
       ...(email ? { replyTo: email } : {}),
-      subject: `New contact from ${name} (${role ?? "not specified"})`,
+      subject: valuation?.site
+        ? `New contact from ${name}, ran a valuation on ${valuation.site}`
+        : `New contact from ${name} (${role ?? "not specified"})`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 20px;">
           <h2 style="color: #1B3A5C;">New Contact Form Submission</h2>
+          ${valuationBlockHtml(valuation)}
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 100px;">Name</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${name}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Email</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${email ?? "—"}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Phone</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${phone ?? "—"}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Role</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${role ?? "—"}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Company</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${company ?? "—"}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Revenue</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${revenue ?? "—"}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Stage</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${stage ?? "—"}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 100px;">Name</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(name)}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Email</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(email ?? "(none)")}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Phone</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(phone ?? "(none)")}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Role</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(role ?? "(none)")}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Company</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(company ?? "(none)")}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Revenue</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(revenue ?? "(none)")}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Stage</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(stage ?? "(none)")}</td></tr>
           </table>
           <h3 style="color: #1B3A5C;">Message</h3>
-          <p style="background: #f5f5f5; padding: 16px; border-radius: 4px; white-space: pre-wrap;">${message}</p>
+          <p style="background: #f5f5f5; padding: 16px; border-radius: 4px; white-space: pre-wrap;">${esc(message)}</p>
         </div>
       `,
     });
@@ -609,6 +702,14 @@ async function handleContact(req: Request, res: Response) {
 }
 
 // ─── Route: POST /api/exit-brief/pdf-request ───────────────────────────────
+// The owner hands over his name, email and phone and gets his Brief. It goes to
+// him in the same second, and a copy of the lead goes to office@.
+//
+// It did not used to. It used to email Ben alone, saying "send the PDF to him
+// within 24 hours", with a link to the Brief that died on the next deploy.
+// The owner got a thank-you and nothing else. There was already a finished
+// route in this file that mailed him properly, and nothing called it. That one
+// is gone now and its email lives here, so there is one way to do this.
 async function handlePdfRequest(req: Request, res: Response) {
   const { name, email, phone, briefId } = req.body as {
     name?: string;
@@ -621,6 +722,19 @@ async function handlePdfRequest(req: Request, res: Response) {
   const leadPretaxProfit = (req.body?.pretax_profit ?? req.body?.profit) as
     | string
     | undefined;
+  const leadOwnerSalary = req.body?.owner_salary as string | undefined;
+
+  // Everything the owner picked or was shown, in his words. This is what makes
+  // the lead email worth opening: who he is, what he runs, what he told us and
+  // what number he walked away with.
+  const shown = {
+    site: req.body?.site as string | undefined,
+    company: req.body?.companyName as string | undefined,
+    range: req.body?.rangeShown as string | undefined,
+    revenue: req.body?.revenueBand as string | undefined,
+    profit: req.body?.profitBand as string | undefined,
+    ownerSalary: req.body?.ownerSalaryBand as string | undefined,
+  };
 
   if (!name || !email || !briefId) {
     res.status(400).json({ message: "Name, email, and briefId are required." });
@@ -649,6 +763,10 @@ async function handlePdfRequest(req: Request, res: Response) {
   };
   leadStore.set(leadId, lead);
 
+  // Fill his details into the valuation row that is already in the Sheet, so
+  // there is one line per run and it says who came back. Non-blocking.
+  void markValuationBriefRequested(briefId, { name, email, phone });
+
   // Update the same lead row by briefId (non-fatal). Fills in the contact, flips
   // pdf_requested, and folds in any numbers the modal collected.
   void markValuationLeadPdfRequested(briefId, {
@@ -657,6 +775,7 @@ async function handlePdfRequest(req: Request, res: Response) {
     contactPhone: phone || null,
     ...(leadRevenue ? { revenue: leadRevenue } : {}),
     ...(leadPretaxProfit ? { pretaxProfit: leadPretaxProfit } : {}),
+    ...(leadOwnerSalary ? { ownerSalary: leadOwnerSalary } : {}),
   });
 
   const resendKey = process.env.RESEND_API_KEY;
@@ -670,41 +789,63 @@ async function handlePdfRequest(req: Request, res: Response) {
   const resend = new Resend(resendKey);
 
   try {
-    const briefUrl = `${req.protocol}://${req.get("host")}/exit-brief?briefId=${briefId}`;
+    // The owner's copy goes first. If this is the only mail that gets out, the
+    // person who is owed something has it.
+    await resend.emails.send({
+      from: sender("Gesher"),
+      to: email,
+      subject: "Your Valuation Snapshot from Gesher",
+      html: `
+        <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 24px; color: #23201A;">
+          <h1 style="font-size: 26px; font-weight: 700; color: #1B3A5C; margin: 0 0 6px;">Your Valuation Snapshot</h1>
+          <p style="font-size: 16px; color: #6F6757; margin: 0 0 28px;">Hello ${esc(name)}, here is the snapshot you just ran. It is yours to keep and to share with whoever you talk these things over with.</p>
+          <div style="background: #F8F4ED; padding: 28px 24px; border-radius: 4px; font-size: 15px;">
+            ${briefToEmailHtml(stripThinkingTraces(fullMarkdown))}
+          </div>
+          <div style="margin-top: 36px; padding-top: 22px; border-top: 1px solid #DCD4C4;">
+            <p style="font-size: 15px; margin: 0 0 14px;">Want to go deeper? We will name the buyers and show you how to push for the top of that range.</p>
+            <a href="${CONTACT_URL}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 13px 26px; border-radius: 3px; text-decoration: none; font-family: Arial, sans-serif; font-size: 15px;">Talk to us</a>
+          </div>
+          <p style="font-size: 12px; color: #999; margin-top: 32px;">Strictly private. Built from public sources. Not an offer or a valuation opinion.</p>
+        </div>
+      `,
+    });
+
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 20px;">
-        <h2 style="color: #1B3A5C; margin-bottom: 24px;">New Valuation Snapshot PDF Request</h2>
+        <h2 style="color: #1B3A5C; margin-bottom: 8px;">New Valuation Snapshot lead</h2>
+        <p style="color: #666; font-size: 14px; margin: 0 0 24px;">His copy of the Brief has already been sent to him. Nothing is owed.</p>
+        ${valuationBlockHtml({ ...shown, briefId })}
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 100px;">Name</td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">${name}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(name)}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Email</td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">${email}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(email)}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Phone</td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">${phone || "(not provided)"}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(phone || "(not provided)")}</td>
           </tr>
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Brief ID</td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">${briefId}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(briefId)}</td>
           </tr>
         </table>
-        <p style="margin-bottom: 16px;">
-          <a href="${briefUrl}" style="display: inline-block; background: #1B3A5C; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">View Brief</a>
-        </p>
-        <p style="font-size: 13px; color: #666; margin-top: 32px; border-top: 1px solid #eee; padding-top: 16px;">
-          Send the PDF to ${email} within 24 hours.
-        </p>
+        <h3 style="color: #1B3A5C;">The Brief he was sent</h3>
+        <div style="background: #f5f5f5; padding: 18px; border-radius: 4px; font-size: 14px;">
+          ${briefToEmailHtml(stripThinkingTraces(fullMarkdown))}
+        </div>
       </div>
     `;
 
     await resend.emails.send({
-      from: sender("Gesher"),
+      from: sender("Gesher Lead"),
       to: notifyEmail,
-      subject: `PDF Request: ${name} (${email})`,
+      ...(email ? { replyTo: email } : {}),
+      subject: `New valuation lead: ${name} (${email})`,
       html: emailHtml,
     });
 
@@ -742,7 +883,6 @@ async function handlePdfRequest(req: Request, res: Response) {
 // ─── Register all routes ─────────────────────────────────────────────────────
 export function registerApiRoutes(app: Express) {
   app.post("/api/exit-brief", handleExitBrief);
-  app.post("/api/exit-brief/pdf", handleExitBriefPdf);
   app.post("/api/exit-brief/pdf-request", handlePdfRequest);
   app.post("/api/contact", handleContact);
 }
