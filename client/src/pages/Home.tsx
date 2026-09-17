@@ -258,12 +258,15 @@ const COPY_HE: Copy = {
   },
   hero: {
     eyebrow: "עסקים פרטיים ומשפחתיים · מחזור 5 עד 50 מיליון ש״ח",
-    // The English puts the emphasis on "life's work". The Hebrew line from
-    // file 23 is "מפעל חייך. מגיע לו יותר." so the emphasis sits on the
-    // first sentence, and the second follows as the trail.
-    headlineLead: "",
-    headlineEmph: "מפעל חייך.",
-    headlineTrail: " מגיע לו יותר.",
+    // The same Hebrew line as before, split in a different place. The emphasis
+    // used to sit on the whole first sentence, "מפעל חייך.", which mirrored the
+    // English, where it sits on "life's work". Ben's call on Sep 17: in Hebrew
+    // the word that should carry the colour is the last one, יותר. The sentence
+    // builds to it, and it is the promise, not the subject.
+    // No trailing space: the JSX adds one after headlineLead, same as English.
+    headlineLead: "מפעל חייך. מגיע לו",
+    headlineEmph: "יותר",
+    headlineTrail: ".",
     lede: "ליווי במכירת חברות.\nמכרנו חברות משלנו, וליווינו אחרים במכירה של שלהם.",
     ctaTalk: "לשיחת ייעוץ",
     // Ben's own Hebrew from file 23, kept verbatim. The English button changed
