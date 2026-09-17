@@ -13,6 +13,7 @@ import {
   buildSnapshotEmailHtml,
   buildSnapshotEmailText,
   shouldSendEmail,
+  snapshotLetterTable,
   snapshotSubject,
   type SnapshotRun,
 } from "../lib/snapshotEmail";
@@ -909,13 +910,12 @@ async function handlePdfRequest(req: Request, res: Response) {
             <td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(briefId)}</td>
           </tr>
         </table>
-        <h3 style="color: #1B3A5C;">The snapshot he was sent</h3>
-        <!-- The plain-text part of his letter, word for word. Not a second
-             render of the markdown: Ben should read what the owner read, and
-             one builder means the two can never drift. -->
-        <pre style="background: #f5f5f5; padding: 18px; border-radius: 4px; font-size: 13px;
-                    font-family: ui-monospace, Menlo, monospace; white-space: pre-wrap;
-                    line-height: 1.5; color: #23201A;">${esc(buildSnapshotEmailText(run, { name }))}</pre>
+        <h3 style="color: #1B3A5C; margin-bottom: 4px;">The snapshot he was sent</h3>
+        <p style="color: #666; font-size: 13px; margin: 0 0 14px;">Exactly as it looks in his inbox.</p>
+        <!-- The owner's letter itself, the same markup he received, not a
+             second rendering of it. Ben asked to see what the customer sees;
+             one fragment in two envelopes means the two can never drift. -->
+        <div style="border: 1px solid #DCD4C4;">${snapshotLetterTable(run, { name })}</div>
       </div>
     `;
 

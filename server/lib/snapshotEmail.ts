@@ -260,7 +260,15 @@ function companyMark(run: SnapshotRun, alt: string): string {
   );
 }
 
-export function buildSnapshotEmailHtml(run: SnapshotRun, to: SnapshotRecipient): string {
+/**
+ * The letter itself, as one <table> and nothing else.
+ *
+ * Kept separate from the document shell so Ben's lead notification can embed
+ * the very same markup. He asked to see exactly what the owner sees, and a
+ * second rendering would be a second thing to keep in step. One fragment, two
+ * envelopes.
+ */
+export function snapshotLetterTable(run: SnapshotRun, to: SnapshotRecipient): string {
   const c = copyFor(run.lang);
   const dir = c.dir;
   const company = run.companyName?.trim() || "business";
@@ -283,14 +291,7 @@ export function buildSnapshotEmailHtml(run: SnapshotRun, to: SnapshotRecipient):
     ? para(leadIn(c.whoWouldBuyLead) + escapeHtml(c.whoWouldBuy(run.buyerTypes)))
     : "";
 
-  return `<!doctype html>
-<html dir="${dir}" lang="${run.lang ?? "en"}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(c.title(company))}</title></head>
-<body style="margin:0;padding:0;background:#f4efe5;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4efe5;">
-<tr><td align="center" style="padding:24px 12px;">
-  <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" dir="${dir}"
+  return `<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" dir="${dir}"
          style="width:600px;max-width:600px;background:#ffffff;border-collapse:collapse;">
 
     <!-- Masthead -->
@@ -341,7 +342,21 @@ export function buildSnapshotEmailHtml(run: SnapshotRun, to: SnapshotRecipient):
                 font-size:12px;line-height:1.5;color:${FINE};">${escapeHtml(c.fine)}</p>
     </td></tr>
 
-  </table>
+  </table>`;
+}
+
+/** The letter in its own envelope, which is what the owner receives. */
+export function buildSnapshotEmailHtml(run: SnapshotRun, to: SnapshotRecipient): string {
+  const c = copyFor(run.lang);
+  const company = run.companyName?.trim() || "business";
+  return `<!doctype html>
+<html dir="${c.dir}" lang="${run.lang ?? "en"}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(c.title(company))}</title></head>
+<body style="margin:0;padding:0;background:#f4efe5;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4efe5;">
+<tr><td align="center" style="padding:24px 12px;">
+  ${snapshotLetterTable(run, to)}
 </td></tr>
 </table>
 </body></html>`;
