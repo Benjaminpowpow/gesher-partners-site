@@ -142,7 +142,7 @@ function formatAmount(n: number): string {
 // The line that has to sit under every number this tool produces. It is a read
 // off a website and a couple of figures, not a valuation anyone should sign.
 const ESTIMATE_DISCLAIMER =
-  "This is an estimate, not a valuation. It is built from public information and whatever you tell us here, in about a minute. A real number needs your financials and a proper look. Nothing here is an offer, or advice to buy or sell.";
+  "This is an estimate, not a valuation. It is built from public information and whatever you tell us here, in a few minutes. A real number needs your financials and a proper look. Nothing here is an offer, or advice to buy or sell.";
 
 // The three real stages of a run. The page advances them off the live stream
 // (read -> learn when the web search starts -> write when text arrives), not a timer.
@@ -165,13 +165,11 @@ const COMPANY_REVEAL_MS = 2200; // skeleton -> filled company card
 const LEARN_FALLBACK_MS = 5000; // move off "Reading" if no search signal arrives
 const HARD_TIMEOUT_MS = 180000; // never hang: fall back to the calm screen after 3 min
 
-// What a call with us is, in two cards. There used to be a third card here
-// called "Already sent", which said the brief was in his inbox. The heading
-// right above it already says that. Cut Sep 17.
-const SUCCESS_STATS = [
-  { lead: "A short call", body: "We talk through where you are. No pitch." },
-  { lead: "An honest answer", body: "If we can help, we tell you how. If we cannot, we tell you that too." },
-];
+// The sent screen used to carry two cards selling what a call is like and a
+// "Talk to us" button under them. Both went on Sep 17. He had just handed over
+// his name, his email and his phone; the button reopened the same form and asked
+// again, and the cards pitched a man who had already said yes. His one job on
+// this screen is to go and open the email.
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // The lead email should read the way the screen read: "Within six months", not
@@ -1110,36 +1108,25 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
 }
 
 // ─── Success ─────────────────────────────────────────────────────────────────
-function SuccessState() {
+function SuccessState({ ctx }: StateProps) {
+  const company = ctx.company?.name?.trim();
   return (
     <section className="v-success">
       <div className="v-success-inner">
-        <h1 className="v-success-h1">Sent. Check your inbox.</h1>
+        <h1 className="v-success-h1">Thank you. Check your inbox.</h1>
         <p className="v-success-sub">
-          Your one-page brief is in your email. It is yours to keep and to share.
+          Your {company ? `${company} ` : ""}Valuation Snapshot will arrive within a few
+          minutes.
         </p>
-
-        <ul className="v-stat-row v-stat-row--boxes" role="list">
-          {SUCCESS_STATS.map((s, i) => (
-            <li className="v-stat" key={i}>
-              <div className="v-stat-text">
-                <p className="v-stat-lead">{s.lead}</p>
-                <p className="v-stat-body">{s.body}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        <div className="v-success-cta">
-          <p className="v-success-cta-line">Want to talk sooner?</p>
-          <button
-            type="button"
-            className="v-btn v-btn-primary v-success-btn"
-            onClick={openTalk}
-          >
-            Talk to us
-          </button>
-        </div>
+        {/* The sending domain is new, so some first emails will be filtered.
+            Saying so costs nothing and saves the lead. */}
+        <p className="v-success-next">
+          Not there? Check spam, or write to{" "}
+          <a className="v-success-mail" href="mailto:office@gesherpartners.com">
+            office@gesherpartners.com
+          </a>
+          .
+        </p>
       </div>
     </section>
   );

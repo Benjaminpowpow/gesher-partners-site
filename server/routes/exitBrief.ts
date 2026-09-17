@@ -9,6 +9,13 @@ import {
   markValuationBriefRequested,
 } from "../lib/leadsSheet";
 import { readSite, siteReadBlock } from "../lib/readSite";
+import {
+  buildSnapshotEmailHtml,
+  buildSnapshotEmailText,
+  shouldSendEmail,
+  snapshotSubject,
+  type SnapshotRun,
+} from "../lib/snapshotEmail";
 import { insertValuationLead, markValuationLeadPdfRequested } from "../db";
 import { nanoid } from "nanoid";
 
@@ -150,7 +157,11 @@ const OVER_CAP_MESSAGE =
 
 // ─── In-memory stores ───────────────────────────────────────────────────────
 // briefId -> the seller brief markdown (v7 is seller-only, no trace)
-const briefStore = new Map<string, string>();
+// briefId -> the whole saved run. It used to hold the markdown string alone,
+// which is why the email drifted from the page: the email had no range_text, no
+// path_used and no company name, so it rendered the model's own prose instead of
+// the fields the page renders. The email is a second view of this object now.
+const briefStore = new Map<string, SnapshotRun>();
 
 // IP -> last request timestamp (ms)
 const rateLimitStore = new Map<string, number>();
@@ -213,10 +224,9 @@ function domainFromUrl(url: string): string | undefined {
   }
 }
 
-// There is no booking tool. Every "talk to us" anywhere, page or email, goes to
-// the contact form on the home page. One constant, so when a real calendar
-// exists this changes in one place.
-const CONTACT_URL = "https://gesherpartners.com/#contact";
+// The snapshot email carries no link and no button. Its call to action is the
+// reply, which is why reply-to has to be a live mailbox. See server/lib/
+// snapshotEmail.ts.
 
 // Anyone can POST to /api/contact, so anything that came off the wire gets
 // escaped before it lands in an email we are going to open and read.
@@ -262,64 +272,6 @@ function valuationBlockHtml(v?: {
   `;
 }
 
-// The Brief is markdown. An owner opening it in Gmail should not see "##" and
-// "**". This turns the three cards into plain, readable email HTML: headings,
-// bold, paragraphs, nothing clever. Everything is escaped first, so a model that
-// ever emitted a tag cannot put it in somebody's inbox.
-function briefToEmailHtml(markdown: string): string {
-  return markdown
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean)
-    .map((block) => {
-      const heading = block.match(/^##\s+(.*)$/m);
-      if (heading && block.split("\n").length === 1) {
-        return `<h2 style="font-size: 19px; color: #1B3A5C; margin: 28px 0 10px;">${esc(heading[1])}</h2>`;
-      }
-      const body = esc(block)
-        // The engine ends every Range card with "**Talk to us.**". In an email
-        // that is a dead sentence unless it goes somewhere, so it becomes the
-        // link to the contact form. Done before the plain bold rule below, so
-        // this one wins.
-        .replace(
-          /\*\*Talk to us\.\*\*/g,
-          `<a href="${CONTACT_URL}" style="color: #1B3A5C; font-weight: bold;">Talk to us.</a>`,
-        )
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/^\s*[-*•]\s+/gm, "")
-        .replace(/\n/g, "<br>");
-      return `<p style="margin: 0 0 14px; line-height: 1.7;">${body}</p>`;
-    })
-    .join("\n");
-}
-
-function stripThinkingTraces(markdown: string): string {
-  // Remove every ## Internal: ... block and all content until the next ## heading or end of file
-  // Split by lines, filter out Internal blocks, then rejoin
-  const lines = markdown.split("\n");
-  const filtered: string[] = [];
-  let inInternalBlock = false;
-
-  for (const line of lines) {
-    if (line.startsWith("## Internal:")) {
-      inInternalBlock = true;
-    } else if (line.startsWith("##") && inInternalBlock) {
-      inInternalBlock = false;
-      filtered.push(line);
-    } else if (!inInternalBlock) {
-      filtered.push(line);
-    }
-  }
-
-  return filtered
-    .join("\n")
-    // Drop the page-only Value flags ("positive:" / "watch:") so a seller email never
-    // shows them as raw text. The page reads these flags to draw icons; email does not.
-    .replace(/^[ \t]*(?:positive|watch):[ \t]*/gim, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 // v7 page-mode meta block. The model returns a fenced ```json block first, then the
 // three cards. Pull the meta fields out, and treat everything after the block as the
 // seller-facing markdown. The seller (page, email, PDF) never sees the JSON.
@@ -333,32 +285,88 @@ interface BriefMeta {
   path_used?: string; // internal calibration, never shown
 }
 
+/**
+ * Walk a JSON object from its opening brace to its matching close.
+ *
+ * The old code used a non-greedy `\{[\s\S]*?\}`, which stops at the FIRST
+ * closing brace. Any nested object in the meta ended that match early, the parse
+ * failed, and the whole block stayed in the seller-facing markdown.
+ */
+function balancedObject(text: string, from: number): string | null {
+  if (text[from] !== "{") return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = from; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(from, i + 1);
+    }
+  }
+  return null;
+}
+
+/**
+ * Split the meta block off the seller-facing cards.
+ *
+ * This is the only place the JSON is removed, and it runs once, at generation.
+ * What it returns is what gets stored, shown on the page and sent in the email,
+ * so a miss here reaches the owner three ways. It missed on Sep 17: raw JSON and
+ * a stray "---" went out in a real email, and the page had the same text.
+ *
+ * Three shapes are handled now, in order of how much we trust them:
+ *   1. A fenced ```json block, which is what the bundle asks for.
+ *   2. A --- fenced block, which is what the model actually produced that day.
+ *   3. A bare object before the first heading.
+ *
+ * Every path scans matching braces rather than guessing at the first "}", and
+ * whatever is left is cleared of leading rules and blank lines.
+ */
 function parseMetaAndBody(fullMarkdown: string): { meta: BriefMeta; resultMd: string } {
-  // Primary: a fenced ```json ... ``` block (what the bundle asks for).
-  const fenced = fullMarkdown.match(/```json\s*([\s\S]*?)```/i);
-  if (fenced) {
+  const text = fullMarkdown ?? "";
+
+  const finish = (metaRaw: string, rest: string): { meta: BriefMeta; resultMd: string } => {
     let meta: BriefMeta = {};
     try {
-      meta = JSON.parse(fenced[1].trim());
+      meta = JSON.parse(metaRaw.trim()) as BriefMeta;
     } catch {
       meta = {};
     }
-    const resultMd = fullMarkdown.slice((fenced.index ?? 0) + fenced[0].length).trim();
-    return { meta, resultMd };
+    return { meta, resultMd: stripLeadingRules(rest) };
+  };
+
+  // 1. Fenced ```json ... ```
+  const fenced = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
+  if (fenced && typeof fenced.index === "number") {
+    return finish(fenced[1], text.slice(fenced.index + fenced[0].length));
   }
-  // Fallback: a bare leading { ... } object before the first heading.
-  const bare = fullMarkdown.match(/^\s*(\{[\s\S]*?\})\s*(?=\n#|\n##|$)/);
-  if (bare) {
-    try {
-      const meta = JSON.parse(bare[1]) as BriefMeta;
-      const resultMd = fullMarkdown.slice((bare.index ?? 0) + bare[0].length).trim();
-      return { meta, resultMd };
-    } catch {
-      // not JSON, fall through
-    }
+
+  // 2. The first { anywhere in the opening stretch of the document, whether or
+  //    not a --- or a blank line sits in front of it. Only the opening stretch:
+  //    a brace deep in the prose is the model's words, not a meta block.
+  const head = text.slice(0, 4000);
+  const brace = head.indexOf("{");
+  if (brace !== -1 && !/[A-Za-z]{3}/.test(head.slice(0, brace).replace(/[-\s`json]/gi, ""))) {
+    const obj = balancedObject(text, brace);
+    if (obj) return finish(obj, text.slice(brace + obj.length));
   }
-  // No meta found. Hand back the markdown untouched so the page can still render cards.
-  return { meta: {}, resultMd: fullMarkdown.trim() };
+
+  // No meta found. Hand back the markdown untouched so the page still renders.
+  return { meta: {}, resultMd: stripLeadingRules(text) };
+}
+
+/** Drop the --- rules and blank lines a fenced block leaves behind. */
+function stripLeadingRules(s: string): string {
+  return s.replace(/^(?:\s*(?:-{3,}|_{3,}|\*{3,})\s*)+/g, "").trim();
 }
 
 // ─── Route: POST /api/exit-brief ────────────────────────────────────────────
@@ -571,7 +579,21 @@ async function handleExitBrief(req: Request, res: Response) {
     // v7: split the meta block from the seller-facing cards. Store only the clean
     // markdown so the email and PDF never see the JSON.
     const { meta, resultMd } = parseMetaAndBody(fullMarkdown);
-    briefStore.set(briefId, resultMd);
+    briefStore.set(briefId, {
+      companyName: meta.company_name,
+      companyOneliner: meta.company_oneliner,
+      rangeVariant: meta.range_variant,
+      rangeText: meta.range_text,
+      buyerTypes: meta.buyer_types,
+      pathUsed: meta.path_used,
+      resultMd,
+      // His own logo, lifted out of the page we already fetched. Undefined
+      // means the email draws the lettered square instead.
+      logoUrl: siteRead?.logoUrl,
+      // /valuation is English only today. Saved with the run so the email never
+      // has to guess, and so Hebrew is a words job later.
+      lang: "en",
+    });
 
     // Save the lead. Fire and forget, and never let a DB hiccup affect the seller.
     void insertValuationLead({
@@ -800,9 +822,17 @@ async function handlePdfRequest(req: Request, res: Response) {
     return;
   }
 
-  const fullMarkdown = briefStore.get(briefId);
-  if (!fullMarkdown) {
+  const run = briefStore.get(briefId);
+  if (!run) {
     res.status(404).json({ message: "Brief not found. Please generate a new one." });
+    return;
+  }
+
+  // An unreadable run produced no snapshot, so there is nothing to send. The
+  // page never offers the form in that state, but the endpoint is open to
+  // anyone holding a briefId, so the rule is enforced here too.
+  if (!shouldSendEmail(run)) {
+    res.status(409).json({ message: "There is no snapshot for that run." });
     return;
   }
 
@@ -847,21 +877,13 @@ async function handlePdfRequest(req: Request, res: Response) {
     await resend.emails.send({
       from: sender("Gesher"),
       to: email,
-      subject: "Your Valuation Snapshot from Gesher",
-      html: `
-        <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 24px; color: #23201A;">
-          <h1 style="font-size: 26px; font-weight: 700; color: #1B3A5C; margin: 0 0 6px;">Your Valuation Snapshot</h1>
-          <p style="font-size: 16px; color: #6F6757; margin: 0 0 28px;">Hello ${esc(name)}, here is the snapshot you just ran. It is yours to keep and to share with whoever you talk these things over with.</p>
-          <div style="background: #F8F4ED; padding: 28px 24px; border-radius: 4px; font-size: 15px;">
-            ${briefToEmailHtml(stripThinkingTraces(fullMarkdown))}
-          </div>
-          <div style="margin-top: 36px; padding-top: 22px; border-top: 1px solid #DCD4C4;">
-            <p style="font-size: 15px; margin: 0 0 14px;">Want to go deeper? We will name the buyers and show you how to push for the top of that range.</p>
-            <a href="${CONTACT_URL}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 13px 26px; border-radius: 3px; text-decoration: none; font-family: Arial, sans-serif; font-size: 15px;">Talk to us</a>
-          </div>
-          <p style="font-size: 12px; color: #999; margin-top: 32px;">Strictly private. Built from public sources. Not an offer or a valuation opinion.</p>
-        </div>
-      `,
+      // The reply is the whole call to action, so this must land somewhere a
+      // human reads. It is already the from address; setting it explicitly
+      // means a later change to MAIL_FROM cannot quietly break the reply.
+      replyTo: NOTIFY_EMAIL,
+      subject: snapshotSubject(run),
+      html: buildSnapshotEmailHtml(run, { name }),
+      text: buildSnapshotEmailText(run, { name }),
     });
 
     const emailHtml = `
@@ -887,10 +909,13 @@ async function handlePdfRequest(req: Request, res: Response) {
             <td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(briefId)}</td>
           </tr>
         </table>
-        <h3 style="color: #1B3A5C;">The Brief he was sent</h3>
-        <div style="background: #f5f5f5; padding: 18px; border-radius: 4px; font-size: 14px;">
-          ${briefToEmailHtml(stripThinkingTraces(fullMarkdown))}
-        </div>
+        <h3 style="color: #1B3A5C;">The snapshot he was sent</h3>
+        <!-- The plain-text part of his letter, word for word. Not a second
+             render of the markdown: Ben should read what the owner read, and
+             one builder means the two can never drift. -->
+        <pre style="background: #f5f5f5; padding: 18px; border-radius: 4px; font-size: 13px;
+                    font-family: ui-monospace, Menlo, monospace; white-space: pre-wrap;
+                    line-height: 1.5; color: #23201A;">${esc(buildSnapshotEmailText(run, { name }))}</pre>
       </div>
     `;
 
