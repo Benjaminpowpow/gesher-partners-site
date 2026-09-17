@@ -17,10 +17,21 @@ import { Lockup } from "@/components/Lockup";
 import { saveValuationHandoff } from "@/lib/valuationHandoff";
 import "./valuation.css";
 
-// No booking tool on the site yet. Every "talk to us" on this page sends the
-// owner to the contact form on the home page. When a real calendar link goes
-// live, change this one constant and the button copy that goes with it.
-const TALK_URL = "/#contact";
+// Every "talk to us" on this page opens a small form right here. It used to be
+// a link to /#contact, which dropped the owner at the top of the home page with
+// no form in sight, because this is a single-page app and the browser had
+// nothing to scroll to yet. He had just been shown his range. Sending him away
+// to hunt for a form at that exact moment was the worst place on the site to
+// lose him. On the home page "talk to us" still scrolls to the form, because
+// there the form is already on the page.
+//
+// The buttons live in five different child components, so the page listens for
+// one event rather than threading a setter through all of them.
+const TALK_EVENT = "gesher:talk";
+
+function openTalk(): void {
+  window.dispatchEvent(new CustomEvent(TALK_EVENT));
+}
 
 type ScreenId =
   | "front-door"
@@ -130,9 +141,11 @@ const COMPANY_REVEAL_MS = 2200; // skeleton -> filled company card
 const LEARN_FALLBACK_MS = 5000; // move off "Reading" if no search signal arrives
 const HARD_TIMEOUT_MS = 180000; // never hang: fall back to the calm screen after 3 min
 
+// What a call with us is, in two cards. There used to be a third card here
+// called "Already sent", which said the brief was in his inbox. The heading
+// right above it already says that. Cut Sep 17.
 const SUCCESS_STATS = [
-  { lead: "Already sent", body: "Your one-page brief is in your inbox. Keep it, or pass it to whoever you talk these things over with." },
-  { lead: "A short call", body: "We talk through where you are." },
+  { lead: "A short call", body: "We talk through where you are. No pitch." },
   { lead: "An honest answer", body: "If we can help, we tell you how. If we cannot, we tell you that too." },
 ];
 
@@ -145,6 +158,13 @@ function labelFor(
 ): string | undefined {
   if (!value) return undefined;
   return ranges.find((r) => r.value === value)?.label;
+}
+
+// Deliberately loose. Something before the @, something after it, a dot, and
+// something after that. It catches "ben@gmail", which is the real mistake an
+// owner makes, without turning away a legitimate address we have not thought of.
+function looksLikeEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(value.trim());
 }
 
 function deriveDomain(url: string): string | undefined {
@@ -750,9 +770,13 @@ function ResultState({ ctx, go }: StateProps) {
                   </p>
                 </div>
                 <div className="v-card-actions">
-                  <a href={TALK_URL} className="v-btn v-btn-primary v-btn-block">
+                  <button
+                    type="button"
+                    className="v-btn v-btn-primary v-btn-block"
+                    onClick={openTalk}
+                  >
                     Talk to us
-                  </a>
+                  </button>
                   <button
                     type="button"
                     className="v-btn v-btn-outline v-btn-block"
@@ -776,9 +800,13 @@ function ResultState({ ctx, go }: StateProps) {
                   </p>
                 </div>
                 <div className="v-card-actions">
-                  <a href={TALK_URL} className="v-btn v-btn-primary v-btn-block">
+                  <button
+                    type="button"
+                    className="v-btn v-btn-primary v-btn-block"
+                    onClick={openTalk}
+                  >
                     Build your number with Ofir and Benjamin
-                  </a>
+                  </button>
                 </div>
               </>
             )}
@@ -786,11 +814,9 @@ function ResultState({ ctx, go }: StateProps) {
         </div>
       </div>
 
-      <div className="v-stickybar" role="region" aria-label="Talk to us">
-        <a href={TALK_URL} className="v-stickybar-cta">
-          Talk to Ofir Ben Haim and Benjamin Aronson
-        </a>
-      </div>
+      {/* The sticky bar that used to sit here said "Talk to Ofir Ben Haim and
+          Benjamin Aronson". It covered the bottom of the range card with a
+          second, weaker version of the button already inside it. Cut Sep 17. */}
     </section>
   );
 }
@@ -831,11 +857,29 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
     };
   }, [go]);
 
-  const valid = name.trim() && email.trim() && phone.trim();
+  // Say which field is wrong, in his words. Pressing the button with an empty
+  // phone box used to do nothing at all, and typing "ben@gmail" got him "we
+  // could not send it", which points the blame at us instead of at the typo.
+  const nameBad = !name.trim();
+  const emailBad = !email.trim() || !looksLikeEmail(email);
+  const phoneBad = !phone.trim();
+  const valid = !nameBad && !emailBad && !phoneBad;
+  const problem = !touched
+    ? null
+    : nameBad
+      ? "Please tell us your name."
+      : !email.trim()
+        ? "Please add your email. That is where the brief goes."
+        : !looksLikeEmail(email)
+          ? "That email looks incomplete. Check it and try again."
+          : phoneBad
+            ? "Please add a phone number."
+            : null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setTouched(true);
+    setFailed(false);
     if (!valid || submitting) return;
 
     const lead = { name: name.trim(), email: email.trim(), phone: phone.trim() };
@@ -923,7 +967,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
               <input
                 id="lc-name"
                 type="text"
-                className={"v-input v-input-sm" + (touched && !name.trim() ? " has-error" : "")}
+                className={"v-input v-input-sm" + (touched && nameBad ? " has-error" : "")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="name"
@@ -938,7 +982,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
               <input
                 id="lc-email"
                 type="email"
-                className={"v-input v-input-sm" + (touched && !email.trim() ? " has-error" : "")}
+                className={"v-input v-input-sm" + (touched && emailBad ? " has-error" : "")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
@@ -956,7 +1000,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
               <input
                 id="lc-phone"
                 type="tel"
-                className={"v-input v-input-sm" + (touched && !phone.trim() ? " has-error" : "")}
+                className={"v-input v-input-sm" + (touched && phoneBad ? " has-error" : "")}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 autoComplete="tel"
@@ -991,11 +1035,19 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
               options={OWNER_SALARY_RANGES}
             />
 
-            {failed && (
+            {/* A field he has to fix comes first. Only once the form is clean
+                does a failed send get to speak, so the two never argue. */}
+            {problem ? (
               <p className="v-modal-error" role="alert">
-                We could not send it. Please try again, or write to us at
-                office@gesherpartners.com and we will send it by hand.
+                {problem}
               </p>
+            ) : (
+              failed && (
+                <p className="v-modal-error" role="alert">
+                  We could not send it. Please try again, or write to us at
+                  office@gesherpartners.com and we will send it by hand.
+                </p>
+              )
             )}
 
             <button
@@ -1003,7 +1055,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
               className="v-btn v-btn-primary v-btn-block v-modal-submit"
               disabled={submitting}
             >
-              {submitting ? "Sending..." : failed ? "Try again" : "Send it to me"}
+              {submitting ? "Sending..." : failed ? "Try again" : "Send"}
             </button>
           </form>
         </div>
@@ -1035,9 +1087,13 @@ function SuccessState() {
 
         <div className="v-success-cta">
           <p className="v-success-cta-line">Want to talk sooner?</p>
-          <a href={TALK_URL} className="v-btn v-btn-primary v-success-btn">
+          <button
+            type="button"
+            className="v-btn v-btn-primary v-success-btn"
+            onClick={openTalk}
+          >
             Talk to us
-          </a>
+          </button>
         </div>
       </div>
     </section>
@@ -1061,9 +1117,13 @@ function ErrorState({ ctx, go }: StateProps) {
             "Sometimes a site is too quiet, or in Hebrew only. That is no problem."}
         </p>
         <div className="v-error-actions">
-          <a href={TALK_URL} className="v-btn v-btn-primary v-error-btn">
+          <button
+            type="button"
+            className="v-btn v-btn-primary v-error-btn"
+            onClick={openTalk}
+          >
             Talk to us instead
-          </a>
+          </button>
           <button
             type="button"
             className="v-btn v-btn-outline v-error-btn"
@@ -1080,6 +1140,220 @@ function ErrorState({ ctx, go }: StateProps) {
   );
 }
 
+// ─── Talk to us (popup, any state) ───────────────────────────────────────────
+// The short form behind every "talk to us" on this page. Three boxes and a
+// message, because a man who has just read his range wants to say one thing and
+// be done. When he ran a valuation, it rides along with the lead, so the note
+// that reaches office@ says who he is and what he was quoted.
+function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
+  const [name, setName] = useState(ctx.lead?.name || "");
+  const [reach, setReach] = useState(ctx.lead?.email || ctx.lead?.phone || "");
+  const [message, setMessage] = useState("");
+  const [touched, setTouched] = useState(false);
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      dialogRef.current?.querySelector<HTMLElement>("input, textarea, button")?.focus();
+    }, 50);
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  const nameBad = !name.trim();
+  // One box takes a phone or an email, same as the home page. It only has to be
+  // something we can answer on.
+  const reachIsEmail = reach.includes("@");
+  const reachBad = !reach.trim() || (reachIsEmail && !looksLikeEmail(reach));
+  const problem = !touched
+    ? null
+    : nameBad
+      ? "Please tell us your name."
+      : !reach.trim()
+        ? "Please leave a phone number or an email so we can answer."
+        : reachIsEmail && !looksLikeEmail(reach)
+          ? "That email looks incomplete. Check it and try again."
+          : null;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setTouched(true);
+    if (nameBad || reachBad || status === "sending") return;
+    setStatus("sending");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: reachIsEmail ? reach.trim() : undefined,
+          phone: reachIsEmail ? undefined : reach.trim(),
+          message: message.trim() || "(no message)",
+          sourcePage: "/valuation",
+          ...(ctx.briefId
+            ? {
+                valuation: {
+                  briefId: ctx.briefId,
+                  site: ctx.company?.domain || ctx.url,
+                  company: ctx.company?.name,
+                  range: ctx.rangeText,
+                  revenue: labelFor(REVENUE_RANGES, ctx.revenue),
+                  profit: labelFor(PROFIT_RANGES, ctx.profit),
+                  ownerSalary: labelFor(OWNER_SALARY_RANGES, ctx.ownerSalary),
+                },
+              }
+            : {}),
+        }),
+      });
+      setStatus(res.ok ? "sent" : "failed");
+    } catch {
+      setStatus("failed");
+    }
+  }
+
+  return (
+    <div
+      className="v-modal-backdrop"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        className="v-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="v-talk-title"
+      >
+        <button type="button" className="v-modal-close" aria-label="Close" onClick={onClose}>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M3.5 3.5l9 9M12.5 3.5l-9 9"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+
+        {status === "sent" ? (
+          <>
+            <h2 id="v-talk-title" className="v-modal-title">
+              Thank you.
+            </h2>
+            <p className="v-modal-sub">
+              We read every note ourselves. You will hear from Ofir or Ben within two
+              business days.
+            </p>
+            <button
+              type="button"
+              className="v-btn v-btn-primary v-btn-block v-modal-submit"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </>
+        ) : (
+          <>
+            <h2 id="v-talk-title" className="v-modal-title">
+              Talk to us.
+            </h2>
+            <p className="v-modal-sub">
+              {ctx.briefId
+                ? "We will bring your range to the call."
+                : "Tell us where you are. We will tell you honestly if we can help."}
+            </p>
+
+            <form className="v-modal-form" onSubmit={handleSubmit} noValidate>
+              <div className="v-field">
+                <label htmlFor="talk-name" className="v-field-label">
+                  Your name
+                </label>
+                <input
+                  id="talk-name"
+                  type="text"
+                  className={"v-input v-input-sm" + (touched && nameBad ? " has-error" : "")}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                  required
+                />
+              </div>
+
+              <div className="v-field">
+                <label htmlFor="talk-reach" className="v-field-label">
+                  Phone or email
+                </label>
+                <input
+                  id="talk-reach"
+                  type="text"
+                  className={"v-input v-input-sm" + (touched && reachBad ? " has-error" : "")}
+                  value={reach}
+                  onChange={(e) => setReach(e.target.value)}
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  required
+                />
+              </div>
+
+              <div className="v-field">
+                <label htmlFor="talk-message" className="v-field-label">
+                  What is on your mind (optional)
+                </label>
+                <textarea
+                  id="talk-message"
+                  className="v-input v-input-sm"
+                  rows={3}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                />
+              </div>
+
+              {problem ? (
+                <p className="v-modal-error" role="alert">
+                  {problem}
+                </p>
+              ) : (
+                status === "failed" && (
+                  <p className="v-modal-error" role="alert">
+                    Your note did not go through. Please try again, or write to us at
+                    office@gesherpartners.com.
+                  </p>
+                )
+              )}
+
+              <button
+                type="submit"
+                className="v-btn v-btn-primary v-btn-block v-modal-submit"
+                disabled={status === "sending"}
+              >
+                {status === "sending" ? "Sending..." : status === "failed" ? "Try again" : "Send"}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const STATE_COMPONENTS: Record<ScreenId, (props: StateProps) => React.ReactElement> = {
   "front-door": FrontDoorState,
   working: WorkingState,
@@ -1091,6 +1365,7 @@ const STATE_COMPONENTS: Record<ScreenId, (props: StateProps) => React.ReactEleme
 
 export default function Valuation() {
   const [state, setState] = useState<ScreenId>("front-door");
+  const [talkOpen, setTalkOpen] = useState(false);
   const [ctx, setCtx] = useState<Ctx>({
     url: "",
     revenue: "",
@@ -1103,6 +1378,15 @@ export default function Valuation() {
     setState(next);
   };
 
+  // Every "talk to us" button on this page, wherever it sits, lands here.
+  useEffect(() => {
+    function onTalk() {
+      setTalkOpen(true);
+    }
+    window.addEventListener(TALK_EVENT, onTalk);
+    return () => window.removeEventListener(TALK_EVENT, onTalk);
+  }, []);
+
   const StateComponent = STATE_COMPONENTS[state] || FrontDoorState;
 
   return (
@@ -1114,14 +1398,16 @@ export default function Valuation() {
               here off an ad never saw what the firm does. */}
           <Lockup markHeight={24} />
         </a>
-        <a className="talk" href={TALK_URL}>
+        <button type="button" className="talk" onClick={openTalk}>
           Talk to us
-        </a>
+        </button>
       </header>
 
       <main className="v-main" id="main">
         <StateComponent ctx={ctx} go={go} setCtx={setCtx} />
       </main>
+
+      {talkOpen && <TalkModal ctx={ctx} onClose={() => setTalkOpen(false)} />}
     </div>
   );
 }

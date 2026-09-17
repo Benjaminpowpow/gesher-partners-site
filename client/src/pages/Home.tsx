@@ -423,10 +423,11 @@ const COPY_HE: Copy = {
     // in his review of the whole page.
     sendFailed:
       "ההודעה לא נשלחה. אפשר לנסות שוב, או לכתוב לנו ישירות: office@gesherpartners.com",
-    // No Hebrew for the thank-you note in file 23 yet. English until it lands.
-    thanksHeading: "Thank you.",
+    // Hebrew, given by Ben on 2026-09-17, pasted verbatim. Until this landed the
+    // thank-you card on /he/ answered a Hebrew form in English.
+    thanksHeading: "תודה.",
     thanksBody:
-      "We read every note ourselves. You will hear from Ofir or Ben within two business days.",
+      "אנחנו קוראים כל פנייה בעצמנו. אופיר או בנימין יחזרו אליך תוך שני ימי עסקים.",
   },
   footer: {
     ariaLabel: "Footer",
