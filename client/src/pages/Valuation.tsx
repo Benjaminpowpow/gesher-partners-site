@@ -188,16 +188,23 @@ function amountLabel(raw?: string): string | undefined {
   return n ? formatAmount(n) : undefined;
 }
 
-// The website the home page hero passed along, if there was one. A domain and
-// nothing else: anything with a slash, a space or an @ in it did not come from
-// that box and is not going into the form.
+// Whatever the owner typed into the box on the home page.
+//
+// This used to throw away anything that did not already look like a domain, so
+// a man who typed his company's name instead of its address arrived here to an
+// empty box and had to start again, with no sign that anything had happened to
+// what he wrote. Now it comes through as typed. If it is not a website the run
+// will say so, and at least he can see what he put in and fix it.
+//
+// Still bounded: one line, nothing enormous. React escapes it on the way into
+// the field, and the value only ever becomes a URL after normalizeUrl.
 function readSiteParam(): string {
   if (typeof window === "undefined") return "";
   try {
     const raw = new URLSearchParams(window.location.search).get("site") ?? "";
-    const trimmed = raw.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
-    if (!trimmed || trimmed.length > 200) return "";
-    return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(trimmed) ? trimmed : "";
+    const oneLine = raw.replace(/[\r\n\t]+/g, " ").trim();
+    if (!oneLine || oneLine.length > 200) return "";
+    return oneLine.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
   } catch {
     return "";
   }
