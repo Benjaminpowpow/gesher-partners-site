@@ -1021,7 +1021,14 @@ p:last-child { margin-bottom: 0; }
 .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
 .why-para { margin-top: 20px; }
 .why-para + .why-para { margin-top: 14px; }
-.gapchart { width: 100%; height: auto; display: block; }
+/* The chart stays left to right on the Hebrew page.
+   Everything inside it is Latin, and the bars are a growth story that reads
+   left to right in both languages. Without this it inherits dir="rtl" from the
+   page root, which flips where a <text> sits relative to its x. The
+   "the one-offer level" label is anchored at the start at x=24, so on /he/ it
+   was drawn to the LEFT of x=24, 65px outside the chart, and all a Hebrew
+   reader saw was the word "level". Ben spotted it on Sep 17. */
+.gapchart { width: 100%; height: auto; display: block; direction: ltr; }
 .chart-cap {
   font-size: 12px;
   letter-spacing: var(--ls-eyebrow);
