@@ -192,12 +192,16 @@ const COPY = {
     labels: {
       name: "Name",
       reach: "Phone or email",
+      // Required, because a lead without a website is a lead nobody can look
+      // at before the call. Ben's call, Sep 17.
+      website: "Your website",
       revenue: "Annual revenue",
       message: "Anything you want us to know",
     },
     placeholders: {
       name: "Your name",
       reach: "How to reach you",
+      website: "yourcompany.co.il",
       revenue: "e.g. 12M",
       message: "Optional",
     },
@@ -400,12 +404,16 @@ const COPY_HE: Copy = {
     labels: {
       name: "שם",
       reach: "טלפון או מייל",
+      // Hebrew from Ben, Sep 17, pasted verbatim.
+      website: "האתר שלך",
       revenue: "מחזור שנתי",
       message: "משהו שתרצה שנדע",
     },
     placeholders: {
       name: "השם שלך",
       reach: "איך אפשר לחזור אליך",
+      // A domain reads the same in both languages, so no new Hebrew is needed.
+      website: "yourcompany.co.il",
       // Was "בחר טווח" (select a range) when this was a dropdown. It is a box
       // he types into now. A plain figure carries across both languages, so no
       // new Hebrew was needed. TODO(hebrew): Ben may want a worded hint here.
@@ -1406,6 +1414,7 @@ function Contact() {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
   const [name, setName] = useState("");
   const [reach, setReach] = useState("");
+  const [website, setWebsite] = useState("");
   const [revenue, setRevenue] = useState("");
   const [message, setMessage] = useState("");
   // This form used to read a note the valuation page left in sessionStorage and
@@ -1435,6 +1444,7 @@ function Contact() {
           name: name.trim(),
           email: looksLikeEmail ? reach.trim() : undefined,
           phone: looksLikeEmail ? undefined : reach.trim(),
+          website: website.trim() || undefined,
           revenue: revenue || undefined,
           message: message.trim() || "(no message)",
           // Tells us whether the lead came off the English page or /he/.
@@ -1493,6 +1503,25 @@ function Contact() {
                 required
                 value={reach}
                 onChange={(e) => setReach(e.target.value)}
+              />
+            </div>
+            {/* Required. A contact lead used to arrive with a name and a phone
+                number and nothing to look at, so the first thing anyone had to
+                do was write back and ask for the website. Now it comes in with
+                the lead and the valuation tool can be pointed at it. */}
+            <div className="field full">
+              <label htmlFor="website">{labels.website}</label>
+              <input
+                id="website"
+                type="text"
+                placeholder={placeholders.website}
+                required
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                autoComplete="url"
+                inputMode="url"
+                spellCheck={false}
+                autoCapitalize="off"
               />
             </div>
             {/* This was a dropdown of revenue bands, with "Prefer not to say"

@@ -668,13 +668,15 @@ async function handleExitBrief(req: Request, res: Response) {
 
 // ─── Route: POST /api/contact ────────────────────────────────────────────────
 async function handleContact(req: Request, res: Response) {
-  const { name, email, phone, role, company, revenue, stage, message, sourcePage, valuation } =
+  const { name, email, phone, role, company, website, revenue, stage, message, sourcePage, valuation } =
     req.body as {
       name?: string;
       email?: string;
       phone?: string;
       role?: string;
       company?: string;
+      /** His own site, asked for on the form since Sep 17. */
+      website?: string;
       revenue?: string;
       stage?: string;
       message?: string;
@@ -719,6 +721,7 @@ async function handleContact(req: Request, res: Response) {
     valuationRevenue: valuation?.revenue,
     valuationProfit: valuation?.profit,
     valuationOwnerSalary: valuation?.ownerSalary,
+    website,
     valuationBriefId: valuation?.briefId,
     valuationTimeToSell: valuation?.timeToSell,
     // The page the form sat on. Falls back to the referring URL when the form
@@ -759,6 +762,7 @@ async function handleContact(req: Request, res: Response) {
           ${valuationBlockHtml(valuation)}
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 100px;">Name</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(name)}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Website</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(website ?? "(none)")}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Email</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(email ?? "(none)")}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Phone</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(phone ?? "(none)")}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Role</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(role ?? "(none)")}</td></tr>
