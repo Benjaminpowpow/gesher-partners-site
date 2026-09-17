@@ -142,7 +142,10 @@ const COPY = {
         photo: "/founders/gesher_ofir_final.jpg",
         name: "Ofir Ben Haim, CPA",
         role: "Managing partner",
-        bio: "40+ years advising Israeli business owners. He has seen every deal structure that works here, and several that do not.",
+        // Ben's line, Sep 17. The old bio claimed experience without naming a
+        // deal. This names two, and the CPA firm, which is what a 60-year-old
+        // owner actually weighs before he picks up the phone.
+        bio: "40 years advising Israeli business owners. Led the sale of more than 20 companies, including Metropoli-net to Milgam and Alpha CSP to Malam. Founded and sold his own CPA firm, OB&H.",
       },
       {
         photo: "/founders/gesher_ben_final.jpg",
@@ -350,7 +353,8 @@ const COPY_HE: Copy = {
         photo: "/founders/gesher_ofir_final.jpg",
         name: "רו״ח אופיר בן חיים",
         role: "שותף מנהל",
-        bio: "מעל 40 שנה מלווה בעלי עסקים בישראל. ראה כל מבנה עסקה שעובד כאן, וגם כמה שלא.",
+        // Hebrew from Ben, Sep 17, pasted verbatim.
+        bio: "מעל 40 שנה מלווה בעלי עסקים בישראל. ניהל את מכירתן של יותר מ-20 חברות, בהן מטרופולינט למילגם ואלפא CSP למלם. הקים ומכר את משרד רואי החשבון שלו, OB&H.",
       },
       {
         photo: "/founders/gesher_ben_final.jpg",
