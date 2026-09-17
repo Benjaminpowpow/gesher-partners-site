@@ -54,6 +54,12 @@ interface Ctx {
   /** One of TIME_TO_SELL. The one field here that tells Ben who to call today. */
   timeToSell: string;
   briefId?: string;
+  /**
+   * The finished run, signed by the server. Held so the brief can still be
+   * emailed after a deploy has emptied the server's in-memory store, which is
+   * what made a real request fail on Sep 17.
+   */
+  runToken?: string;
   company?: Company;
   resultMd?: string;
   rangeVariant?: "number" | "by-hand";
@@ -601,7 +607,12 @@ function WorkingState({ ctx, go }: StateProps) {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        let done: { briefId?: string; meta?: Record<string, string>; result_md?: string } | null =
+        let done: {
+          briefId?: string;
+          meta?: Record<string, string>;
+          result_md?: string;
+          run_token?: string;
+        } | null =
           null;
 
         while (true) {
@@ -659,6 +670,7 @@ function WorkingState({ ctx, go }: StateProps) {
         setStageIdx(WORKING_STAGES.length); // all done
         go("result", {
           briefId: done.briefId,
+          runToken: done.run_token,
           resultMd: md,
           company: {
             name: meta.company_name || deriveName(ctx.url),
@@ -955,6 +967,9 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
       const payload: Record<string, string> = {
         ...lead,
         briefId: ctx.briefId || "",
+        // Our own signed copy of the run, handed back in case the server has
+        // restarted since it made it.
+        runToken: ctx.runToken || "",
       };
       // What he told us at the front door, carried through so Ben opens this
       // email and sees the man, his numbers and his timing in one place.

@@ -44,6 +44,14 @@ services:
       - key: LEAD_NOTIFICATION_EMAIL
         sync: false
 
+      # Signs the finished snapshot so the owner's page can hand it back after
+      # this service restarts. Without it, a deploy loses every snapshot that
+      # has not been emailed yet, and the owner sees "that snapshot has
+      # expired". Any long random string. Changing it expires outstanding
+      # snapshots, which is harmless.
+      - key: BRIEF_TOKEN_SECRET
+        generateValue: true
+
       # The address emails are sent FROM. Must be on a domain verified in
       # Resend. Defaults to office@gesherpartners.com, so leave it blank unless
       # the sending domain changes.

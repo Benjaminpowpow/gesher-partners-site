@@ -9,6 +9,7 @@ import {
   markValuationBriefRequested,
 } from "../lib/leadsSheet";
 import { readSite, siteReadBlock } from "../lib/readSite";
+import { makeRunToken, readRunToken } from "../lib/runToken";
 import {
   buildSnapshotEmailHtml,
   buildSnapshotEmailText,
@@ -580,7 +581,7 @@ async function handleExitBrief(req: Request, res: Response) {
     // v7: split the meta block from the seller-facing cards. Store only the clean
     // markdown so the email and PDF never see the JSON.
     const { meta, resultMd } = parseMetaAndBody(fullMarkdown);
-    briefStore.set(briefId, {
+    const savedRun: SnapshotRun = {
       companyName: meta.company_name,
       companyOneliner: meta.company_oneliner,
       rangeVariant: meta.range_variant,
@@ -594,7 +595,8 @@ async function handleExitBrief(req: Request, res: Response) {
       // /valuation is English only today. Saved with the run so the email never
       // has to guess, and so Hebrew is a words job later.
       lang: "en",
-    });
+    };
+    briefStore.set(briefId, savedRun);
 
     // Save the lead. Fire and forget, and never let a DB hiccup affect the seller.
     void insertValuationLead({
@@ -642,9 +644,17 @@ async function handleExitBrief(req: Request, res: Response) {
       brief: resultMd,
     });
 
-    // Send completion with the parsed meta so the page renders clean fields.
+    // Send completion with the parsed meta so the page renders clean fields,
+    // plus the signed run. The page holds that token and hands it back if it
+    // asks for the email after a restart has emptied briefStore.
     res.write(
-      JSON.stringify({ type: "done", briefId, meta, result_md: resultMd }) + "\n",
+      JSON.stringify({
+        type: "done",
+        briefId,
+        meta,
+        result_md: resultMd,
+        run_token: makeRunToken(savedRun, briefId),
+      }) + "\n",
     );
     res.end();
   } catch (err) {
@@ -823,9 +833,14 @@ async function handlePdfRequest(req: Request, res: Response) {
     return;
   }
 
-  const run = briefStore.get(briefId);
+  // Memory first. If this process has restarted since he ran it, the page
+  // still has the run we signed and sent it, so take it from there.
+  const run = briefStore.get(briefId) ?? readRunToken(req.body?.runToken, briefId);
   if (!run) {
-    res.status(404).json({ message: "Brief not found. Please generate a new one." });
+    res.status(404).json({
+      message:
+        "That snapshot has expired. Run it again and we will email it to you.",
+    });
     return;
   }
 
