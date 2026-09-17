@@ -61,7 +61,11 @@ const COPY = {
     headlineTrail: ".",
     lede: "Sell-side advisors who've sold their own companies\n& helped others do the same",
     ctaTalk: "Talk to us",
-    ctaValuation: "Quick valuation",
+    ctaValuation: "Get a quick valuation",
+    // Hidden label for the website box. The placeholder is a domain, which
+    // reads the same in any language, so it doubles as the visible hint.
+    valuationLabel: "Your business website",
+    valuationPlaceholder: "yourcompany.co.il",
   },
   proof: [
     { value: "40+", unit: "years", label: "Advising business owners" },
@@ -191,17 +195,9 @@ const COPY = {
     placeholders: {
       name: "Your name",
       reach: "How to reach you",
-      revenue: "Select range",
+      revenue: "e.g. 12M",
       message: "Optional",
     },
-    revenueOptions: [
-      "Under 5M NIS",
-      "5–10M NIS",
-      "10–20M NIS",
-      "20–50M NIS",
-      "50M+ NIS",
-      "Prefer not to say",
-    ],
     send: "Send",
     sending: "Sending",
     // Sits above the form when he has just run a valuation. He sees what is
@@ -270,7 +266,15 @@ const COPY_HE: Copy = {
     headlineTrail: " מגיע לו יותר.",
     lede: "ליווי במכירת חברות.\nמכרנו חברות משלנו, וליווינו אחרים במכירה של שלהם.",
     ctaTalk: "לשיחת ייעוץ",
+    // Ben's own Hebrew from file 23, kept verbatim. The English button changed
+    // to "Get a quick valuation" when the hero became a website box; this line
+    // already said the same thing, so it did not need to move.
     ctaValuation: "ניתוח שווי ראשוני",
+    // TODO(hebrew): the hidden label is still English. It is read by screen
+    // readers only, never drawn, and the box next to it shows a domain, which
+    // reads the same in both languages. One line from Ben and it is Hebrew.
+    valuationLabel: "Your business website",
+    valuationPlaceholder: "yourcompany.co.il",
   },
   proof: [
     { value: "+40", unit: "שנה", label: "ליווי בעלי עסקים" },
@@ -394,17 +398,12 @@ const COPY_HE: Copy = {
     placeholders: {
       name: "השם שלך",
       reach: "איך אפשר לחזור אליך",
-      revenue: "בחר טווח",
+      // Was "בחר טווח" (select a range) when this was a dropdown. It is a box
+      // he types into now. A plain figure carries across both languages, so no
+      // new Hebrew was needed. TODO(hebrew): Ben may want a worded hint here.
+      revenue: "12,000,000",
       message: "לא חובה",
     },
-    revenueOptions: [
-      "פחות מ-5 מיליון ש״ח",
-      "5 עד 10 מיליון ש״ח",
-      "10 עד 20 מיליון ש״ח",
-      "20 עד 50 מיליון ש״ח",
-      "מעל 50 מיליון ש״ח",
-      "מעדיף לא לציין",
-    ],
     send: "שלח",
     // Hebrew, Sep 17. Ben waived the English-only rule for this one word, so it
     // is the one line here he did not hand over himself. Flag it for Ofir.
@@ -718,10 +717,20 @@ function Nav({ onTalk }: { onTalk: () => void }) {
   );
 }
 
-/* ─── Hero (unchanged from the live site) ─────────────────────────────────── */
+/* ─── Hero ────────────────────────────────────────────────────────────────── */
 
-function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk: () => void }) {
+function Hero({ onOpenValuation }: { onOpenValuation: (site?: string) => void }) {
   const { copy: C } = useCopy();
+  const [site, setSite] = useState("");
+
+  // Whatever he typed rides to /valuation and lands in the website box there,
+  // already filled in. An empty box still opens the page: he came to find out
+  // what his business is worth either way, and the page will ask him again.
+  function handleValuationSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    onOpenValuation(site.trim() || undefined);
+  }
+
   return (
     <header className="hero" id="top">
       {HERO_VIDEO && (
@@ -750,14 +759,32 @@ function Hero({ onOpenValuation, onTalk }: { onOpenValuation: () => void; onTalk
           <p className="lede">
             <Lines lines={C.hero.lede.split("\n")} />
           </p>
-          <div className="hero-actions">
-            <Button size="lg" onClick={onTalk} arrow>
-              {C.hero.ctaTalk}
-            </Button>
-            <Button size="lg" variant="outline" onClick={onOpenValuation}>
+          {/* Two buttons used to sit here, "Talk to us" and "Quick valuation",
+              and both asked the owner to commit to something before he had any
+              reason to. This asks him for one thing he can answer without
+              thinking, and gives him a number for it. It is the OffDeal front
+              door, which is the model Ben is building against. "Talk to us" is
+              still in the nav, and the contact form is still at the bottom. */}
+          <form className="hero-valuation" onSubmit={handleValuationSubmit}>
+            <label htmlFor="hero-site" className="visually-hidden">
+              {C.hero.valuationLabel}
+            </label>
+            <input
+              id="hero-site"
+              type="text"
+              className="hero-valuation-input"
+              placeholder={C.hero.valuationPlaceholder}
+              value={site}
+              onChange={(e) => setSite(e.target.value)}
+              autoComplete="url"
+              inputMode="url"
+              spellCheck={false}
+              autoCapitalize="off"
+            />
+            <Button size="lg" type="submit" arrow>
               {C.hero.ctaValuation}
             </Button>
-          </div>
+          </form>
         </div>
       </div>
     </header>
@@ -1359,7 +1386,7 @@ function Contact() {
   // panel nobody asked for. The valuation page has its own popup now and sends
   // the run straight from there, so the note had no job left. Cut Sep 17, along
   // with the whole handoff mechanism.
-  const { labels, placeholders, revenueOptions } = C.contact;
+  const { labels, placeholders } = C.contact;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -1439,16 +1466,22 @@ function Contact() {
                 onChange={(e) => setReach(e.target.value)}
               />
             </div>
+            {/* This was a dropdown of revenue bands, with "Prefer not to say"
+                at the bottom. He types the figure now, the same as on the
+                valuation page, because a band tells us almost nothing and a
+                number tells us whether this is a mandate. Still optional. */}
             <div className="field full">
               <label htmlFor="revenue">{labels.revenue}</label>
-              <select id="revenue" value={revenue} onChange={(e) => setRevenue(e.target.value)}>
-                <option value="" disabled>
-                  {placeholders.revenue}
-                </option>
-                {revenueOptions.map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
+              <input
+                id="revenue"
+                type="text"
+                placeholder={placeholders.revenue}
+                value={revenue}
+                onChange={(e) => setRevenue(e.target.value)}
+                inputMode="decimal"
+                autoComplete="off"
+                spellCheck={false}
+              />
             </div>
             <div className="field full">
               <label htmlFor="message">{labels.message}</label>
@@ -1551,7 +1584,11 @@ export default function Home({ lang = "en" }: { lang?: Lang }) {
             <Nav onTalk={talk} />
           </div>
         </header>
-        <Hero onOpenValuation={() => navigate("/valuation")} onTalk={talk} />
+        <Hero
+          onOpenValuation={(site) =>
+            navigate(site ? `/valuation?site=${encodeURIComponent(site)}` : "/valuation")
+          }
+        />
         <ProofStrip />
         <LogoStrip />
         <Challenge />

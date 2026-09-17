@@ -275,16 +275,15 @@
   max-width: 44ch;
 }
 
+/* One column of fields, all the same width, then the button. This replaced a
+   wide URL box with the submit glued to its right and three dropdowns crammed
+   underneath in a 3-up grid. Ben's words on Sep 17: the things aren't even. */
 .v-front-form {
   margin: 0 0 var(--space-5);
   text-align: left;
-}
-
-/* ---- URL input + submit row ---- */
-.v-url-row {
   display: flex;
-  gap: 12px;
-  align-items: stretch;
+  flex-direction: column;
+  gap: 18px;
 }
 .v-input {
   flex: 1 1 auto;
@@ -346,37 +345,10 @@ textarea.v-input {
   outline-offset: 2px;
 }
 
-/* ---- The quiet "add your numbers" link ---- */
-.v-expand-link {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  margin: var(--space-5) 0 0;
-  font-family: var(--font-sans);
-  font-size: 15px;
-  color: var(--navy);
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-decoration-color: var(--hairline);
-  text-underline-offset: 4px;
-  transition: text-decoration-color var(--dur-quick) var(--ease-quiet);
-}
-.v-expand-link:hover { text-decoration-color: var(--navy); }
-.v-expand-link:focus-visible {
-  outline: 2px solid var(--navy);
-  outline-offset: 3px;
-  border-radius: 2px;
-}
+/* The "add your numbers for a tighter range" disclosure link lived here, along
+   with the 3-up .v-numbers grid it opened. The numbers are on the form itself
+   now, so there is nothing left to disclose. Removed Sep 17. */
 
-/* ---- Optional number dropdowns ---- */
-.v-numbers {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-top: var(--space-5);
-}
 .v-field {
   display: flex;
   flex-direction: column;
@@ -401,9 +373,11 @@ textarea.v-input {
   border-radius: var(--radius);
   padding: 0 36px 0 14px;
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 16px;
   color: var(--near-black);
-  min-height: 44px;
+  /* Matches .v-input. They sit in one column now and any difference reads as
+     a mistake. */
+  min-height: 52px;
   line-height: 1.4;
   transition: border-color var(--dur-quick) var(--ease-quiet);
   cursor: pointer;
@@ -423,22 +397,56 @@ textarea.v-input {
   pointer-events: none;
 }
 
-.v-front-privacy {
+/* What we read his typed number as, echoed back under the box. Quiet: it is
+   reassurance, not an instruction. */
+.v-field-echo {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--fg-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+.v-field-error {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--burgundy);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* The padlock line. Sits right above the button, where a man hesitates. */
+.v-front-confidential {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-sans);
   font-size: var(--fs-small);
   color: var(--fg-muted);
   margin: 0;
-  text-align: center;
+}
+.v-lock {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--taupe);
 }
 
-/* ---- Mobile: stack input/submit, single-column dropdowns ---- */
+/* "This is an estimate, not a valuation." Under the form, and again under the
+   range on the result screen. Small, readable, never hidden. */
+.v-disclaimer {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg-muted);
+  margin: var(--space-5) 0 0;
+  text-align: left;
+  max-width: 62ch;
+}
+
 @media (max-width: 640px) {
   .v-front { padding: 64px 20px 96px; }
   .v-front-h1 { font-size: clamp(34px, 9vw, 44px); }
   .v-front-lede { font-size: 17px; margin-bottom: var(--space-6); }
-  .v-url-row { flex-direction: column; gap: 10px; }
-  .v-submit { width: 100%; }
-  .v-numbers { grid-template-columns: 1fr; gap: 14px; }
 }
 
 /* ============================================================

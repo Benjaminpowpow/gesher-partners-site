@@ -46,7 +46,9 @@ var TABS = {
     // The only thing tying this row to its row on the Valuations tab, where the
     // brief and the cost live. Added Sep 17, after the first real test showed
     // the two tabs had no way to find each other.
-    'Valuation brief ID'
+    'Valuation brief ID',
+    // How soon he says he wants out. Added Sep 17 with the new front door.
+    'Valuation time to sell'
   ],
   Valuations: [
     'Date',
@@ -56,6 +58,7 @@ var TABS = {
     'Revenue band',
     'Profit band',
     'Owner salary band',
+    'Time to sell',
     'Vertical',
     'Path',
     'Seconds',
@@ -84,7 +87,8 @@ var FIELDS = {
     'valuationRevenue',
     'valuationProfit',
     'valuationOwnerSalary',
-    'valuationBriefId'
+    'valuationBriefId',
+    'valuationTimeToSell'
   ],
   Valuations: [
     'site',
@@ -93,6 +97,7 @@ var FIELDS = {
     'revenue',
     'profit',
     'ownerSalary',
+    'timeToSell',
     'vertical',
     'path',
     'seconds',
