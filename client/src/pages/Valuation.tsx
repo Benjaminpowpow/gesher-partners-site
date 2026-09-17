@@ -14,7 +14,6 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Lockup } from "@/components/Lockup";
-import { saveValuationHandoff } from "@/lib/valuationHandoff";
 import "./valuation.css";
 
 // Every "talk to us" on this page opens a small form right here. It used to be
@@ -709,23 +708,10 @@ function ResultState({ ctx, go }: StateProps) {
     ? `There are real buyers for a business like yours: ${ctx.buyerTypes}`
     : "";
 
-  // Leave the note for the contact form the moment the range is on screen, not
-  // when he clicks a button. There are half a dozen ways off this page and they
-  // should all carry it: the buttons in the cards, the one in the top bar, the
-  // one on the thank-you screen.
-  useEffect(() => {
-    saveValuationHandoff({
-      briefId: ctx.briefId,
-      site: company.domain || ctx.url,
-      company: company.name,
-      range: ctx.rangeText,
-      revenue: labelFor(REVENUE_RANGES, ctx.revenue),
-      profit: labelFor(PROFIT_RANGES, ctx.profit),
-      ownerSalary: labelFor(OWNER_SALARY_RANGES, ctx.ownerSalary),
-    });
-    // company.name and company.domain are derived from these, no need to list them.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx.briefId, ctx.url, ctx.rangeText, ctx.revenue, ctx.profit, ctx.ownerSalary]);
+  // This used to leave a note in sessionStorage for the home page's contact
+  // form, because "talk to us" sent the owner there. It opens a popup on this
+  // page now, and that popup sends the run itself, so the note had nowhere left
+  // to go. Cut Sep 17 with the rest of the handoff.
 
   return (
     <section className="v-result">
