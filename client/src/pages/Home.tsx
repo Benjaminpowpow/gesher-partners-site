@@ -1397,6 +1397,7 @@ function Contact() {
                   range: handoff.range,
                   revenue: handoff.revenue,
                   profit: handoff.profit,
+                  ownerSalary: handoff.ownerSalary,
                 },
               }
             : {}),

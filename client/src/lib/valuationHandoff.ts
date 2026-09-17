@@ -33,6 +33,7 @@ export interface ValuationHandoff {
   /** The bands he picked on the way in, as labels, not numbers. */
   revenue?: string;
   profit?: string;
+  ownerSalary?: string;
   savedAt: number;
 }
 

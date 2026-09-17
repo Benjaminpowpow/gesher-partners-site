@@ -120,7 +120,7 @@ const WORKING_STAGES = [
 const WORKING_TAGLINES = [
   "We work only for you, the seller.",
   "We run a real auction, buyers in Israel and abroad.",
-  "We tell you the truth, even when it is wait a year.",
+  "We tell you the truth, even when the truth is wait a year.",
 ];
 
 // Working-screen timings.
@@ -367,14 +367,14 @@ function FrontDoorState({ ctx, go }: StateProps) {
             <div id="v-numbers" className="v-numbers v-fade-in">
               <NumberSelect
                 id="v-rev"
-                label="2025 revenue (NIS)"
+                label="Last full year revenue (NIS)"
                 value={revenue}
                 onChange={setRevenue}
                 options={REVENUE_RANGES}
               />
               <NumberSelect
                 id="v-profit"
-                label="Pre-tax profit (NIS)"
+                label="Last full year pre-tax profit (NIS)"
                 value={profit}
                 onChange={setProfit}
                 options={PROFIT_RANGES}
@@ -596,7 +596,7 @@ function WorkingState({ ctx, go }: StateProps) {
       <div className="v-working-left">
         <h2 className="v-working-h2">Building your valuation</h2>
         <p className="v-working-sub">
-          This takes about a minute, sometimes two. Hang tight.
+          This takes a minute, sometimes two.
         </p>
 
         <ol className="v-stages" aria-live="polite" aria-label="Build progress">
@@ -701,10 +701,11 @@ function ResultState({ ctx, go }: StateProps) {
       range: ctx.rangeText,
       revenue: labelFor(REVENUE_RANGES, ctx.revenue),
       profit: labelFor(PROFIT_RANGES, ctx.profit),
+      ownerSalary: labelFor(OWNER_SALARY_RANGES, ctx.ownerSalary),
     });
     // company.name and company.domain are derived from these, no need to list them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx.briefId, ctx.url, ctx.rangeText, ctx.revenue, ctx.profit]);
+  }, [ctx.briefId, ctx.url, ctx.rangeText, ctx.revenue, ctx.profit, ctx.ownerSalary]);
 
   return (
     <section className="v-result">
@@ -737,7 +738,7 @@ function ResultState({ ctx, go }: StateProps) {
           </article>
 
           <article className="v-card v-card-accent">
-            <h2 className="v-card-h">Range and call</h2>
+            <h2 className="v-card-h">Your range</h2>
 
             {variant === "number" ? (
               <>
@@ -846,10 +847,22 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
         ...lead,
         briefId: ctx.briefId || "",
       };
+      // Numbers for the engine and the record.
       if (revenue && REVENUE_MIDPOINTS[revenue])
         payload.revenue = String(REVENUE_MIDPOINTS[revenue]);
       if (profit && PROFIT_MIDPOINTS[profit])
         payload.pretax_profit = String(PROFIT_MIDPOINTS[profit]);
+      if (ownerSalary && SALARY_MIDPOINTS[ownerSalary])
+        payload.owner_salary = String(SALARY_MIDPOINTS[ownerSalary]);
+      // The same numbers as the words he actually picked, plus what he was
+      // shown. Ben opens this email before a call and should not have to
+      // translate "7500000" back into "5 to 10M" in his head.
+      payload.revenueBand = labelFor(REVENUE_RANGES, revenue) ?? "";
+      payload.profitBand = labelFor(PROFIT_RANGES, profit) ?? "";
+      payload.ownerSalaryBand = labelFor(OWNER_SALARY_RANGES, ownerSalary) ?? "";
+      payload.site = ctx.company?.domain || ctx.url || "";
+      payload.companyName = ctx.company?.name ?? "";
+      payload.rangeShown = ctx.rangeText ?? "";
       const res = await fetch("/api/exit-brief/pdf-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -953,19 +966,19 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
             </div>
 
             <p className="v-modal-quiet">
-              Add your numbers and your brief comes back sharper. We never share them.
+              Add your numbers and we will sharpen this before we speak. We never share them.
             </p>
 
             <NumberSelect
               id="lc-rev"
-              label="2025 revenue (NIS)"
+              label="Last full year revenue (NIS)"
               value={revenue}
               onChange={setRevenue}
               options={REVENUE_RANGES}
             />
             <NumberSelect
               id="lc-profit"
-              label="Pre-tax profit (NIS)"
+              label="Last full year pre-tax profit (NIS)"
               value={profit}
               onChange={setProfit}
               options={PROFIT_RANGES}

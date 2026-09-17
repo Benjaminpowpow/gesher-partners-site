@@ -161,6 +161,11 @@ function domainFromUrl(url: string): string | undefined {
   }
 }
 
+// There is no booking tool. Every "talk to us" anywhere, page or email, goes to
+// the contact form on the home page. One constant, so when a real calendar
+// exists this changes in one place.
+const CONTACT_URL = "https://gesherpartners.com/#contact";
+
 // Anyone can POST to /api/contact, so anything that came off the wire gets
 // escaped before it lands in an email we are going to open and read.
 function esc(value: unknown): string {
@@ -180,6 +185,7 @@ function valuationBlockHtml(v?: {
   range?: string;
   revenue?: string;
   profit?: string;
+  ownerSalary?: string;
 }): string {
   if (!v || !v.site) return "";
   const row = (label: string, value?: string) =>
@@ -195,6 +201,7 @@ function valuationBlockHtml(v?: {
         ${row("Range shown", v.range)}
         ${row("Revenue band", v.revenue)}
         ${row("Profit band", v.profit)}
+        ${row("Owner salary band", v.ownerSalary)}
         ${row("Brief ID", v.briefId)}
       </table>
     </div>
@@ -216,6 +223,14 @@ function briefToEmailHtml(markdown: string): string {
         return `<h2 style="font-size: 19px; color: #1B3A5C; margin: 28px 0 10px;">${esc(heading[1])}</h2>`;
       }
       const body = esc(block)
+        // The engine ends every Range card with "**Talk to us.**". In an email
+        // that is a dead sentence unless it goes somewhere, so it becomes the
+        // link to the contact form. Done before the plain bold rule below, so
+        // this one wins.
+        .replace(
+          /\*\*Talk to us\.\*\*/g,
+          `<a href="${CONTACT_URL}" style="color: #1B3A5C; font-weight: bold;">Talk to us.</a>`,
+        )
         .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
         .replace(/^\s*[-*•]\s+/gm, "")
         .replace(/\n/g, "<br>");
@@ -517,6 +532,7 @@ async function handleContact(req: Request, res: Response) {
         range?: string;
         revenue?: string;
         profit?: string;
+        ownerSalary?: string;
       };
     };
 
@@ -629,6 +645,19 @@ async function handlePdfRequest(req: Request, res: Response) {
   const leadPretaxProfit = (req.body?.pretax_profit ?? req.body?.profit) as
     | string
     | undefined;
+  const leadOwnerSalary = req.body?.owner_salary as string | undefined;
+
+  // Everything the owner picked or was shown, in his words. This is what makes
+  // the lead email worth opening: who he is, what he runs, what he told us and
+  // what number he walked away with.
+  const shown = {
+    site: req.body?.site as string | undefined,
+    company: req.body?.companyName as string | undefined,
+    range: req.body?.rangeShown as string | undefined,
+    revenue: req.body?.revenueBand as string | undefined,
+    profit: req.body?.profitBand as string | undefined,
+    ownerSalary: req.body?.ownerSalaryBand as string | undefined,
+  };
 
   if (!name || !email || !briefId) {
     res.status(400).json({ message: "Name, email, and briefId are required." });
@@ -665,6 +694,7 @@ async function handlePdfRequest(req: Request, res: Response) {
     contactPhone: phone || null,
     ...(leadRevenue ? { revenue: leadRevenue } : {}),
     ...(leadPretaxProfit ? { pretaxProfit: leadPretaxProfit } : {}),
+    ...(leadOwnerSalary ? { ownerSalary: leadOwnerSalary } : {}),
   });
 
   const resendKey = process.env.RESEND_API_KEY;
@@ -693,7 +723,7 @@ async function handlePdfRequest(req: Request, res: Response) {
           </div>
           <div style="margin-top: 36px; padding-top: 22px; border-top: 1px solid #DCD4C4;">
             <p style="font-size: 15px; margin: 0 0 14px;">Want to go deeper? We will name the buyers and show you how to push for the top of that range.</p>
-            <a href="https://gesherpartners.com/#contact" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 13px 26px; border-radius: 3px; text-decoration: none; font-family: Arial, sans-serif; font-size: 15px;">Talk to us</a>
+            <a href="${CONTACT_URL}" style="display: inline-block; background: #1B3A5C; color: #ffffff; padding: 13px 26px; border-radius: 3px; text-decoration: none; font-family: Arial, sans-serif; font-size: 15px;">Talk to us</a>
           </div>
           <p style="font-size: 12px; color: #999; margin-top: 32px;">Strictly private. Built from public sources. Not an offer or a valuation opinion.</p>
         </div>
@@ -704,6 +734,7 @@ async function handlePdfRequest(req: Request, res: Response) {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 20px;">
         <h2 style="color: #1B3A5C; margin-bottom: 8px;">New Valuation Snapshot lead</h2>
         <p style="color: #666; font-size: 14px; margin: 0 0 24px;">His copy of the Brief has already been sent to him. Nothing is owed.</p>
+        ${valuationBlockHtml({ ...shown, briefId })}
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 100px;">Name</td>
