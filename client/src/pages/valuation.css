@@ -172,13 +172,18 @@
   line-height: 1;
   padding-inline-start: 2px;
 }
+/* This was an <a> until Sep 17. It opens the talk popup now, so it is a
+   <button>, and a button arrives with a grey box and a border of its own. */
 .v-topbar .talk {
   font-family: var(--font-sans);
   font-size: 15px;
   color: var(--near-black);
   text-decoration: none;
+  background: none;
+  border: 0;
   border-bottom: 1px solid var(--hairline);
-  padding-bottom: 2px;
+  padding: 0 0 2px;
+  cursor: pointer;
   transition: border-color var(--dur-quick) var(--ease-quiet);
 }
 .v-topbar .talk:hover { border-color: var(--navy); }
@@ -299,6 +304,12 @@
 .v-input::placeholder {
   color: var(--fg-muted);
   opacity: 1;
+}
+/* The talk popup's message box borrows .v-input. A textarea needs padding at
+   the top and bottom, which a one-line input does not. */
+textarea.v-input {
+  padding: 14px 16px;
+  resize: vertical;
 }
 .v-input:hover { border-color: #C8BFAB; }
 .v-input:focus {
@@ -621,7 +632,9 @@
 .v-result {
   flex: 1 1 auto;
   width: 100%;
-  padding: 56px 24px 180px; /* bottom padding clears the sticky CTA */
+  /* Was 180px to clear the sticky CTA. The bar went on Sep 17, and the gap
+     it left behind was 180px of nothing under the range card. */
+  padding: 56px 24px 72px;
   display: flex;
   justify-content: center;
 }
@@ -1163,54 +1176,17 @@ a.v-btn {
   justify-content: center;
 }
 
-/* ---- Sticky bottom CTA ---- */
-.v-stickybar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--warm-white);
-  border-top: 1px solid var(--hairline);
-  padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
-  z-index: 50;
-  display: flex;
-  justify-content: center;
-}
-.v-stickybar-cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--navy);
-  color: var(--cream);
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: 15px;
-  line-height: 1.3;
-  text-align: center;
-  padding: 12px 20px;
-  min-height: 48px;
-  border-radius: var(--radius-btn);
-  text-decoration: none;
-  width: 100%;
-  max-width: 520px;
-  white-space: normal;
-  transition: background-color var(--dur-quick) var(--ease-quiet);
-}
-.v-stickybar-cta:hover  { background: #0F1A2D; }
-.v-stickybar-cta:active { background: #0A1322; }
-.v-stickybar-cta:focus-visible {
-  outline: 2px solid var(--navy);
-  outline-offset: 3px;
-}
+/* The sticky bottom CTA lived here. It said "Talk to Ofir Ben Haim and
+   Benjamin Aronson" and sat across the bottom of the range card, a second and
+   weaker copy of the button already inside it. Cut Sep 17. */
 
 @media (max-width: 640px) {
-  .v-result { padding: 40px 20px 160px; }
+  .v-result { padding: 40px 20px 56px; }
   .v-result-header { gap: 14px; margin-bottom: var(--space-6); }
   .v-result-logo { width: 48px; height: 48px; font-size: 22px; }
   .v-card { padding: 22px; }
   .v-card-h { font-size: 20px; margin-bottom: 14px; }
   .v-range { margin-bottom: 14px; }
-  .v-stickybar { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
 }
 
 /* ---------- Quiet fade between states ---------- */
