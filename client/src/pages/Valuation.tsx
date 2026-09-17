@@ -165,13 +165,11 @@ const COMPANY_REVEAL_MS = 2200; // skeleton -> filled company card
 const LEARN_FALLBACK_MS = 5000; // move off "Reading" if no search signal arrives
 const HARD_TIMEOUT_MS = 180000; // never hang: fall back to the calm screen after 3 min
 
-// What a call with us is, in two cards. There used to be a third card here
-// called "Already sent", which said the brief was in his inbox. The heading
-// right above it already says that. Cut Sep 17.
-const SUCCESS_STATS = [
-  { lead: "A short call", body: "We talk through where you are. No pitch." },
-  { lead: "An honest answer", body: "If we can help, we tell you how. If we cannot, we tell you that too." },
-];
+// The sent screen used to carry two cards selling what a call with us is like,
+// and a "Talk to us" button under them. Both went on Sep 17. He had just handed
+// over his name, his email and his phone; the button reopened the same form and
+// asked for them again, and the cards pitched a man who had already said yes.
+// It is a receipt now, and a receipt has nothing to click.
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // The lead email should read the way the screen read: "Within six months", not
@@ -1110,36 +1108,27 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
 }
 
 // ─── Success ─────────────────────────────────────────────────────────────────
-function SuccessState() {
+function SuccessState({ ctx }: StateProps) {
+  const email = ctx.lead?.email;
   return (
     <section className="v-success">
       <div className="v-success-inner">
-        <h1 className="v-success-h1">Sent. Check your inbox.</h1>
-        <p className="v-success-sub">
-          Your one-page brief is in your email. It is yours to keep and to share.
+        <h1 className="v-success-h1">Sent.</h1>
+        {/* His own address, read back. It is the last chance to catch a typo,
+            and it is the difference between "check your inbox" and knowing
+            which inbox. */}
+        {email ? (
+          <p className="v-success-sub">
+            Your one-page brief is on its way to{" "}
+            <strong className="v-success-email">{email}</strong>.
+          </p>
+        ) : (
+          <p className="v-success-sub">Your one-page brief is on its way.</p>
+        )}
+        <p className="v-success-next">
+          It is yours to keep and to share. Ofir or Ben will be in touch within two
+          business days.
         </p>
-
-        <ul className="v-stat-row v-stat-row--boxes" role="list">
-          {SUCCESS_STATS.map((s, i) => (
-            <li className="v-stat" key={i}>
-              <div className="v-stat-text">
-                <p className="v-stat-lead">{s.lead}</p>
-                <p className="v-stat-body">{s.body}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        <div className="v-success-cta">
-          <p className="v-success-cta-line">Want to talk sooner?</p>
-          <button
-            type="button"
-            className="v-btn v-btn-primary v-success-btn"
-            onClick={openTalk}
-          >
-            Talk to us
-          </button>
-        </div>
       </div>
     </section>
   );

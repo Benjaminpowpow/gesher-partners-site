@@ -817,175 +817,32 @@ textarea.v-input {
   font-size: 18px;
   line-height: 1.55;
   color: var(--near-black);
-  margin: 0 auto var(--space-9);
+  margin: 0 auto var(--space-4);
+  max-width: 46ch;
+}
+/* His own address, read back to him. Navy so the eye lands on it, because this
+   is the last moment a typo can still be caught. */
+.v-success-email {
+  color: var(--navy);
+  font-weight: 500;
+  word-break: break-word;
+}
+.v-success-next {
+  font-family: var(--font-sans);
+  font-size: var(--fs-small);
+  line-height: 1.6;
+  color: var(--fg-muted);
+  margin: 0 auto;
   max-width: 44ch;
 }
 
-/* ---- 4-up stat row ----
-   Five layouts. All share grid + lead/body markup. Modifier on the <ul>
-   picks the visual treatment. */
-.v-stat-row {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 var(--space-9);
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  text-align: left;
-}
-.v-stat {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.v-stat-text { display: contents; }
-.v-stat-lead {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: clamp(20px, 2.1vw, 26px);
-  line-height: 1.2;
-  letter-spacing: var(--ls-display);
-  color: var(--navy);
-  margin: 0;
-  text-wrap: balance;
-}
-.v-stat-body {
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--near-black);
-  margin: 0;
-}
-
-/* --- Layout: boxes (default) --- */
-.v-stat-row--boxes .v-stat {
-  background: var(--warm-white);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: 24px 22px;
-  height: 100%;
-}
-
-/* --- Layout: open with rules --- */
-.v-stat-row--open {
-  gap: 32px;
-  border-top: var(--border-hairline);
-  border-bottom: var(--border-hairline);
-  padding: 36px 0;
-  margin-bottom: var(--space-9);
-}
-
-/* --- Layout: numbered cards --- */
-.v-stat-row--numbered .v-stat {
-  background: var(--warm-white);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: 22px 22px 24px;
-  height: 100%;
-  position: relative;
-  gap: 14px;
-}
-.v-stat-num {
-  display: block;
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  color: var(--navy);
-  opacity: 0.55;
-  border-bottom: 1px solid var(--hairline);
-  padding-bottom: 12px;
-  margin-bottom: 0;
-}
-.v-stat-row--numbered .v-stat-text { display: contents; }
-
-/* --- Layout: editorial stack --- */
-.v-stat-row--stack {
-  grid-template-columns: 1fr;
-  gap: 0;
-  border-top: var(--border-hairline);
-}
-.v-stat-row--stack .v-stat {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) 2fr;
-  gap: 28px;
-  padding: 22px 0;
-  border-bottom: var(--border-hairline);
-  align-items: baseline;
-}
-.v-stat-row--stack .v-stat-text {
-  display: contents;
-}
-.v-stat-row--stack .v-stat-lead {
-  font-size: clamp(22px, 2.4vw, 28px);
-}
-.v-stat-row--stack .v-stat-body {
-  font-size: 16px;
-  color: var(--near-black);
-}
-
-/* --- Layout: inline marks (minimal, no boxes, navy square markers) --- */
-.v-stat-row--inline {
-  gap: 28px 24px;
-}
-.v-stat-row--inline .v-stat {
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 14px;
-}
-.v-stat-mark {
-  flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
-  background: var(--navy);
-  border-radius: 1px;
-  margin-top: 10px;
-}
-.v-stat-row--inline .v-stat-text { display: block; }
-.v-stat-row--inline .v-stat-lead { margin-bottom: 4px; }
-
-/* ---- Closing CTA ---- */
-.v-success-cta {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-}
-.v-success-cta-line {
-  font-family: var(--font-sans);
-  font-size: 16px;
-  color: var(--fg-muted);
-  margin: 0;
-}
-.v-success-btn {
-  padding-left: 32px;
-  padding-right: 32px;
-}
+/* The 4-up stat row and the closing "Talk to us" CTA lived here. The sent
+   screen dropped both on Sep 17: it is a receipt now, and a receipt has
+   nothing to sell and nothing to click. */
 
 /* ---- Mobile ---- */
-@media (max-width: 880px) {
-  .v-stat-row {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-  }
-  .v-stat-row--stack {
-    grid-template-columns: 1fr;
-  }
-  .v-stat-row--stack .v-stat {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-}
 @media (max-width: 480px) {
   .v-success { padding: 56px 20px 88px; }
-  .v-stat-row {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  .v-stat-row--open { padding: 24px 0; gap: 22px; }
-  .v-stat-row--inline { gap: 18px; }
-  .v-success-btn { width: 100%; }
 }
 
 /* ============================================================
