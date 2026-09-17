@@ -155,33 +155,90 @@
 /* .hero-actions held the hero's two buttons. The website box replaced them on
    Sep 17. Kept nowhere: the rule went with the markup. */
 
-/* The website box that replaced the hero's two buttons. It sits on the video,
-   so the input is solid rather than translucent: an owner has to be able to
-   read what he is typing over a moving picture. */
+/* The website box that replaced the hero's two buttons.
+
+   One bordered field with the button living inside it, the way OffDeal does
+   it. The first pass put a wide input next to a big button as two separate
+   slabs; it read as two things shouting rather than one thing to fill in.
+
+   The border, the background and the rounding belong to the wrapper. The
+   input inside is bare. The button is small on purpose: it is the control at
+   the end of a field, not a second call to action.
+
+   It sits over the hero video, so the fill is solid. An owner has to be able
+   to read what he is typing over a moving picture.
+
+   Right to left needs no rule of its own. This is a flex row and the Hebrew
+   page sets dir="rtl", so the input and button swap sides by themselves, and
+   the padding below uses logical properties so it follows them. */
 .hero-valuation {
   display: flex;
-  gap: 12px;
-  align-items: stretch;
-  margin-top: 24px;
-  max-width: 560px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 28px;
+  width: 100%;
+  max-width: 520px;
+  background: #FFFFFF;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 6px;
+  padding-inline-start: 18px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+/* The whole box lights up when the cursor is in it, because the whole box is
+   what the eye reads as the control. */
+.hero-valuation:focus-within {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(22, 36, 59, 0.08);
 }
 .hero-valuation-input {
   flex: 1 1 auto;
   min-width: 0;
-  background: var(--warm-white, #FAF7F0);
-  border: 1px solid var(--hairline);
-  border-radius: 2px;
-  padding: 0 18px;
+  background: transparent;
+  border: 0;
+  padding: 0;
   font-family: var(--font-sans);
-  font-size: 17px;
+  font-size: 16px;
   color: var(--near-black);
-  min-height: 56px;
   line-height: 1.4;
-  transition: border-color 160ms ease;
+  min-height: 40px;
 }
 .hero-valuation-input::placeholder { color: var(--taupe); opacity: 1; }
-.hero-valuation-input:hover { border-color: #C8BFAB; }
-.hero-valuation-input:focus { outline: none; border-color: var(--navy); }
+.hero-valuation-input:focus { outline: none; }
+
+.hero-valuation-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--navy);
+  color: var(--cream);
+  border: 0;
+  border-radius: 3px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  padding: 0 18px;
+  min-height: 40px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+.hero-valuation-btn:hover { background: #0F1A2D; }
+.hero-valuation-btn:active { background: #0A1322; }
+.hero-valuation-btn:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.hero-valuation-btn .arrow {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  fill: none;
+  flex: 0 0 auto;
+}
+&.gesher-rtl .hero-valuation-btn .arrow { transform: scaleX(-1); }
 
 /* For labels that exist for a screen reader and are never drawn. */
 .visually-hidden {
@@ -197,8 +254,27 @@
   border: 0;
 }
 
-@media (max-width: 640px) {
-  .hero-valuation { flex-direction: column; gap: 10px; max-width: none; }
+/* Phone. The box stays one box: an input above a full-width button inside the
+   same border, rather than two stacked slabs with a gap between them. The
+   Hebrew button label is longer than the English one and would otherwise eat
+   the input at this width. */
+@media (max-width: 560px) {
+  .hero-valuation {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 10px;
+    max-width: none;
+  }
+  .hero-valuation-input {
+    min-height: 34px;
+    padding-inline: 8px;
+  }
+  .hero-valuation-btn {
+    width: 100%;
+    min-height: 44px;
+    font-size: 15px;
+  }
 }
 .hero .eyebrow { margin-bottom: 28px; }
 .hero h1.hero-headline { margin-bottom: 26px; max-width: 18ch; }

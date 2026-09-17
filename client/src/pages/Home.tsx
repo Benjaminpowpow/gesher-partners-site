@@ -764,7 +764,17 @@ function Hero({ onOpenValuation }: { onOpenValuation: (site?: string) => void })
               reason to. This asks him for one thing he can answer without
               thinking, and gives him a number for it. It is the OffDeal front
               door, which is the model Ben is building against. "Talk to us" is
-              still in the nav, and the contact form is still at the bottom. */}
+              still in the nav, and the contact form is still at the bottom.
+
+              One box with the button inside it. The first pass had a wide input
+              and a big button sitting beside it as two separate slabs, which
+              read as two things shouting rather than one thing to fill in. The
+              border belongs to the wrapper, the input inside is bare, and the
+              button is small because it is a control at the end of a field.
+
+              Right to left comes free: this is a flex row and the Hebrew page
+              sets dir="rtl" on its root, so the input and button swap sides on
+              their own, and the padding uses logical properties to follow. */}
           <form className="hero-valuation" onSubmit={handleValuationSubmit}>
             <label htmlFor="hero-site" className="visually-hidden">
               {C.hero.valuationLabel}
@@ -781,9 +791,12 @@ function Hero({ onOpenValuation }: { onOpenValuation: (site?: string) => void })
               spellCheck={false}
               autoCapitalize="off"
             />
-            <Button size="lg" type="submit" arrow>
+            <button type="submit" className="hero-valuation-btn">
               {C.hero.ctaValuation}
-            </Button>
+              <svg className="arrow" viewBox="0 0 14 14" aria-hidden="true">
+                <path d="M1 7h12M8 2l5 5-5 5" />
+              </svg>
+            </button>
           </form>
         </div>
       </div>

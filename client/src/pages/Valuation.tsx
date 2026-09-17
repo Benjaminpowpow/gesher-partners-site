@@ -87,11 +87,13 @@ interface StateProps {
 
 // How long until he wants to be out. The one thing on this form that tells Ben
 // who to call today, which is what Ofir keeps asking for.
+// Digits, not words. A man scanning a dropdown reads "6" faster than "six",
+// and these are five options he is meant to pick from at a glance.
 const TIME_TO_SELL = [
-  { value: "under-6m", label: "Within six months" },
-  { value: "6-12m", label: "Six to twelve months" },
-  { value: "1-2y", label: "One to two years" },
-  { value: "over-2y", label: "Over two years" },
+  { value: "under-6m", label: "Within 6 months" },
+  { value: "6-12m", label: "6 to 12 months" },
+  { value: "1-2y", label: "1 to 2 years" },
+  { value: "over-2y", label: "Over 2 years" },
   { value: "exploring", label: "Just exploring" },
 ];
 
@@ -352,10 +354,10 @@ function AmountField({
         spellCheck={false}
       />
       {/* He sees us read his number back before he commits to it. "12" coming
-          back as NIS 12M is the difference between trust and a support email. */}
-      <p className="v-field-echo">
-        {parsed ? `We read that as ${formatAmount(parsed)}` : "Type it however you like. 12M, 1.2m, 750000."}
-      </p>
+          back as NIS 12M is the difference between trust and a support email.
+          Only once there is something to read back: the empty version of this
+          line printed the same sentence under both boxes, which was noise. */}
+      {parsed && <p className="v-field-echo">We read that as {formatAmount(parsed)}</p>}
     </div>
   );
 }
