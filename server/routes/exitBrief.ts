@@ -597,8 +597,8 @@ async function handleContact(req: Request, res: Response) {
       stage?: string;
       message?: string;
       sourcePage?: string;
-      // Set when the owner came off the valuation tool. See
-      // client/src/lib/valuationHandoff.ts for how it gets here.
+      // Set when the owner came off the valuation tool. The talk popup on
+      // /valuation sends it; see TalkModal in client/src/pages/Valuation.tsx.
       valuation?: {
         briefId?: string;
         site?: string;
