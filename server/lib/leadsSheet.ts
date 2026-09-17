@@ -64,6 +64,12 @@ export interface LeadRow {
   valuationRevenue?: string;
   valuationProfit?: string;
   valuationOwnerSalary?: string;
+  /**
+   * The id of the run he did. This is the only thing that ties a Leads row to
+   * its Valuations row, where the full brief and the cost sit. Without it the
+   * two tabs are strangers and the only place the link exists is the email.
+   */
+  valuationBriefId?: string;
 }
 
 /**
@@ -87,6 +93,7 @@ export async function appendLeadRow(row: LeadRow): Promise<boolean> {
     valuationRevenue: row.valuationRevenue ?? "",
     valuationProfit: row.valuationProfit ?? "",
     valuationOwnerSalary: row.valuationOwnerSalary ?? "",
+    valuationBriefId: row.valuationBriefId ?? "",
   });
 }
 

@@ -636,6 +636,7 @@ async function handleContact(req: Request, res: Response) {
     valuationRevenue: valuation?.revenue,
     valuationProfit: valuation?.profit,
     valuationOwnerSalary: valuation?.ownerSalary,
+    valuationBriefId: valuation?.briefId,
     // The page the form sat on. Falls back to the referring URL when the form
     // does not send one.
     sourcePage: sourcePage ?? sourcePageFromReferer(req),

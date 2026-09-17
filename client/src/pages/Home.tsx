@@ -412,9 +412,9 @@ const COPY_HE: Copy = {
       "מעדיף לא לציין",
     ],
     send: "שלח",
-    // TODO(hebrew): still English. The button says this for a second while the
-    // form is in flight. Lands with Ofir's review of the page.
-    sending: "Sending",
+    // Hebrew, Sep 17. Ben waived the English-only rule for this one word, so it
+    // is the one line here he did not hand over himself. Flag it for Ofir.
+    sending: "שולח",
     // TODO(hebrew): still English. Rare on this page, because the valuation tool
     // is English only today. It can still happen: run the valuation, then land
     // on /he/. Lands with Ofir's review.
