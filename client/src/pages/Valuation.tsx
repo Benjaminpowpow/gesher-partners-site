@@ -160,7 +160,7 @@ const WORKING_STAGES = [
 
 const WORKING_TAGLINES = [
   "We work only for you, the seller.",
-  "We run a real auction, buyers in Israel and abroad.",
+  "We run a real competitive process, buyers in Israel and abroad.",
   "We tell you the truth, even when the truth is wait a year.",
 ];
 

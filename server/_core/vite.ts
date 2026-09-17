@@ -56,7 +56,7 @@ const HOME_HEAD: Record<Lang, HomeHead> = {
       "Gesher Partners advises owners of private and family businesses in Israel, 5 to 50M NIS in revenue, on the sale of their company. Structured process, competing buyers, documented valuation before any buyer is approached.",
     ogLocale: "en_US",
     serviceDescription:
-      "Sell-side M&A advisor for private and family businesses in Israel with 5 to 50M NIS in revenue. A real auction with many buyers, run by advisors who have sold their own companies.",
+      "Sell-side M&A advisor for private and family businesses in Israel with 5 to 50M NIS in revenue. A real competitive process with many buyers, run by advisors who have sold their own companies.",
     faq: FAQ_ITEMS,
   },
   he: {

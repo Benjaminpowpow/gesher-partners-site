@@ -119,10 +119,14 @@ const COPY = {
       },
       {
         id: 2,
-        roadLabel: "RUN THE AUCTION",
+        // The Hebrew twin of this step never said auction. It says
+        // "תחרות בין קונים", competition between buyers, and
+        // "אנחנו מנהלים תהליך תחרותי", we run a competitive process. The
+        // English was the one out of step. Matched to it on Sep 17.
+        roadLabel: "BUYERS COMPETE",
         outcome:
           "Written offers side by side. We negotiate the best one, on price and on your life after.",
-        lead: "We run the auction.",
+        lead: "We run a competitive process.",
         body: "Serious buyers, screened by us, compete on one deadline. We sit with you in every meeting.",
       },
       {
