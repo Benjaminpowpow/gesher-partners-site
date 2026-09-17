@@ -53,6 +53,8 @@ export interface LeadRow {
   email?: string;
   phone?: string;
   company?: string;
+  /** His own site, asked for on the contact form since Sep 17. */
+  website?: string;
   /** The revenue band the owner picked, as the label they saw on screen. */
   revenue?: string;
   /** Where they are in the process. The live home form does not ask this yet. */
@@ -88,6 +90,7 @@ export async function appendLeadRow(row: LeadRow): Promise<boolean> {
     email: row.email ?? "",
     phone: row.phone ?? "",
     company: row.company ?? "",
+    website: row.website ?? "",
     revenue: row.revenue ?? "",
     stage: row.stage ?? "",
     message: row.message ?? "",

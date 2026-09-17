@@ -48,7 +48,11 @@ var TABS = {
     // the two tabs had no way to find each other.
     'Valuation brief ID',
     // How soon he says he wants out. Added Sep 17 with the new front door.
-    'Valuation time to sell'
+    'Valuation time to sell',
+    // His own site, off the contact form. Added Sep 17. It goes on the end
+    // rather than beside Company, because a column inserted in the middle
+    // would put every row already in the sheet out of step with its headers.
+    'Website'
   ],
   Valuations: [
     'Date',
@@ -88,7 +92,8 @@ var FIELDS = {
     'valuationProfit',
     'valuationOwnerSalary',
     'valuationBriefId',
-    'valuationTimeToSell'
+    'valuationTimeToSell',
+    'website'
   ],
   Valuations: [
     'site',
