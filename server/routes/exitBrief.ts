@@ -3,7 +3,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import { createHash } from "node:crypto";
 import { EXIT_BRIEF_SYSTEM_PROMPT } from "../lib/exitBriefSkill";
-import { appendLeadRow } from "../lib/leadsSheet";
+import {
+  appendLeadRow,
+  appendValuationRow,
+  markValuationBriefRequested,
+} from "../lib/leadsSheet";
 import { insertValuationLead, markValuationLeadPdfRequested } from "../db";
 import { nanoid } from "nanoid";
 
@@ -54,6 +58,43 @@ const BRIEF_MAX_TOKENS = WANTS_ADAPTIVE_THINKING ? 16_000 : 8_000;
 // Israeli company and saves 2 cents a Brief, which is real money next to what
 // the model itself costs now.
 const MAX_WEB_SEARCHES = 4;
+
+// What a run costs, so the Sheet can show it per Brief instead of Ben guessing
+// from the Anthropic console at the end of the month.
+//
+// Dollars per million tokens, straight off the Anthropic pricing page. If you
+// put a model in EXIT_BRIEF_MODEL that is not listed here, the cost column goes
+// blank rather than lying. Add the row when you add the model.
+const MODEL_RATES: Record<
+  string,
+  { input: number; output: number; cacheRead: number; cacheWrite: number }
+> = {
+  "claude-haiku-4-5": { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
+  "claude-sonnet-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
+  "claude-opus-5": { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
+};
+
+// Web search is billed on its own, the same on every model.
+const WEB_SEARCH_COST = 0.01;
+
+function runCostUsd(u: {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+  webSearches: number;
+}): string {
+  const rate = MODEL_RATES[BRIEF_MODEL];
+  if (!rate) return "";
+  // input_tokens from the API excludes what was read from cache, so the two do
+  // not double count. Cache writes are not broken out on this path, so a first
+  // run of the day reads a little cheap here. It is a floor, not a guess.
+  const dollars =
+    (u.inputTokens / 1e6) * rate.input +
+    (u.outputTokens / 1e6) * rate.output +
+    (u.cachedInputTokens / 1e6) * rate.cacheRead +
+    u.webSearches * WEB_SEARCH_COST;
+  return dollars.toFixed(4);
+}
 
 // ─── Spend guards on POST /api/exit-brief ───────────────────────────────────
 // Two gates, because they stop two different things.
@@ -396,7 +437,12 @@ async function handleExitBrief(req: Request, res: Response) {
   let fullMarkdown = "";
   const startedAt = Date.now();
   // Token usage, read off the stream for the leads row (cost per valuation).
-  const usage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
+  const usage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cachedInputTokens: 0,
+    webSearches: 0,
+  };
 
   try {
     const stream = await anthropic.messages.create({
@@ -465,6 +511,12 @@ async function handleExitBrief(req: Request, res: Response) {
         res.write(JSON.stringify({ type: "chunk", data: chunk }) + "\n");
       } else if (event.type === "message_delta") {
         usage.outputTokens = event.usage.output_tokens ?? usage.outputTokens;
+        // How many searches actually ran. Billed separately from tokens, so the
+        // cost column needs it. The API reports the running total, not a delta.
+        const served = (
+          event.usage as { server_tool_use?: { web_search_requests?: number } }
+        ).server_tool_use?.web_search_requests;
+        if (typeof served === "number") usage.webSearches = served;
       }
     }
 
@@ -494,6 +546,28 @@ async function handleExitBrief(req: Request, res: Response) {
       generationMs: Date.now() - startedAt,
       source: (req.headers["referer"] as string | undefined) ?? null,
       ipHash: hashIp(ip),
+    });
+
+    // And the row Ben can actually open. The database above needs a MySQL
+    // server that does not exist; this is the Google Sheet, which is free.
+    // Written for every run, including the ones where nobody leaves a name,
+    // because a stranger reading his range and walking is the thing Ben most
+    // needs to be able to count. Fire and forget, never blocks the seller.
+    void appendValuationRow({
+      site: domainFromUrl(normalizedUrl) ?? normalizedUrl,
+      company: meta.company_name,
+      range: meta.range_text,
+      revenue: revenue ? `NIS ${revenue}` : "",
+      profit: pretaxProfit ? `NIS ${pretaxProfit}` : "",
+      ownerSalary: ownerSalary ? `NIS ${ownerSalary}` : "",
+      vertical: meta.vertical_matched,
+      path: meta.path_used,
+      seconds: ((Date.now() - startedAt) / 1000).toFixed(1),
+      cost: runCostUsd(usage),
+      // Flips to "yes" only if he comes back and asks for the brief.
+      askedForBrief: "no",
+      briefId,
+      brief: resultMd,
     });
 
     // Send completion with the parsed meta so the page renders clean fields.
@@ -559,6 +633,9 @@ async function handleContact(req: Request, res: Response) {
     message,
     valuationSite: valuation?.site,
     valuationRange: valuation?.range,
+    valuationRevenue: valuation?.revenue,
+    valuationProfit: valuation?.profit,
+    valuationOwnerSalary: valuation?.ownerSalary,
     // The page the form sat on. Falls back to the referring URL when the form
     // does not send one.
     sourcePage: sourcePage ?? sourcePageFromReferer(req),
@@ -685,6 +762,10 @@ async function handlePdfRequest(req: Request, res: Response) {
     requestedAt: new Date(),
   };
   leadStore.set(leadId, lead);
+
+  // Fill his details into the valuation row that is already in the Sheet, so
+  // there is one line per run and it says who came back. Non-blocking.
+  void markValuationBriefRequested(briefId, { name, email, phone });
 
   // Update the same lead row by briefId (non-fatal). Fills in the contact, flips
   // pdf_requested, and folds in any numbers the modal collected.

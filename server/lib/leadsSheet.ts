@@ -17,6 +17,35 @@
 // under a second. Eight seconds is slow enough to be a real failure.
 const SHEET_TIMEOUT_MS = 8000;
 
+/**
+ * One valuation run. Written whether or not the owner ever leaves his name,
+ * which is the whole point: without this, a stranger can read his range and
+ * walk, and no trace of it exists anywhere.
+ */
+export interface ValuationRow {
+  site: string;
+  company?: string;
+  /** The range he was shown, exactly as he read it. Empty on a by-hand run. */
+  range?: string;
+  revenue?: string;
+  profit?: string;
+  ownerSalary?: string;
+  /** Which vertical the engine matched, and which path it priced on. */
+  vertical?: string;
+  path?: string;
+  /** How long the run took, in seconds, one decimal. */
+  seconds?: string;
+  /** What the run cost us, in dollars. */
+  cost?: string;
+  askedForBrief?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  briefId?: string;
+  /** The three cards he actually saw. */
+  brief?: string;
+}
+
 export interface LeadRow {
   name: string;
   email?: string;
@@ -32,6 +61,9 @@ export interface LeadRow {
   /** Set when the lead ran the valuation tool before writing in. */
   valuationSite?: string;
   valuationRange?: string;
+  valuationRevenue?: string;
+  valuationProfit?: string;
+  valuationOwnerSalary?: string;
 }
 
 /**
@@ -41,15 +73,62 @@ export interface LeadRow {
  * value is for logging only. Nothing the caller does should depend on it.
  */
 export async function appendLeadRow(row: LeadRow): Promise<boolean> {
+  return writeRow("Leads", {
+    name: row.name,
+    email: row.email ?? "",
+    phone: row.phone ?? "",
+    company: row.company ?? "",
+    revenue: row.revenue ?? "",
+    stage: row.stage ?? "",
+    message: row.message ?? "",
+    sourcePage: row.sourcePage ?? "",
+    valuationSite: row.valuationSite ?? "",
+    valuationRange: row.valuationRange ?? "",
+    valuationRevenue: row.valuationRevenue ?? "",
+    valuationProfit: row.valuationProfit ?? "",
+    valuationOwnerSalary: row.valuationOwnerSalary ?? "",
+  });
+}
+
+/**
+ * Append one valuation run to the "Valuations" tab. Same promise as above:
+ * never throws, never rejects, never blocks the thing the owner is waiting for.
+ */
+export async function appendValuationRow(row: ValuationRow): Promise<boolean> {
+  return writeRow("Valuations", { ...row });
+}
+
+/**
+ * He already ran a valuation, and now he has handed over his details for the
+ * brief. Fill them into the row that is already there rather than adding a
+ * second one. A miss is harmless: he is in the email either way.
+ */
+export async function markValuationBriefRequested(
+  briefId: string,
+  who: { name?: string; email?: string; phone?: string },
+): Promise<boolean> {
+  return writeRow("Valuations", {
+    updateBriefId: briefId,
+    askedForBrief: "yes",
+    name: who.name ?? "",
+    email: who.email ?? "",
+    phone: who.phone ?? "",
+  });
+}
+
+/** The one place that actually talks to the Apps Script. */
+async function writeRow(
+  tab: "Leads" | "Valuations",
+  fields: Record<string, string | undefined>,
+): Promise<boolean> {
   const webhookUrl = process.env.LEADS_SHEET_WEBHOOK;
 
   if (!webhookUrl) {
     // Not an error. The site runs fine with no Sheet, it just keeps no list.
-    console.warn("[leads-sheet] LEADS_SHEET_WEBHOOK not set. Lead not written to the Sheet:", {
-      name: row.name,
-      email: row.email,
-      phone: row.phone,
-    });
+    console.warn(
+      `[leads-sheet] LEADS_SHEET_WEBHOOK not set. Row not written to "${tab}":`,
+      fields,
+    );
     return false;
   }
 
@@ -58,19 +137,12 @@ export async function appendLeadRow(row: LeadRow): Promise<boolean> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        // Which tab the script should write to.
+        tab,
         // The script stamps its own date too. We send ours so the row shows the
-        // moment the lead hit the server, not the moment the script ran.
+        // moment the row hit the server, not the moment the script ran.
         date: new Date().toISOString(),
-        name: row.name,
-        email: row.email ?? "",
-        phone: row.phone ?? "",
-        company: row.company ?? "",
-        revenue: row.revenue ?? "",
-        stage: row.stage ?? "",
-        message: row.message ?? "",
-        sourcePage: row.sourcePage ?? "",
-        valuationSite: row.valuationSite ?? "",
-        valuationRange: row.valuationRange ?? "",
+        ...fields,
       }),
       signal: AbortSignal.timeout(SHEET_TIMEOUT_MS),
     });
