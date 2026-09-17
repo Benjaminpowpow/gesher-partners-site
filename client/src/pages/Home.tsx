@@ -62,10 +62,13 @@ const COPY = {
     lede: "Sell-side advisors who've sold their own companies\n& helped others do the same",
     ctaTalk: "Talk to us",
     ctaValuation: "Get a quick valuation",
-    // Hidden label for the website box. The placeholder is a domain, which
-    // reads the same in any language, so it doubles as the visible hint.
+    // The placeholder carries the whole promise. Ben's call on Sep 17, from
+    // three drawn options: the box says what it does instead of a caption line
+    // under it, so the hero keeps its height and the footage behind it. The
+    // cost, and he took it with his eyes open, is that the sentence disappears
+    // the moment he starts typing.
     valuationLabel: "Your business website",
-    valuationPlaceholder: "yourcompany.co.il",
+    valuationPlaceholder: "Enter your website for a free valuation",
   },
   proof: [
     { value: "40+", unit: "years", label: "Advising business owners" },
@@ -258,23 +261,28 @@ const COPY_HE: Copy = {
   },
   hero: {
     eyebrow: "עסקים פרטיים ומשפחתיים · מחזור 5 עד 50 מיליון ש״ח",
-    // The English puts the emphasis on "life's work". The Hebrew line from
-    // file 23 is "מפעל חייך. מגיע לו יותר." so the emphasis sits on the
-    // first sentence, and the second follows as the trail.
-    headlineLead: "",
-    headlineEmph: "מפעל חייך.",
-    headlineTrail: " מגיע לו יותר.",
-    lede: "ליווי במכירת חברות.\nמכרנו חברות משלנו, וליווינו אחרים במכירה של שלהם.",
+    // The same Hebrew line as before, split in a different place. The emphasis
+    // used to sit on the whole first sentence, "מפעל חייך.", which mirrored the
+    // English, where it sits on "life's work". Ben's call on Sep 17: in Hebrew
+    // the word that should carry the colour is the last one, יותר. The sentence
+    // builds to it, and it is the promise, not the subject.
+    // No trailing space: the JSX adds one after headlineLead, same as English.
+    headlineLead: "מפעל חייך. מגיע לו",
+    headlineEmph: "יותר",
+    headlineTrail: ".",
+    // Ben's revision, Sep 17. The second sentence used to end "במכירה של שלהם".
+    lede: "ליווי במכירת חברות.\nמכרנו חברות משלנו, וליווינו אחרים במכירת החברות שלהם.",
     ctaTalk: "לשיחת ייעוץ",
     // Ben's own Hebrew from file 23, kept verbatim. The English button changed
     // to "Get a quick valuation" when the hero became a website box; this line
     // already said the same thing, so it did not need to move.
     ctaValuation: "ניתוח שווי ראשוני",
-    // TODO(hebrew): the hidden label is still English. It is read by screen
-    // readers only, never drawn, and the box next to it shows a domain, which
-    // reads the same in both languages. One line from Ben and it is Hebrew.
+    // TODO(hebrew): the hidden label is still English. Screen readers only,
+    // never drawn.
     valuationLabel: "Your business website",
-    valuationPlaceholder: "yourcompany.co.il",
+    // Hebrew from Ben, Sep 17, pasted verbatim. This is the line a Hebrew
+    // visitor reads inside the box, so it carries the whole promise on /he/.
+    valuationPlaceholder: "הזן את האתר שלך להערכת שווי בחינם",
   },
   proof: [
     { value: "+40", unit: "שנה", label: "ליווי בעלי עסקים" },
@@ -791,8 +799,16 @@ function Hero({ onOpenValuation }: { onOpenValuation: (site?: string) => void })
               spellCheck={false}
               autoCapitalize="off"
             />
-            <button type="submit" className="hero-valuation-btn">
-              {C.hero.ctaValuation}
+            {/* The label came off the button on Sep 17. It ran the length of
+                the field on a desktop and forced the box to stack into two
+                slabs on a phone, and the sentence it was carrying now sits in
+                the placeholder where there is room for it. The words are still
+                on the button for anyone who cannot see it. */}
+            <button
+              type="submit"
+              className="hero-valuation-btn"
+              aria-label={C.hero.ctaValuation}
+            >
               <svg className="arrow" viewBox="0 0 14 14" aria-hidden="true">
                 <path d="M1 7h12M8 2l5 5-5 5" />
               </svg>

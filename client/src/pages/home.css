@@ -177,12 +177,12 @@
   gap: 8px;
   margin-top: 28px;
   width: 100%;
-  max-width: 520px;
+  max-width: 430px;
   background: #FFFFFF;
   border: 1px solid var(--hairline);
   border-radius: 4px;
-  padding: 6px;
-  padding-inline-start: 18px;
+  padding: 5px;
+  padding-inline-start: 16px;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 /* The whole box lights up when the cursor is in it, because the whole box is
@@ -198,32 +198,31 @@
   border: 0;
   padding: 0;
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: 15px;
   color: var(--near-black);
   line-height: 1.4;
-  min-height: 40px;
+  min-height: 38px;
+  /* The placeholder is a whole sentence now, so a narrow screen has to cut it
+     cleanly rather than clip a letter in half. */
+  text-overflow: ellipsis;
 }
 .hero-valuation-input::placeholder { color: var(--taupe); opacity: 1; }
 .hero-valuation-input:focus { outline: none; }
 
+/* A square with an arrow in it. The label lives on aria-label, not on screen:
+   spelled out, it ran the length of the field and forced the box to stack on a
+   phone, and the sentence it carried is in the placeholder now. */
 .hero-valuation-btn {
   flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  display: inline-grid;
+  place-items: center;
   background: var(--navy);
   color: var(--cream);
   border: 0;
   border-radius: 3px;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: 14px;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  padding: 0 18px;
-  min-height: 40px;
-  white-space: nowrap;
+  width: 38px;
+  height: 38px;
+  padding: 0;
   cursor: pointer;
   transition: background-color 140ms ease;
 }
@@ -231,14 +230,29 @@
 .hero-valuation-btn:active { background: #0A1322; }
 .hero-valuation-btn:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .hero-valuation-btn .arrow {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   stroke: currentColor;
-  stroke-width: 1.5;
+  stroke-width: 1.6;
   fill: none;
-  flex: 0 0 auto;
 }
 &.gesher-rtl .hero-valuation-btn .arrow { transform: scaleX(-1); }
+
+/* Phone. The box stays one row: that is the whole point of taking the words
+   off the button. The type steps down so the sentence in the placeholder still
+   fits beside the arrow at 390px, and again on the narrowest phones. */
+@media (max-width: 560px) {
+  .hero-valuation {
+    max-width: none;
+    padding-inline-start: 14px;
+    gap: 6px;
+  }
+  .hero-valuation-input { font-size: 14px; }
+}
+@media (max-width: 380px) {
+  .hero-valuation { padding-inline-start: 12px; }
+  .hero-valuation-input { font-size: 13px; }
+}
 
 /* For labels that exist for a screen reader and are never drawn. */
 .visually-hidden {
@@ -254,28 +268,10 @@
   border: 0;
 }
 
-/* Phone. The box stays one box: an input above a full-width button inside the
-   same border, rather than two stacked slabs with a gap between them. The
-   Hebrew button label is longer than the English one and would otherwise eat
-   the input at this width. */
-@media (max-width: 560px) {
-  .hero-valuation {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-    padding: 10px;
-    max-width: none;
-  }
-  .hero-valuation-input {
-    min-height: 34px;
-    padding-inline: 8px;
-  }
-  .hero-valuation-btn {
-    width: 100%;
-    min-height: 44px;
-    font-size: 15px;
-  }
-}
+/* The phone rule that used to sit here stacked the input over a full-width
+   button. That was necessary while the button carried a sentence. It does not
+   any more, so the box stays one row at every width and the phone rules live
+   with the rest of the box above. */
 .hero .eyebrow { margin-bottom: 28px; }
 .hero h1.hero-headline { margin-bottom: 26px; max-width: 18ch; }
 .hero .lede { max-width: none; margin-bottom: 36px; font-size: 22px; }
