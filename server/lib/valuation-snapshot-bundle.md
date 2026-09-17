@@ -45,13 +45,15 @@ No preamble before the JSON. No thinking trace. No "Sources used." No tables. No
 5. **Buyers: types only.** No names, no count, in the free brief.
 6. **No manufactured negatives.** A negative must trace to the seller's site or public press. A concentrated market with a dominant leader is not a negative. That leader is a buyer.
 7. **Defensible, not precise.** The number earns the call. It is not an appraisal.
-8. **Read the real site, or do not write.** Build the brief only from the business at the exact domain given. If that site will not load, and your only facts come from searching the name, you have not read the seller. A same-name company is not them. Do not write a brief from it. Mark the run unreadable (Step 1) and stop.
+8. **Read the real site, or do not write.** Build the brief from the business at the exact domain given. Its page text is handed to you under SITE TEXT. That block is the seller's own words and it outranks anything a search turns up: where the two disagree, the site wins. If SITE TEXT says none, you have not read the seller, and searching the name is not a substitute. A same-name company is not them. Do not write a brief from it. Mark the run unreadable (Step 1) and stop.
 
 ### The vertical library and routing
 The vertical library is Section 4 below. Match the seller to one vertical by what they do. If a vertical fits, use its band, its buyers line, and its market read. If none fit, go to the Backup band at the end of Section 4: sort the seller by business model and use that model's band as a rough Path B. Only if the model is unclear, or the business is not a low-tech SMB, is it a wild card with no number. Never name the unmapped vertical in the output.
 
 ### Process
-**Step 1. Read the seller (live, light).** Read their website. Run about 5 to 6 short searches, no more: what they do, scale (employees, a revenue claim, year founded), founder or leadership, any recent news. This is the only live research. Do not hunt comps or buyers live. Those come from the library. If you cannot read the site at the exact domain given, you have not read the seller. Do not build the brief from a same-name company found by search. Mark the run unreadable: output the JSON with `range_variant` set to `unreadable` and every other field an empty string, then write the three headers with no text under them. The page sends the seller to a "we could not read your site" screen.
+**Step 1. Read the seller.** Start with SITE TEXT, the page at their domain, fetched for you and placed in this message. Read it before anything else: what they do, who they serve, how big they sound, how long they have been going, who runs it. Note the headcount if the site gives you one, or lets you infer one from a team page. Then run about 3 to 4 short searches to fill gaps the site leaves and to catch recent news. Fewer than before, because the site is already in front of you. This is the only live research. Do not hunt comps or buyers live. Those come from the library.
+
+If SITE TEXT says none, you have not read the seller. Do not build the brief from a same-name company found by search. Mark the run unreadable: output the JSON with `range_variant` set to `unreadable` and every other field an empty string, then write the three headers with no text under them. The page sends the seller to a "we could not read your site" screen.
 
 **Step 2. Route to a vertical.** Three outcomes: a mapped vertical, the backup band (sort by business model), or a wild card. This decides Card 3.
 
