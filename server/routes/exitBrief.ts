@@ -8,6 +8,7 @@ import {
   appendValuationRow,
   markValuationBriefRequested,
 } from "../lib/leadsSheet";
+import { readSite, siteReadBlock } from "../lib/readSite";
 import { insertValuationLead, markValuationLeadPdfRequested } from "../db";
 import { nanoid } from "nanoid";
 
@@ -451,6 +452,32 @@ async function handleExitBrief(req: Request, res: Response) {
     // six months out needs different words from a man who is just curious.
     if (timeToSell) parts.push(`wants to sell: ${timeToSell}`);
     userMessage += `\nIntake: ${parts.join(", ")}`;
+  }
+
+  // Read the seller's actual website and put it in the prompt.
+  //
+  // The engine has never been able to do this. Its only tool is web_search, so
+  // "read their website" meant "search the name and hope". That is why
+  // optima.org.il failed: the search returned a US real estate firm and several
+  // dental practices, and the engine correctly refused to price a company it
+  // had not read. It is also why the numbers have been soft on the runs that
+  // did work, because those were built from what the web says about a business
+  // rather than what the business says about itself.
+  //
+  // Never blocks and never throws. A site that will not answer comes back null
+  // and the unreadable path works exactly as it did before.
+  const siteRead = await readSite(normalizedUrl);
+  if (siteRead) {
+    userMessage += `\n\n${siteReadBlock(siteRead)}`;
+    console.log(
+      `[exit-brief] read ${siteRead.finalUrl}: ${siteRead.text.length} chars` +
+        (siteRead.truncated ? " (truncated)" : ""),
+    );
+  } else {
+    userMessage +=
+      "\n\nSITE TEXT: none. The page at this domain could not be fetched." +
+      " Search alone is not a reading of the seller. Follow Rule 8.";
+    console.warn(`[exit-brief] could not read ${normalizedUrl}`);
   }
 
   const anthropic = new Anthropic({ apiKey });
