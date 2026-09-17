@@ -111,7 +111,17 @@ const IP_COOLDOWN_MS = 60_000;
 
 // One visitor cannot eat the whole day. Three Briefs is more than an honest
 // owner needs and far less than the day's budget.
-const PER_IP_DAILY_LIMIT = 3;
+//
+// It is a Render field because of who hits it first: Ben, testing his own tool.
+// He ran six valuations in an afternoon on Sep 17 and the fourth one came back
+// as "we have hit today's limit", which reads to him like the tool is broken.
+// Set EXIT_BRIEF_PER_IP_DAILY to something roomy while testing and put it back
+// after. The site-wide cap below is the one that actually bounds the money, and
+// it stays where it is.
+export function perIpDailyLimit(): number {
+  const raw = Number(process.env.EXIT_BRIEF_PER_IP_DAILY);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 3;
+}
 
 // Exported for the tests. A typo in the Render dashboard must not turn the cap
 // off, so anything that is not a positive number falls back to 10.
@@ -372,7 +382,8 @@ async function handleExitBrief(req: Request, res: Response) {
     return;
   }
 
-  if ((briefsTodayByIp.get(ip) ?? 0) >= PER_IP_DAILY_LIMIT) {
+  if ((briefsTodayByIp.get(ip) ?? 0) >= perIpDailyLimit()) {
+    console.warn(`[exit-brief] Per-IP daily limit of ${perIpDailyLimit()} reached.`);
     res.status(429).json({ error: OVER_CAP_MESSAGE });
     return;
   }
