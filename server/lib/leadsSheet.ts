@@ -46,6 +46,16 @@ export interface ValuationRow {
   briefId?: string;
   /** The three cards he actually saw. */
   brief?: string;
+  /**
+   * v8: the four numbers the recipe multiplied, straight from the meta block.
+   * Empty on a run that never reached the recipe (unreadable, wild card). These
+   * sit at the END of the tab, after the brief, because the Apps Script maps
+   * fields to columns by position and older rows must stay in step.
+   */
+  headcount?: string;
+  perHead?: string;
+  margin?: string;
+  multiple?: string;
 }
 
 export interface LeadRow {
