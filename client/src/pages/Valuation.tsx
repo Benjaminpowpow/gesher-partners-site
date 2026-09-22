@@ -785,6 +785,7 @@ function WorkingState({ ctx, go }: StateProps) {
         // word inside the meta JSON can never move the checklist.
         let streamed = "";
         let bodyFrom = -1;
+        let metaFound = false;
         let done: {
           briefId?: string;
           meta?: Record<string, string>;
@@ -809,25 +810,42 @@ function WorkingState({ ctx, go }: StateProps) {
                 streamed += typeof msg.data === "string" ? msg.data : "";
 
                 // Checkpoint 2. The meta block has closed and can be read, so
-                // his own business goes into the card right now.
-                if (bodyFrom === -1) {
+                // his own business goes into the card.
+                //
+                // Kept separate from bodyFrom on purpose. The prompt says the
+                // block comes first and it does not always come first, so the
+                // page goes on looking for it right to the end of the run
+                // instead of giving up once the checklist has moved. Late is
+                // worth having: the card is the one place he sees that we read
+                // his business, not somebody else's.
+                if (!metaFound) {
                   const read = readMetaBlock(streamed);
                   if (read) {
-                    bodyFrom = read.bodyFrom;
+                    metaFound = true;
                     setCompanyName(read.meta.company_name?.trim() || undefined);
                     setOneliner(read.meta.company_oneliner?.trim() || undefined);
-                    advanceTo(2); // -> Reading your market
-                  } else {
-                    // Safety net. If the meta block never turns up in a shape we
-                    // can read, the first card heading still gets the checklist
-                    // moving. The card keeps saying "Reading your website",
-                    // which is honest, and the console says this happened.
-                    const market = streamed.indexOf("## Market");
-                    if (market !== -1) {
-                      bodyFrom = market;
-                      console.log("[valuation] no meta block found, using ## Market");
-                      advanceTo(2);
+                    console.log(
+                      `[valuation] meta block read ${Date.now() - runStartedAt.current}ms`,
+                    );
+                    if (bodyFrom === -1) {
+                      bodyFrom = read.bodyFrom;
+                      advanceTo(2); // -> Reading your market
                     }
+                  }
+                }
+
+                // Safety net. If the meta block has not turned up by the time
+                // the first card heading does, the heading moves the checklist
+                // instead. The card keeps saying "Reading your website", which
+                // is honest, and the console says this happened.
+                if (bodyFrom === -1) {
+                  const market = streamed.indexOf("## Market");
+                  if (market !== -1) {
+                    bodyFrom = market;
+                    console.log(
+                      `[valuation] no meta block yet, ## Market moved the list ${Date.now() - runStartedAt.current}ms`,
+                    );
+                    advanceTo(2);
                   }
                 }
 
