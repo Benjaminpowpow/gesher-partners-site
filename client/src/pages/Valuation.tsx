@@ -12,7 +12,7 @@
  *    the meta fields (range_variant, range_text, buyer_types) per 07-page-skill-bridge.
  *  - Lead capture posts to /api/exit-brief/pdf-request with the briefId.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Lockup } from "@/components/Lockup";
 import "./valuation.css";
 
@@ -150,12 +150,21 @@ function formatAmount(n: number): string {
 const ESTIMATE_DISCLAIMER =
   "This is an estimate, not a valuation. It is built from public information and whatever you tell us here, in a few minutes. A real number needs your financials and a proper look. Nothing here is an offer, or advice to buy or sell.";
 
-// The three real stages of a run. The page advances them off the live stream
-// (read -> learn when the web search starts -> write when text arrives), not a timer.
+// The five real stages of a run. The page advances them off the live stream, never
+// off a timer. It used to sit 27 seconds on one stage called "Writing your brief"
+// with a single dot, which is why a 42 second run felt broken. Each stage now ends
+// on something the engine actually sent:
+//   read   -> the "searching" phase message
+//   learn  -> the JSON meta block at the top of the stream closes
+//   market -> "## Value" arrives in the text
+//   value  -> "## Range and call" arrives in the text
+//   range  -> the "done" message
 const WORKING_STAGES = [
   { id: "read", label: "Reading your website" },
   { id: "learn", label: "Learning your size and your story" },
-  { id: "write", label: "Writing your brief" },
+  { id: "market", label: "Reading your market" },
+  { id: "value", label: "Working out the value" },
+  { id: "range", label: "Setting your range" },
 ] as const;
 
 const WORKING_TAGLINES = [
@@ -165,11 +174,27 @@ const WORKING_TAGLINES = [
 ];
 
 // Working-screen timings.
-const REASSURE_AFTER_MS = 18000; // a stage running this long shows the "still on it" line
+const REASSURE_AFTER_MS = 25000; // one stage running this long shows the long-step line
 const TAG_MS = 6500; // tagline rotation cadence
 const COMPANY_REVEAL_MS = 2200; // skeleton -> filled company card
 const LEARN_FALLBACK_MS = 5000; // move off "Reading" if no search signal arrives
 const HARD_TIMEOUT_MS = 180000; // never hang: fall back to the calm screen after 3 min
+
+// ─── The ring ────────────────────────────────────────────────────────────────
+// The engine never says how far along it is, so the ring is driven by the five
+// checkpoints above. Each one is worth a fifth. Between checkpoints it creeps
+// toward the next one at the pace of a normal run and stops short of it, so it
+// never says a step is finished before the engine does. It never goes backwards.
+// A fast run jumps ahead, a slow run waits.
+
+// What a normal run takes per stage, measured on the live site 2026-09-22. This
+// is the pace the ring creeps at, not a clock the owner waits out.
+const MEDIAN_STAGE_MS = [5000, 10000, 10000, 10000, 7000];
+const RING_CREEP = 0.88; // how far into a stage the ring may get on its own
+const RING_R = 60; // matches the r on the two circles in the SVG below
+const RING_C = 2 * Math.PI * RING_R;
+const RING_SNAP_MS = 220; // the run to 100% once the engine says done
+const RING_HANDOVER_MS = 600; // then the result page opens
 
 // The sent screen used to carry two cards selling what a call is like and a
 // "Talk to us" button under them. Both went on Sep 17. He had just handed over
@@ -300,6 +325,93 @@ function parseResultMarkdown(md: string): { Market: string[]; Value: string[] } 
   return out;
 }
 
+// ─── Reading the meta block while it streams ─────────────────────────────────
+// The engine writes a fenced ```json block first, then the cards. The server
+// splits the same block off at the end (parseMetaAndBody in routes/exitBrief.ts).
+// The working screen has to do it live, because two things hang off it: the
+// company one-liner in the card, and the point where "Learning your size and
+// your story" is finished. Seeing his own business described back to him is the
+// proof the tool actually read him.
+interface StreamMeta {
+  company_name?: string;
+  company_oneliner?: string;
+}
+
+interface MetaRead {
+  meta: StreamMeta;
+  /** Where the seller-facing markdown starts, so headings are never hunted inside the JSON. */
+  bodyFrom: number;
+}
+
+/** Walk an object from its opening brace to its matching close. Null while it is still arriving. */
+function balancedObject(text: string, from: number): string | null {
+  if (text[from] !== "{") return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = from; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(from, i + 1);
+    }
+  }
+  return null;
+}
+
+/** Nothing but fences, rules and blank space in front of the meta block. */
+function isBlankLead(s: string): boolean {
+  return !/[A-Za-z]{3}/.test(s.replace(/json/gi, "").replace(/[-\s`_*]/g, ""));
+}
+
+function parseStreamMeta(raw: string): StreamMeta | null {
+  try {
+    const value: unknown = JSON.parse(raw.trim());
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    return value as StreamMeta;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the meta block out of what has streamed so far.
+ *
+ * Returns null while the block is still arriving, so the caller can just try
+ * again on the next chunk. Two shapes, the same two the server trusts: a fenced
+ * block, and a bare object at the head when the model forgets the fence.
+ */
+function readMetaBlock(text: string): MetaRead | null {
+  const head = text.slice(0, 4000);
+
+  const open = head.match(/```(?:json)?[ \t]*\r?\n?/i);
+  if (open && typeof open.index === "number" && isBlankLead(head.slice(0, open.index))) {
+    const after = open.index + open[0].length;
+    const close = text.indexOf("```", after);
+    if (close === -1) return null; // the block has not closed yet
+    const meta = parseStreamMeta(text.slice(after, close));
+    return meta ? { meta, bodyFrom: close + 3 } : null;
+  }
+
+  const brace = head.indexOf("{");
+  if (brace !== -1 && isBlankLead(head.slice(0, brace))) {
+    const obj = balancedObject(text, brace);
+    if (!obj) return null;
+    const meta = parseStreamMeta(obj);
+    return meta ? { meta, bodyFrom: brace + obj.length } : null;
+  }
+
+  return null;
+}
+
 function CompanyLogo({
   domain,
   name,
@@ -396,8 +508,7 @@ function FrontDoorState({ ctx, go }: StateProps) {
       <div className="v-front-inner">
         <h1 className="v-front-h1">Tell us about your business.</h1>
         <p className="v-front-lede">
-          Your website is all we need to start. Your numbers make the range a great
-          deal sharper.
+          Your website is all we need for a first estimate.
         </p>
 
         <form className="v-front-form" onSubmit={handleSubmit} noValidate>
@@ -510,19 +621,46 @@ function allowRerun(): void {
 
 // ─── Working ─────────────────────────────────────────────────────────────────
 function WorkingState({ ctx, go }: StateProps) {
-  const [stageIdx, setStageIdx] = useState(0); // 0 read, 1 learn, 2 write, 3 done
-  const [stageStartedAt, setStageStartedAt] = useState(() => Date.now());
+  // 0 to 4 is the stage being worked on now. 5 means the engine has finished.
+  const [stageIdx, setStageIdx] = useState(0);
   const [tagIdx, setTagIdx] = useState(0);
   const [companyRevealed, setCompanyRevealed] = useState(false);
   const [reassure, setReassure] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [finishing, setFinishing] = useState(false);
+  // What the meta block said, read live the moment it closed.
+  const [companyName, setCompanyName] = useState<string | undefined>(undefined);
+  const [oneliner, setOneliner] = useState<string | undefined>(undefined);
+
   const domain = useMemo(() => deriveDomain(ctx.url), [ctx.url]);
   const name = useMemo(() => deriveName(ctx.url), [ctx.url]);
 
-  // Reset the per-stage timer when the active stage changes (drives the reassurance line).
-  useEffect(() => {
-    setStageStartedAt(Date.now());
-    setReassure(false);
-  }, [stageIdx]);
+  const runStartedAt = useRef(Date.now());
+  const stageRef = useRef(0); // the same number as stageIdx, readable inside the stream loop
+  // When the stage on screen now began. A ref, not state, because the ring reads
+  // it in the same tick the stage changes, and a state update lands a render
+  // later. With state it read the old start time once per checkpoint and threw
+  // the ring most of the way into the next segment.
+  const stageStartedAt = useRef(Date.now());
+  const peakRef = useRef(0); // the ring never goes backwards
+  const handoverRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Move the checklist on, once, and leave one line in the console with the
+   * milliseconds since the run started. Nothing on the server records how long
+   * a real run takes, so those console lines are the only way to time a run
+   * checkpoint by checkpoint.
+   */
+  const advanceTo = useCallback((next: number) => {
+    if (next <= stageRef.current) return;
+    stageRef.current = next;
+    stageStartedAt.current = Date.now();
+    const finished = WORKING_STAGES[next - 1];
+    console.log(
+      `[valuation] ${finished ? finished.id : "done"} ${Date.now() - runStartedAt.current}ms`,
+    );
+    setStageIdx(next);
+  }, []);
 
   // Rotating italic tagline.
   useEffect(() => {
@@ -539,19 +677,42 @@ function WorkingState({ ctx, go }: StateProps) {
     return () => clearTimeout(t);
   }, []);
 
-  // Reassurance line, only when a stage runs long (most often the middle one).
+  // The long-step line, only when one stage runs past 25 seconds. The clock
+  // restarts every time the stage changes.
   useEffect(() => {
+    setReassure(false);
     if (stageIdx >= WORKING_STAGES.length) return;
     const t = setTimeout(() => setReassure(true), REASSURE_AFTER_MS);
     return () => clearTimeout(t);
-  }, [stageStartedAt, stageIdx]);
+  }, [stageIdx]);
 
   // Fallback so the screen always moves off "Reading" even if the search signal is
-  // missed. The real signals below override this.
+  // missed. The real signals below override it. It is the only timer left that
+  // moves a stage.
   useEffect(() => {
-    const t = setTimeout(() => setStageIdx((s) => (s < 1 ? 1 : s)), LEARN_FALLBACK_MS);
+    const t = setTimeout(() => advanceTo(1), LEARN_FALLBACK_MS);
     return () => clearTimeout(t);
-  }, []);
+  }, [advanceTo]);
+
+  // The ring creeps toward the next checkpoint while the engine works, and stops
+  // 88% of the way there. Landing a checkpoint is what carries it over.
+  useEffect(() => {
+    if (finishing || stageIdx >= WORKING_STAGES.length) return;
+    function tick() {
+      const inStage = Date.now() - stageStartedAt.current;
+      const median = MEDIAN_STAGE_MS[stageIdx] || 10000;
+      const share = Math.min(RING_CREEP, (inStage / median) * RING_CREEP);
+      const next = Math.max(
+        (stageIdx + share) / WORKING_STAGES.length,
+        peakRef.current,
+      );
+      peakRef.current = next;
+      setProgress(next);
+    }
+    tick();
+    const t = setInterval(tick, 100);
+    return () => clearInterval(t);
+  }, [stageIdx, finishing]);
 
   // The real valuation. Fire once, read the stream, advance stages on real signals,
   // and never hang: a hard stop falls back to the calm screen.
@@ -607,6 +768,11 @@ function WorkingState({ ctx, go }: StateProps) {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        // Everything the model has written so far, and where its seller-facing
+        // markdown starts. Headings are only ever hunted past that point, so a
+        // word inside the meta JSON can never move the checklist.
+        let streamed = "";
+        let bodyFrom = -1;
         let done: {
           briefId?: string;
           meta?: Record<string, string>;
@@ -626,9 +792,28 @@ function WorkingState({ ctx, go }: StateProps) {
             try {
               const msg = JSON.parse(line);
               if (msg.type === "phase" && msg.phase === "searching") {
-                setStageIdx((s) => (s < 1 ? 1 : s)); // -> Learning your size and your story
+                advanceTo(1); // -> Learning your size and your story
               } else if (msg.type === "chunk") {
-                setStageIdx((s) => (s < 2 ? 2 : s)); // first text -> Writing your brief
+                streamed += typeof msg.data === "string" ? msg.data : "";
+
+                // Checkpoint 2. The meta block has closed and can be read, so
+                // his own business goes into the card right now.
+                if (bodyFrom === -1) {
+                  const read = readMetaBlock(streamed);
+                  if (read) {
+                    bodyFrom = read.bodyFrom;
+                    setCompanyName(read.meta.company_name?.trim() || undefined);
+                    setOneliner(read.meta.company_oneliner?.trim() || undefined);
+                    advanceTo(2); // -> Reading your market
+                  }
+                }
+
+                // Checkpoints 3 and 4, as each card heading lands.
+                if (bodyFrom !== -1 && stageRef.current < 4) {
+                  const body = streamed.slice(bodyFrom);
+                  if (body.includes("## Range and call")) advanceTo(4);
+                  else if (body.includes("## Value")) advanceTo(3);
+                }
               } else if (msg.type === "done") {
                 done = msg;
               }
@@ -667,8 +852,9 @@ function WorkingState({ ctx, go }: StateProps) {
           return;
         }
 
-        setStageIdx(WORKING_STAGES.length); // all done
-        go("result", {
+        advanceTo(WORKING_STAGES.length); // the fifth checkpoint, all five landed
+
+        const patch: Patch = {
           briefId: done.briefId,
           runToken: done.run_token,
           resultMd: md,
@@ -680,7 +866,22 @@ function WorkingState({ ctx, go }: StateProps) {
           rangeVariant: meta.range_variant === "by_hand" ? "by-hand" : "number",
           rangeText: meta.range_text || "",
           buyerTypes: meta.buyer_types || "",
-        });
+        };
+
+        // A by-hand result has no number to hand over, so it opens the way it
+        // does today, with the ring stopped where it stands. Only a finished run
+        // with a range earns the run to 100%. Nothing runs to 100% on a dead end.
+        if (patch.rangeVariant === "by-hand") {
+          go("result", patch);
+          return;
+        }
+
+        setFinishing(true);
+        peakRef.current = 1;
+        setProgress(1);
+        handoverRef.current = setTimeout(() => {
+          if (active) go("result", patch);
+        }, RING_SNAP_MS + RING_HANDOVER_MS);
       } catch (err) {
         if (active) go("error", { errorMessage: undefined });
       }
@@ -691,24 +892,29 @@ function WorkingState({ ctx, go }: StateProps) {
       active = false;
       controller.abort();
       clearTimeout(hardStop);
+      if (handoverRef.current) clearTimeout(handoverRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const pct = Math.round(progress * 100);
+  const shownName = companyName || name;
+
   return (
     <section className="v-working">
-      <div className="v-working-left">
+      <div className="v-working-head">
         <h2 className="v-working-h2">Building your valuation</h2>
         <p className="v-working-sub">
           This takes a minute, sometimes two.
         </p>
+      </div>
 
+      <div className="v-working-left">
         <ol className="v-stages" aria-live="polite" aria-label="Build progress">
           {WORKING_STAGES.map((stage, i) => {
             const status = i < stageIdx ? "done" : i === stageIdx ? "active" : "pending";
-            const isLong = stage.id === "learn";
             return (
-              <li key={stage.id} className={"v-stage is-" + status + (isLong ? " is-long" : "")}>
+              <li key={stage.id} className={"v-stage is-" + status}>
                 <span className="v-stage-mark" aria-hidden="true">
                   {status === "done" && (
                     <svg viewBox="0 0 18 18" className="v-stage-check">
@@ -722,14 +928,7 @@ function WorkingState({ ctx, go }: StateProps) {
                       />
                     </svg>
                   )}
-                  {status === "active" && !isLong && <span className="v-stage-dot"></span>}
-                  {status === "active" && isLong && (
-                    <span className="v-stage-dots">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </span>
-                  )}
+                  {status === "active" && <span className="v-stage-dot"></span>}
                 </span>
                 <span className="v-stage-label">{stage.label}</span>
               </li>
@@ -744,29 +943,47 @@ function WorkingState({ ctx, go }: StateProps) {
           }
           aria-live="polite"
         >
-          Still on it. A thorough read takes a little longer.
+          This step takes longer than the rest.
         </p>
-
-        <div className="v-tagline" aria-hidden="true">
-          {WORKING_TAGLINES.map((t, i) => (
-            <span
-              key={i}
-              className={"v-tagline-line" + (i === tagIdx ? " is-visible" : "")}
-            >
-              {t}
-            </span>
-          ))}
-        </div>
       </div>
 
       <div className="v-working-right">
+        {/* Fills once, never spins. A wheel says "waiting". This says "working". */}
+        <div className="v-ring-wrap">
+          <div
+            className={"v-ring" + (finishing ? " is-finishing" : "")}
+            role="img"
+            aria-label={pct + " percent done"}
+          >
+            <svg viewBox="0 0 132 132" aria-hidden="true">
+              <circle className="track" cx="66" cy="66" r={RING_R} />
+              <circle
+                className="fill"
+                cx="66"
+                cy="66"
+                r={RING_R}
+                strokeDasharray={RING_C}
+                strokeDashoffset={RING_C * (1 - progress)}
+              />
+            </svg>
+            <span className="v-ring-num">{pct}%</span>
+          </div>
+        </div>
+
         <div className="v-company-card">
           {companyRevealed ? (
             <div className="v-company-content v-fade-in" key="filled">
-              <CompanyLogo domain={domain} name={name} className="v-company-logo" />
+              <CompanyLogo domain={domain} name={shownName} className="v-company-logo" />
               <div className="v-company-body">
-                <h3 className="v-company-name">{name}</h3>
-                <p className="v-company-tagline">Reading your website.</p>
+                <h3 className="v-company-name">{shownName}</h3>
+                {/* The key swap replays the fade, so the moment his own business
+                    is described back to him is the moment the line changes. */}
+                <p
+                  className="v-company-tagline v-fade-in"
+                  key={oneliner ? "oneliner" : "reading"}
+                >
+                  {oneliner || "Reading your website."}
+                </p>
               </div>
             </div>
           ) : (
@@ -778,6 +995,19 @@ function WorkingState({ ctx, go }: StateProps) {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="v-tagline-slot">
+        <div className="v-tagline" aria-hidden="true">
+          {WORKING_TAGLINES.map((t, i) => (
+            <span
+              key={i}
+              className={"v-tagline-line" + (i === tagIdx ? " is-visible" : "")}
+            >
+              {t}
+            </span>
+          ))}
         </div>
       </div>
     </section>

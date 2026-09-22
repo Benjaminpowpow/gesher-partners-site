@@ -452,6 +452,11 @@ textarea.v-input {
 /* ============================================================
    STATE: Working
    ============================================================ */
+/* Desktop: headline and steps left, ring and company card right, tagline under
+   the steps. The rows are placed by hand so the right column can stand beside
+   both the headline and the steps, and so the tagline still sits under the
+   steps and not under the card. Row gap is 0 on purpose: the spacing between
+   the rows comes from the margins on the blocks themselves. */
 .v-working {
   flex: 1 1 auto;
   width: 100%;
@@ -460,11 +465,18 @@ textarea.v-input {
   padding: 80px 24px 128px;
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: 64px;
+  column-gap: 64px;
+  row-gap: 0;
   align-items: start;
 }
-.v-working-left { min-width: 0; }
-.v-working-right { min-width: 0; }
+.v-working-head,
+.v-working-left,
+.v-working-right,
+.v-tagline-slot { min-width: 0; }
+.v-working-head { grid-column: 1; grid-row: 1; }
+.v-working-left { grid-column: 1; grid-row: 2; }
+.v-working-right { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+.v-tagline-slot { grid-column: 1; grid-row: 3; }
 
 .v-working-h2 {
   font-family: var(--font-serif);
@@ -525,15 +537,66 @@ textarea.v-input {
 .v-check-row.is-done .v-check-box svg { opacity: 1; }
 .v-check-text { padding-top: 0; }
 
-/* ---- Rotating italic tag line ---- */
-.v-tagline {
+/* ---- The ring ----
+   Thin navy circle, hairline track, the percentage in the middle. It fills once
+   and never spins, because a spinning wheel says "waiting" and this screen is
+   meant to say "working". Geometry matches the two circles in the SVG: r=60 in
+   a 132 box, so the stroke sits inside the edge. */
+.v-ring-wrap {
+  display: flex;
+  align-items: center;
+  margin: 0 0 28px;
+}
+.v-ring {
+  flex: 0 0 auto;
   position: relative;
+  width: 132px;
+  height: 132px;
+}
+.v-ring svg {
+  width: 132px;
+  height: 132px;
+  transform: rotate(-90deg); /* start at twelve o'clock */
+  display: block;
+}
+.v-ring .track { fill: none; stroke: var(--hairline); stroke-width: 3; }
+.v-ring .fill {
+  fill: none;
+  stroke: var(--navy);
+  stroke-width: 3;
+  stroke-linecap: butt;
+  transition: stroke-dashoffset 400ms linear;
+}
+/* The run to 100% once the engine says done. */
+.v-ring.is-finishing .fill { transition: stroke-dashoffset 220ms var(--ease-quiet); }
+.v-ring-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 32px;
+  color: var(--navy);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--ls-display);
+}
+@media (max-width: 640px) {
+  .v-ring, .v-ring svg { width: 108px; height: 108px; }
+  .v-ring-num { font-size: 27px; }
+}
+
+/* ---- Rotating italic tag line ----
+   Stacked with grid, not absolute positioning, so the box is as tall as the
+   longest line and nothing can land on top of anything else. */
+.v-tagline {
+  display: grid;
   min-height: 1.7em;
   margin: 0;
 }
 .v-tagline-line {
-  position: absolute;
-  inset: 0;
+  grid-area: 1 / 1;
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
@@ -621,13 +684,26 @@ textarea.v-input {
 .v-skel-short { width: 42%; }
 .v-skel-long { width: 88%; }
 
-/* ---- Mobile: stack columns ---- */
+/* ---- Mobile: headline, company card, steps, ring, tagline ----
+   The card comes second on a phone because seeing his own business named is the
+   proof the tool read him, and on a small screen he should get that before he
+   scrolls past a list. display:contents drops the right column out of the way so
+   its two children can be ordered in among the left ones. */
 @media (max-width: 880px) {
   .v-working {
-    grid-template-columns: 1fr;
-    gap: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
     padding: 56px 20px 96px;
   }
+  .v-working-right { display: contents; }
+  .v-working-head { order: 1; }
+  .v-company-card { order: 2; }
+  .v-working-left { order: 3; }
+  .v-ring-wrap { order: 4; margin: 0; justify-content: flex-start; }
+  .v-tagline-slot { order: 5; }
+  .v-stages { margin-bottom: 0; }
+  .v-reassure { margin-bottom: 0; }
   .v-check-row { font-size: 16px; }
 }
 @media (max-width: 480px) {
@@ -1154,9 +1230,11 @@ a.v-btn {
   .v-placeholder { padding: 64px 20px; }
 }
 
-/* ---------- Working screen: three real stages (ported from the design) ----------
-   Fixed-width mark column (28px) so all three labels line up. The middle stage gets
-   a slow three-dot pulse so a long search never looks frozen. */
+/* ---------- Working screen: five real stages ----------
+   Fixed-width mark column (28px) so all five labels line up. Every active stage
+   gets the same single pulsing dot. The middle stage used to get three bouncing
+   dots because it was the one that dragged; with five real stages there is no
+   single long one left, so the special case went. */
 .v-stages {
   list-style: none;
   padding: 0;
@@ -1186,11 +1264,12 @@ a.v-btn {
 .v-stage-label { min-width: 0; transition: color 700ms var(--ease-quiet); }
 .v-stage.is-pending { color: var(--fg-muted); opacity: 0.45; }
 .v-stage.is-done { color: var(--fg-muted); }
+/* A done step looks done. Full navy, not 75% of it. */
 .v-stage-check {
   width: 18px;
   height: 18px;
   color: var(--navy, #16243B);
-  opacity: 0.75;
+  opacity: 1;
   animation: vFadeIn var(--dur-fade) var(--ease-quiet) both;
 }
 .v-stage.is-active { color: var(--navy, #16243B); }
@@ -1202,27 +1281,12 @@ a.v-btn {
   background: var(--navy, #16243B);
   animation: vPulseDot 1800ms ease-in-out infinite;
 }
-.v-stage-dots { display: inline-flex; align-items: center; gap: 4px; }
-.v-stage-dots span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--navy, #16243B);
-  opacity: 0.25;
-  animation: vPulseSeq 2200ms ease-in-out infinite;
-}
-.v-stage-dots span:nth-child(2) { animation-delay: 280ms; }
-.v-stage-dots span:nth-child(3) { animation-delay: 560ms; }
 @keyframes vPulseDot {
   0%, 100% { opacity: 0.35; transform: scale(0.92); }
   50%      { opacity: 1;    transform: scale(1); }
 }
-@keyframes vPulseSeq {
-  0%, 60%, 100% { opacity: 0.25; }
-  20%           { opacity: 1; }
-}
 
-/* Reassurance line (slow runs only) */
+/* The long-step line. One stage past 25 seconds, and only then. */
 .v-reassure {
   font-family: var(--font-sans);
   font-size: 15px;
