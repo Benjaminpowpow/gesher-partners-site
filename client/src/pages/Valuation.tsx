@@ -372,11 +372,14 @@ function isBlankLead(s: string): boolean {
   return !/[A-Za-z]{3}/.test(s.replace(/json/gi, "").replace(/[-\s`_*]/g, ""));
 }
 
+/** Parses, and looks like our meta rather than some other object the model wrote. */
 function parseStreamMeta(raw: string): StreamMeta | null {
   try {
     const value: unknown = JSON.parse(raw.trim());
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-    return value as StreamMeta;
+    const meta = value as StreamMeta & { range_variant?: string };
+    if (!meta.company_name && !meta.company_oneliner && !meta.range_variant) return null;
+    return meta;
   } catch {
     return null;
   }
@@ -386,27 +389,36 @@ function parseStreamMeta(raw: string): StreamMeta | null {
  * Read the meta block out of what has streamed so far.
  *
  * Returns null while the block is still arriving, so the caller can just try
- * again on the next chunk. Two shapes, the same two the server trusts: a fenced
- * block, and a bare object at the head when the model forgets the fence.
+ * again on the next chunk. Two shapes, the same two the server trusts in
+ * parseMetaAndBody: a fenced block, and a bare object at the head when the model
+ * forgets the fence.
+ *
+ * The fenced block is taken from wherever it sits, not only from the very top.
+ * The prompt says no preamble, and the model writes one anyway while it is
+ * searching. This function used to demand a clean run-up and so it never found
+ * the block on a real run, while the server, which has no such demand, found it
+ * every time. Page and server have to agree on this block or the card says one
+ * thing and the result page says another.
  */
 function readMetaBlock(text: string): MetaRead | null {
-  const head = text.slice(0, 4000);
-
-  const open = head.match(/```(?:json)?[ \t]*\r?\n?/i);
-  if (open && typeof open.index === "number" && isBlankLead(head.slice(0, open.index))) {
+  // The first fence that actually opens an object. A code fence in the model's
+  // preamble is skipped, the same way the server's regex skips it.
+  const open = text.match(/```(?:json)?\s*(?=\{)/i);
+  if (open && typeof open.index === "number") {
     const after = open.index + open[0].length;
     const close = text.indexOf("```", after);
     if (close === -1) return null; // the block has not closed yet
     const meta = parseStreamMeta(text.slice(after, close));
-    return meta ? { meta, bodyFrom: close + 3 } : null;
+    if (meta) return { meta, bodyFrom: close + 3 };
   }
 
+  const head = text.slice(0, 4000);
   const brace = head.indexOf("{");
   if (brace !== -1 && isBlankLead(head.slice(0, brace))) {
     const obj = balancedObject(text, brace);
     if (!obj) return null;
     const meta = parseStreamMeta(obj);
-    return meta ? { meta, bodyFrom: brace + obj.length } : null;
+    if (meta) return { meta, bodyFrom: brace + obj.length };
   }
 
   return null;
@@ -805,6 +817,17 @@ function WorkingState({ ctx, go }: StateProps) {
                     setCompanyName(read.meta.company_name?.trim() || undefined);
                     setOneliner(read.meta.company_oneliner?.trim() || undefined);
                     advanceTo(2); // -> Reading your market
+                  } else {
+                    // Safety net. If the meta block never turns up in a shape we
+                    // can read, the first card heading still gets the checklist
+                    // moving. The card keeps saying "Reading your website",
+                    // which is honest, and the console says this happened.
+                    const market = streamed.indexOf("## Market");
+                    if (market !== -1) {
+                      bodyFrom = market;
+                      console.log("[valuation] no meta block found, using ## Market");
+                      advanceTo(2);
+                    }
                   }
                 }
 
