@@ -63,6 +63,97 @@ export interface SiteRead {
   text: string;
   /** True when the text was cut at the cap. */
   truncated: boolean;
+  /**
+   * The headcount the v8 recipe multiplies, read off the company's own LinkedIn
+   * page when the site links to one. Already mapped to the lower third of the
+   * band ("11-50" becomes 20), the same way the bundle tells the model to do it.
+   * Undefined when the site has no LinkedIn link or the page gave no band.
+   */
+  headcount?: number;
+  /** Where the headcount came from, for the prompt line and the log. */
+  headcountSource?: string;
+}
+
+// The engine has to know how big the business is before it can price it, and
+// with no numbers from the owner the only honest size signal is headcount. Until
+// Sep 22 the model went looking for that itself, with its own search, at default
+// randomness: the search finds the LinkedIn page's address but not the number on
+// it, so one run priced Optima at 55M and the next refused. The page itself is
+// public and says "11-50 עובדים", and most Israeli SMB sites link to it from the
+// footer. So we fetch it here, once, and hand the model the number as a fact.
+const LINKEDIN_TIMEOUT_MS = 6_000;
+
+// LinkedIn's bands, mapped to the lower third, matching Step 3 of the bundle.
+// Israeli company pages count leavers and contractors, so the middle overstates.
+const LINKEDIN_BANDS: Array<[number, number, number]> = [
+  [1, 10, 5],
+  [11, 50, 20],
+  [51, 200, 80],
+  [201, 500, 250],
+  [501, 1000, 600],
+  [1001, 5000, 1200],
+];
+
+/** The first link to a LinkedIn company page in the HTML, if any. */
+function findLinkedIn(html: string): string | undefined {
+  const m = html.match(
+    /https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/company\/[A-Za-z0-9._%-]+\/?/i,
+  );
+  return m ? m[0] : undefined;
+}
+
+/**
+ * Fetch the LinkedIn company page and read the employee band off it.
+ *
+ * Never throws. Anything that is not a clean band comes back undefined and the
+ * bundle's own rule takes over (no headcount, no number). LinkedIn sometimes
+ * answers a server address with a 999; that lands here as undefined too, and
+ * the console line says so, which is the signal to move this fetch behind the
+ * model's own fetch tool if it happens on Render.
+ */
+async function readLinkedInHeadcount(
+  url: string,
+): Promise<{ headcount: number; source: string } | undefined> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LINKEDIN_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      redirect: "follow",
+      signal: controller.signal,
+      headers: { "User-Agent": UA, "Accept-Language": "he,en;q=0.8", Accept: "text/html" },
+    });
+    if (!res.ok) {
+      console.warn(`[exit-brief] linkedin ${url}: HTTP ${res.status}`);
+      return undefined;
+    }
+    const html = await res.text();
+    if (!html || html.length > MAX_BYTES) return undefined;
+    const text = htmlToText(html);
+    // "11-50 employees" or "11-50 עובדים". The dash varies by locale.
+    // Hebrew pages wrap the numbers in invisible direction marks, so those are
+    // allowed wherever a space is.
+    const band = text.match(/(\d{1,3}(?:,\d{3})*)[\s\u200e\u200f]*[-–][\s\u200e\u200f]*(\d{1,3}(?:,\d{3})*)[\s\u200e\u200f]*(?:employees|עובדים)/i);
+    if (band) {
+      const low = Number(band[1].replace(/,/g, ""));
+      const high = Number(band[2].replace(/,/g, ""));
+      const known = LINKEDIN_BANDS.find(([a, b]) => a === low && b === high);
+      const headcount = known ? known[2] : Math.round(low + (high - low) / 3);
+      return { headcount, source: `LinkedIn ${low}-${high}` };
+    }
+    // "10,001+ employees", the open-ended top band. Far above the gate anyway.
+    const open = text.match(/(\d{1,3}(?:,\d{3})*)\+[\s\u200e\u200f]*(?:employees|עובדים)/i);
+    if (open) {
+      const low = Number(open[1].replace(/,/g, ""));
+      return { headcount: low, source: `LinkedIn ${low}+` };
+    }
+    console.warn(`[exit-brief] linkedin ${url}: page read, no employee band on it`);
+    return undefined;
+  } catch {
+    console.warn(`[exit-brief] linkedin ${url}: fetch failed or timed out`);
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -209,6 +300,12 @@ export async function readSite(rawUrl: string): Promise<SiteRead | null> {
     // engine a nav bar and let it call that a reading of the business.
     if (full.length < 200) return null;
 
+    // The LinkedIn link comes out of the page we just read, so this cannot start
+    // any earlier. It is one more small fetch, about a second, capped at six.
+    const linkedIn = findLinkedIn(raw);
+    const size = linkedIn ? await readLinkedInHeadcount(linkedIn) : undefined;
+    if (linkedIn && !size) console.warn(`[exit-brief] linkedin link found, no headcount: ${linkedIn}`);
+
     const truncated = full.length > MAX_TEXT_CHARS;
     return {
       finalUrl,
@@ -217,6 +314,8 @@ export async function readSite(rawUrl: string): Promise<SiteRead | null> {
       description,
       text: truncated ? full.slice(0, MAX_TEXT_CHARS) : full,
       truncated,
+      headcount: size?.headcount,
+      headcountSource: size?.source,
     };
   } catch {
     // Timeout, DNS, TLS, a host that hung up. All the same to the caller.
@@ -237,12 +336,22 @@ export function siteReadBlock(read: SiteRead): string {
   if (read.title) head.push(`Page title: ${read.title}`);
   if (read.description) head.push(`Meta description: ${read.description}`);
   if (read.truncated) head.push("(text truncated at 25,000 characters)");
-  return [
+  const lines = [
     "SITE TEXT. This is the page at the domain the seller gave, fetched for you.",
     "It is the seller's own words. Treat it as the reading of the site that Step 1 asks for.",
     head.join("\n"),
     "---",
     read.text,
     "---",
-  ].join("\n");
+  ];
+  // The recipe's first step, done for the model. When this line is present it
+  // is the headcount, already mapped to the lower third; do not search for
+  // another. When it is absent the bundle's own rule applies.
+  if (read.headcount) {
+    lines.push(
+      `HEADCOUNT: ${read.headcount} (${read.headcountSource}, from the seller's own site link). ` +
+        "Use this as headcount_used. Do not search for the headcount.",
+    );
+  }
+  return lines.join("\n");
 }

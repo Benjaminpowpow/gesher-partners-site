@@ -313,21 +313,36 @@ function renderValuePoint(line: string, key: number): React.ReactNode {
 }
 
 // Section keys the page renders out of result_md. The Range card is built from the
-// meta fields, not from the markdown, so we only need Market and Value here.
-function parseResultMarkdown(md: string): { Market: string[]; Value: string[] } {
+// meta fields (the number, the buyer line), plus one thing from the markdown since
+// v8: the sentence right under the number, where the engine names what it assumed
+// ("It assumes about 20 staff and a 16% margin. Tell us if that is off."). That
+// line is the hook for real numbers, and until Sep 22 the page never showed it.
+function parseResultMarkdown(md: string): { Market: string[]; Value: string[]; rangeLead: string } {
   const out: { Market: string[]; Value: string[] } = { Market: [], Value: [] };
-  let cur: "Market" | "Value" | null = null;
+  const range: string[] = [];
+  let cur: "Market" | "Value" | "Range" | null = null;
   for (const raw of (md || "").split("\n")) {
     const line = raw.trim();
     const heading = line.match(/^##\s+(.+?)\s*$/);
     if (heading) {
       const name = heading[1].trim();
-      cur = name === "Market" || name === "Value" ? name : null;
+      cur = name === "Market" || name === "Value" ? name : name.startsWith("Range") ? "Range" : null;
       continue;
     }
-    if (cur && line) out[cur].push(line);
+    if (!cur || !line) continue;
+    if (cur === "Range") range.push(line);
+    else out[cur].push(line);
   }
-  return out;
+  // The lead is what sits between the "# ₪..." line and the buyer line. The
+  // buyer line and the fixed closing sentence are rendered from the meta, so
+  // stop at the first of them.
+  const lead: string[] = [];
+  for (const line of range) {
+    if (line.startsWith("#")) continue;
+    if (/^(There are real buyers|We work only for you|\*\*Talk to us)/i.test(line)) break;
+    lead.push(line);
+  }
+  return { ...out, rangeLead: lead.join(" ") };
 }
 
 // ─── Reading the meta block while it streams ─────────────────────────────────
@@ -1111,6 +1126,7 @@ function ResultState({ ctx, go }: StateProps) {
               <>
                 {ctx.rangeText && <p className="v-range">{ctx.rangeText}</p>}
                 <div className="v-card-body">
+                  {sections.rangeLead && <p>{renderInline(sections.rangeLead)}</p>}
                   {buyerLine && <p>{buyerLine}</p>}
                   <p className="v-trust">
                     We work only for you, the seller. Most of our fee comes only when you sell.

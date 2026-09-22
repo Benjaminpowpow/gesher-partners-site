@@ -285,6 +285,27 @@ interface BriefMeta {
   buyer_types?: string;
   vertical_matched?: string; // internal calibration, never shown
   path_used?: string; // internal calibration, never shown
+  // v8: the four numbers the recipe multiplied. Logged to the Valuations tab so
+  // a wrong range can be read instead of guessed at. 0 when a step was not used.
+  headcount_used?: number | string;
+  revenue_per_head?: number | string;
+  margin?: number | string;
+  multiple?: number | string;
+}
+
+/**
+ * v8 rounding, in the bundle's own words: under ₪20M to the nearest ₪0.5M,
+ * above to the nearest ₪1M. The model was told to do this and printed ₪8.75M
+ * anyway, so the server owns it. Runs on the meta range_text and on the "# ₪"
+ * line of the markdown, so the page, the email and the sheet all agree.
+ */
+function roundMoney(value: number): string {
+  const step = value < 20 ? 0.5 : 1;
+  const r = Math.round(value / step) * step;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
+function roundRangeText(text: string): string {
+  return text.replace(/₪\s?(\d+(?:\.\d+)?)\s?M/g, (_, n) => `₪${roundMoney(Number(n))}M`);
 }
 
 /**
@@ -514,6 +535,11 @@ async function handleExitBrief(req: Request, res: Response) {
       ...(WANTS_ADAPTIVE_THINKING
         ? { thinking: { type: "adaptive" as const } }
         : {}),
+      // v8: no randomness. The recipe is four multiplications, and the same
+      // site with the same input must print the same range every run. A
+      // thinking model refuses any temperature but the default, so it is only
+      // set when thinking is off.
+      ...(WANTS_ADAPTIVE_THINKING ? {} : { temperature: 0 }),
       // v7: cache the ~10k-token bundle so it is billed once, not re-sent every run.
       // The seller URL + intake stay the dynamic part in the user message.
       system: [
@@ -580,7 +606,14 @@ async function handleExitBrief(req: Request, res: Response) {
 
     // v7: split the meta block from the seller-facing cards. Store only the clean
     // markdown so the email and PDF never see the JSON.
-    const { meta, resultMd } = parseMetaAndBody(fullMarkdown);
+    const parsed = parseMetaAndBody(fullMarkdown);
+    const meta = parsed.meta;
+    let resultMd = parsed.resultMd;
+    if (meta.range_variant === "number" && meta.range_text) {
+      meta.range_text = roundRangeText(meta.range_text);
+      // The same numbers sit on the "# ₪..." line under "## Range and call".
+      resultMd = resultMd.replace(/^(#\s*)(₪[^\n]*)$/m, (_, h, r) => h + roundRangeText(r));
+    }
     const savedRun: SnapshotRun = {
       companyName: meta.company_name,
       companyOneliner: meta.company_oneliner,
@@ -642,6 +675,11 @@ async function handleExitBrief(req: Request, res: Response) {
       askedForBrief: "no",
       briefId,
       brief: resultMd,
+      // v8: what the recipe multiplied. Four columns at the end of the tab.
+      headcount: meta.headcount_used === undefined ? "" : String(meta.headcount_used),
+      perHead: meta.revenue_per_head === undefined ? "" : String(meta.revenue_per_head),
+      margin: meta.margin === undefined ? "" : String(meta.margin),
+      multiple: meta.multiple === undefined ? "" : String(meta.multiple),
     });
 
     // Send completion with the parsed meta so the page renders clean fields,

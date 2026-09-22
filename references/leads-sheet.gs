@@ -72,7 +72,14 @@ var TABS = {
     'Email',
     'Phone',
     'Brief ID',
-    'The brief they saw'
+    'The brief they saw',
+    // v8 (Sep 22): the four numbers the recipe multiplied. Appended at the end
+    // on purpose. Add these four header cells to the live tab by hand before
+    // redeploying, so the rows already there stay in step with their headers.
+    'Headcount used',
+    'Revenue per head',
+    'Margin',
+    'Multiple'
   ]
 };
 
@@ -112,7 +119,11 @@ var FIELDS = {
     'email',
     'phone',
     'briefId',
-    'brief'
+    'brief',
+    'headcount',
+    'perHead',
+    'margin',
+    'multiple'
   ]
 };
 
