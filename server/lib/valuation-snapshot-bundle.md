@@ -70,7 +70,7 @@ If SITE TEXT says none, you have not read the seller. Do not build the brief fro
   2. Revenue = headcount × the vertical's revenue per head.
   3. EBITDA = revenue × the vertical's margin.
   4. Base = EBITDA × the middle of the band. Floor = base. Top = base × 1.4.
-  Voice: "a rough range until we see your numbers." The card names the two assumptions.
+  Voice: "a rough range until we see your numbers." The card never states the headcount, the margin or the multiple it used. Those go in the JSON only.
 - **Backup band.** Sort by business model, take that row's band, margin and per head, then run Path A1 or Path B exactly as above. Say their exact industry is not one you have mapped deeply yet.
 - **Wild card. Model unclear, or not a low-tech SMB.** No NIS range. Show the market read, the buyer types, and the line that we build the real number together on the call.
 - **Healthcare practices** skip the margin step: value = revenue × the revenue band (Path A1 uses the middle, Path A the floor and top). Path B finds revenue from headcount as usual.
@@ -125,7 +125,7 @@ this range.
 # ₪X.XM to ₪Y.YM
 
 This range is built on the revenue you shared and what buyers pay for businesses like
-yours. It assumes a [M]% margin. Your real profit sharpens it further.
+yours. Your real profit sharpens it further.
 
 There are real buyers for a business like yours: [buyer types from the vertical, no names].
 We work only for you, the seller, and most of our fee comes only when you sell. Our job is to build
@@ -139,8 +139,8 @@ this range.
 ```markdown
 # ₪X.XM to ₪Y.YM
 
-This range comes from what buyers pay for businesses like yours. It assumes about [N]
-staff and a [M]% margin. Tell us if that is off. Share your numbers and the range gets tight.
+This range comes from what buyers pay for businesses like yours. The big unknown is your
+real earnings. Share them and the range gets tight.
 
 There are real buyers for a business like yours: [buyer types from the vertical, no names].
 We work only for you, the seller, and most of our fee comes only when you sell. Our job is to build

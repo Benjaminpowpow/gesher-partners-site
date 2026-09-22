@@ -155,7 +155,7 @@ export function todayKey(now: Date = new Date()): string {
 // The message the seller sees when either gate closes. It is the same sentence
 // the engine already uses when it is busy: no dead end, a way to reach a human.
 const OVER_CAP_MESSAGE =
-  "We have hit today's limit on free Briefs. Book a call with Ofir and we will pull the Brief together by hand.";
+  "We have hit today's limit on free Briefs. Book a call with the team and we will pull the Brief together by hand.";
 
 // ─── In-memory stores ───────────────────────────────────────────────────────
 // briefId -> the seller brief markdown (v7 is seller-only, no trace)
@@ -401,7 +401,7 @@ async function handleExitBrief(req: Request, res: Response) {
   if (now - last < IP_COOLDOWN_MS) {
     res.status(429).json({
       error:
-        "You have already generated a Brief in the last minute. Wait a moment and try again, or book a call with Ofir and we will pull the Brief together by hand.",
+        "You have already generated a Brief in the last minute. Wait a moment and try again, or book a call with the team and we will pull the Brief together by hand.",
     });
     return;
   }
@@ -461,7 +461,7 @@ async function handleExitBrief(req: Request, res: Response) {
   if (!apiKey) {
     res.status(500).json({
       error:
-        "Our Brief engine is not configured yet. Book a call with Ofir and we will pull the Brief together by hand.",
+        "Our Brief engine is not configured yet. Book a call with the team and we will pull the Brief together by hand.",
     });
     return;
   }
@@ -699,7 +699,7 @@ async function handleExitBrief(req: Request, res: Response) {
     console.error("[exit-brief] Anthropic error:", err);
     res.status(500).json({
       error:
-        "Our Brief engine is busy. Try again in a minute, or book a call with Ofir and we will pull the Brief together by hand.",
+        "Our Brief engine is busy. Try again in a minute, or book a call with the team and we will pull the Brief together by hand.",
     });
   }
 }
