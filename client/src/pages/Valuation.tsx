@@ -286,9 +286,14 @@ function renderInline(text: string): React.ReactNode {
 // stripped before display. No flag means no icon (we never guess).
 function renderValuePoint(line: string, key: number): React.ReactNode {
   let text = line.replace(/^\s*[-*•]\s+/, "");
-  const m = text.match(/^(positive|watch):\s*/i);
-  const type = m ? (m[1].toLowerCase() as "positive" | "watch") : null;
-  if (m) text = text.slice(m[0].length);
+  // The flag comes bare ("positive: Scale and age.") or wrapped in the bold the
+  // model puts round the opening phrase ("**positive: Scale and age.**"). Only
+  // the bare shape used to be handled, so on a run that bolded it the word
+  // "positive:" went out to the seller with no arrow. Either way the flag is
+  // ours and not his, so it comes out and the bold stays where it was.
+  const m = text.match(/^(\*\*)?\s*(positive|watch):\s*/i);
+  const type = m ? (m[2].toLowerCase() as "positive" | "watch") : null;
+  if (m) text = (m[1] || "") + text.slice(m[0].length);
   return (
     <p key={key} className={"v-point" + (type ? " has-icon v-point-" + type : "")}>
       {type && (
