@@ -155,7 +155,7 @@ export function todayKey(now: Date = new Date()): string {
 // The message the seller sees when either gate closes. It is the same sentence
 // the engine already uses when it is busy: no dead end, a way to reach a human.
 const OVER_CAP_MESSAGE =
-  "We have hit today's limit on free Briefs. Book a call with the team and we will pull the Brief together by hand.";
+  "We have hit today's limit on free Briefs. Talk to us and we will pull the Brief together by hand.";
 
 // ─── In-memory stores ───────────────────────────────────────────────────────
 // briefId -> the seller brief markdown (v7 is seller-only, no trace)
@@ -401,7 +401,7 @@ async function handleExitBrief(req: Request, res: Response) {
   if (now - last < IP_COOLDOWN_MS) {
     res.status(429).json({
       error:
-        "You have already generated a Brief in the last minute. Wait a moment and try again, or book a call with the team and we will pull the Brief together by hand.",
+        "You have already generated a Brief in the last minute. Wait a moment and try again, or talk to us and we will pull the Brief together by hand.",
     });
     return;
   }
@@ -461,7 +461,7 @@ async function handleExitBrief(req: Request, res: Response) {
   if (!apiKey) {
     res.status(500).json({
       error:
-        "Our Brief engine is not configured yet. Book a call with the team and we will pull the Brief together by hand.",
+        "Our Brief engine is not configured yet. Talk to us and we will pull the Brief together by hand.",
     });
     return;
   }
@@ -609,6 +609,37 @@ async function handleExitBrief(req: Request, res: Response) {
     const parsed = parseMetaAndBody(fullMarkdown);
     const meta = parsed.meta;
     let resultMd = parsed.resultMd;
+    // v8 guard. A number with no numbers from the owner is only allowed when
+    // the SERVER found the headcount (the HEADCOUNT line under SITE TEXT). On
+    // Sep 22 the model priced Marom at 67M off a "76 employees" it found in
+    // its own search, on a site with no LinkedIn link. The bundle now says
+    // not to, and this makes sure: no server headcount and no typed revenue
+    // means the by-hand card, whatever the model wrote.
+    const modelSizedItself =
+      meta.range_variant === "number" &&
+      (meta.path_used === "B" || meta.path_used === "backup") &&
+      !siteRead?.headcount &&
+      !revenue &&
+      !pretaxProfit;
+    if (modelSizedItself) {
+      console.warn(
+        `[exit-brief] guard: model printed ${meta.range_text} with no server headcount and no intake. Sent by hand.`,
+      );
+      meta.range_variant = "by_hand";
+      meta.range_text = "";
+      meta.path_used = "wild_card";
+      const buyers = meta.buyer_types || "the buyers we see for a business like yours";
+      resultMd = resultMd.replace(
+        /## Range and call[\s\S]*$/,
+        "## Range and call\n\n" +
+          "Your space is one we price by hand, so we won't throw out a number we can't stand behind. " +
+          "Share your revenue and we build a real range.\n\n" +
+          `There are real buyers for a business like yours: ${buyers}. ` +
+          "We work only for you, the seller, and most of our fee comes only when you sell.\n\n" +
+          "**Talk to us.** We look at your earnings together, build a real number, and name the buyers.\n",
+      );
+    }
+
     if (meta.range_variant === "number" && meta.range_text) {
       meta.range_text = roundRangeText(meta.range_text);
       // The same numbers sit on the "# ₪..." line under "## Range and call".
@@ -699,7 +730,7 @@ async function handleExitBrief(req: Request, res: Response) {
     console.error("[exit-brief] Anthropic error:", err);
     res.status(500).json({
       error:
-        "Our Brief engine is busy. Try again in a minute, or book a call with the team and we will pull the Brief together by hand.",
+        "Our Brief engine is busy. Try again in a minute, or talk to us and we will pull the Brief together by hand.",
     });
   }
 }
