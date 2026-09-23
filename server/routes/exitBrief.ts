@@ -9,6 +9,13 @@ import {
   markValuationBriefRequested,
 } from "../lib/leadsSheet";
 import { readSite, siteReadBlock } from "../lib/readSite";
+import {
+  VERTICALS,
+  computeRange,
+  rangeMarkdown,
+  rangeText,
+  type RangeResult,
+} from "../lib/valuationMath";
 import { makeRunToken, readRunToken } from "../lib/runToken";
 import {
   buildSnapshotEmailHtml,
@@ -67,7 +74,7 @@ const BRIEF_MAX_TOKENS = WANTS_ADAPTIVE_THINKING ? 16_000 : 8_000;
 // 6 cents before a single token is billed. Four is enough to read a small
 // Israeli company and saves 2 cents a Brief, which is real money next to what
 // the model itself costs now.
-const MAX_WEB_SEARCHES = 4;
+const MAX_WEB_SEARCHES = 2;
 
 // What a run costs, so the Sheet can show it per Brief instead of Ben guessing
 // from the Anthropic console at the end of the month.
@@ -274,38 +281,59 @@ function valuationBlockHtml(v?: {
   `;
 }
 
-// v7 page-mode meta block. The model returns a fenced ```json block first, then the
-// three cards. Pull the meta fields out, and treat everything after the block as the
-// seller-facing markdown. The seller (page, email, PDF) never sees the JSON.
+// The meta block the model returns first. v2: the model names the company,
+// the vertical and three buyer types. It returns no number. The fields the
+// page and the sheet read (range_variant, range_text, path_used, the four
+// recipe numbers, tier) are filled in here, by the server, after the math.
 interface BriefMeta {
   company_name?: string;
   company_oneliner?: string;
-  range_variant?: string; // "number" | "by_hand"
+  vertical_matched?: string; // a vertical id, a backup-* id, or wild-card
+  buyer_types?: string; // "a, b, or c", three generic types
+  readable?: boolean;
+  // Filled by the server:
+  range_variant?: string; // "number" | "by_hand" | "unreadable"
   range_text?: string;
-  buyer_types?: string;
-  vertical_matched?: string; // internal calibration, never shown
-  path_used?: string; // internal calibration, never shown
-  // v8: the four numbers the recipe multiplied. Logged to the Valuations tab so
-  // a wrong range can be read instead of guessed at. 0 when a step was not used.
-  headcount_used?: number | string;
-  revenue_per_head?: number | string;
-  margin?: number | string;
-  multiple?: number | string;
+  path_used?: string; // "T1" | "T2" | "T3" | wild_card | too_big | too_small | unreadable
+  tier?: number;
+  headcount_used?: number;
+  headcount_source?: string;
+  revenue_per_head?: number;
+  margin?: number;
+  multiple?: number;
 }
 
-/**
- * v8 rounding, in the bundle's own words: under ₪20M to the nearest ₪0.5M,
- * above to the nearest ₪1M. The model was told to do this and printed ₪8.75M
- * anyway, so the server owns it. Runs on the meta range_text and on the "# ₪"
- * line of the markdown, so the page, the email and the sheet all agree.
- */
-function roundMoney(value: number): string {
-  const step = value < 20 ? 0.5 : 1;
-  const r = Math.round(value / step) * step;
-  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+// ─── The cache ──────────────────────────────────────────────────────────────
+// One brief per (domain, inputs). The second run of the same site with the
+// same numbers gets the first run's words and number back, instantly and for
+// free. That is the whole cure for "same site, different answer". Lives in
+// memory: a deploy empties it, so a brain change never serves a stale brief,
+// and a run that is a month old is re-done.
+const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+interface CachedRun {
+  briefId: string;
+  fullMarkdown: string; // JSON block + Market + Value + the Range section
+  meta: BriefMeta;
+  resultMd: string;
+  savedRun: SnapshotRun;
+  at: number;
 }
-function roundRangeText(text: string): string {
-  return text.replace(/₪\s?(\d+(?:\.\d+)?)\s?M/g, (_, n) => `₪${roundMoney(Number(n))}M`);
+const runCache = new Map<string, CachedRun>();
+function cacheKey(domain: string, revenue?: string, profit?: string): string {
+  return `${domain}|${(revenue ?? "").replace(/\D/g, "")}|${(profit ?? "").replace(/\D/g, "")}`;
+}
+// How many times each domain has been run. Three or more is an owner who
+// keeps coming back, which Ben wants flagged in the sheet.
+const runsByDomain = new Map<string, number>();
+
+/** "7,200,000" or "7.2M" or "7200000" to a number of NIS, or undefined. */
+function parseNis(raw?: string): number | undefined {
+  if (!raw) return undefined;
+  const s = raw.trim().replace(/[,\s₪]/g, "");
+  const m = s.match(/^(\d+(?:\.\d+)?)\s*(m|k)?$/i);
+  if (!m) return undefined;
+  const n = Number(m[1]) * (m[2]?.toLowerCase() === "m" ? 1e6 : m[2]?.toLowerCase() === "k" ? 1e3 : 1);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
 /**
@@ -394,32 +422,6 @@ function stripLeadingRules(s: string): string {
 
 // ─── Route: POST /api/exit-brief ────────────────────────────────────────────
 async function handleExitBrief(req: Request, res: Response) {
-  const ip = getClientIp(req);
-  const now = Date.now();
-  const last = rateLimitStore.get(ip) ?? 0;
-
-  if (now - last < IP_COOLDOWN_MS) {
-    res.status(429).json({
-      error:
-        "You have already generated a Brief in the last minute. Wait a moment and try again, or talk to us and we will pull the Brief together by hand.",
-    });
-    return;
-  }
-
-  rollDayIfNeeded();
-
-  if (briefsToday >= dailyCap()) {
-    console.warn(`[exit-brief] Daily cap of ${dailyCap()} reached for ${usageDay}.`);
-    res.status(429).json({ error: OVER_CAP_MESSAGE });
-    return;
-  }
-
-  if ((briefsTodayByIp.get(ip) ?? 0) >= perIpDailyLimit()) {
-    console.warn(`[exit-brief] Per-IP daily limit of ${perIpDailyLimit()} reached.`);
-    res.status(429).json({ error: OVER_CAP_MESSAGE });
-    return;
-  }
-
   const body = req.body as {
     url?: string;
     revenue?: string;
@@ -454,6 +456,81 @@ async function handleExitBrief(req: Request, res: Response) {
     new URL(normalizedUrl);
   } catch {
     res.status(400).json({ error: "Please enter a valid website URL." });
+    return;
+  }
+
+  const domain = domainFromUrl(normalizedUrl);
+  const revenueNis = parseNis(revenue);
+  const profitNis = parseNis(pretaxProfit);
+  const key = cacheKey(domain ?? normalizedUrl, revenue, pretaxProfit);
+  const runsThisDomain = (runsByDomain.get(domain ?? normalizedUrl) ?? 0) + 1;
+  runsByDomain.set(domain ?? normalizedUrl, runsThisDomain);
+
+  // A run we already did. Same site, same inputs, same brief, no model call,
+  // no cooldown, nothing billed. Streams the saved run in the same shape so
+  // the page walks its steps and lands on the same number.
+  const hit = runCache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+    briefStore.set(hit.briefId, hit.savedRun);
+    res.setHeader("Content-Type", "application/x-ndjson");
+    res.write(JSON.stringify({ type: "phase", phase: "searching" }) + "\n");
+    res.write(JSON.stringify({ type: "chunk", data: hit.fullMarkdown }) + "\n");
+    void appendValuationRow({
+      site: domain ?? normalizedUrl,
+      company: hit.meta.company_name,
+      range: hit.meta.range_text,
+      revenue: revenue ? `NIS ${revenue}` : "",
+      profit: pretaxProfit ? `NIS ${pretaxProfit}` : "",
+      timeToSell: timeToSell ?? "",
+      vertical: hit.meta.vertical_matched,
+      path: `${hit.meta.path_used} (cached)`,
+      seconds: "0.0",
+      cost: "0",
+      askedForBrief: "no",
+      briefId: hit.briefId,
+      brief: hit.resultMd,
+      headcount: hit.meta.headcount_used === undefined ? "" : `${hit.meta.headcount_used} (${hit.meta.headcount_source})`,
+      perHead: hit.meta.revenue_per_head === undefined ? "" : String(hit.meta.revenue_per_head),
+      margin: hit.meta.margin === undefined ? "" : String(hit.meta.margin),
+      multiple: hit.meta.multiple === undefined ? "" : String(hit.meta.multiple),
+      runsOnDomain: String(runsThisDomain),
+    });
+    res.write(
+      JSON.stringify({
+        type: "done",
+        briefId: hit.briefId,
+        meta: hit.meta,
+        result_md: hit.resultMd,
+        run_token: makeRunToken(hit.savedRun, hit.briefId),
+      }) + "\n",
+    );
+    res.end();
+    return;
+  }
+
+  const ip = getClientIp(req);
+  const now = Date.now();
+  const last = rateLimitStore.get(ip) ?? 0;
+
+  if (now - last < IP_COOLDOWN_MS) {
+    res.status(429).json({
+      error:
+        "You have already generated a Brief in the last minute. Wait a moment and try again, or talk to us and we will pull the Brief together by hand.",
+    });
+    return;
+  }
+
+  rollDayIfNeeded();
+
+  if (briefsToday >= dailyCap()) {
+    console.warn(`[exit-brief] Daily cap of ${dailyCap()} reached for ${usageDay}.`);
+    res.status(429).json({ error: OVER_CAP_MESSAGE });
+    return;
+  }
+
+  if ((briefsTodayByIp.get(ip) ?? 0) >= perIpDailyLimit()) {
+    console.warn(`[exit-brief] Per-IP daily limit of ${perIpDailyLimit()} reached.`);
+    res.status(429).json({ error: OVER_CAP_MESSAGE });
     return;
   }
 
@@ -505,10 +582,29 @@ async function handleExitBrief(req: Request, res: Response) {
         (siteRead.truncated ? " (truncated)" : ""),
     );
   } else {
-    userMessage +=
-      "\n\nSITE TEXT: none. The page at this domain could not be fetched." +
-      " Search alone is not a reading of the seller. Follow Rule 8.";
+    // v2: no site, no run. The model cannot read it either (its only tool is
+    // search), so there is nothing to pay for. The page shows the
+    // "we could not read your site" screen off this meta.
     console.warn(`[exit-brief] could not read ${normalizedUrl}`);
+    res.setHeader("Content-Type", "application/x-ndjson");
+    res.write(
+      JSON.stringify({
+        type: "done",
+        briefId: nanoid(12),
+        meta: { range_variant: "unreadable", range_text: "", path_used: "unreadable" },
+        result_md: "",
+      }) + "\n",
+    );
+    res.end();
+    void appendValuationRow({
+      site: domain ?? normalizedUrl,
+      path: "unreadable",
+      seconds: "0.0",
+      cost: "0",
+      askedForBrief: "no",
+      runsOnDomain: String(runsThisDomain),
+    });
+    return;
   }
 
   const anthropic = new Anthropic({ apiKey });
@@ -604,47 +700,62 @@ async function handleExitBrief(req: Request, res: Response) {
       }
     }
 
-    // v7: split the meta block from the seller-facing cards. Store only the clean
-    // markdown so the email and PDF never see the JSON.
+    // v2: the model handed back the company, the vertical and three buyer
+    // types, then Market and Value. Everything about the number happens here.
     const parsed = parseMetaAndBody(fullMarkdown);
     const meta = parsed.meta;
     let resultMd = parsed.resultMd;
-    // v8 guard. A number with no numbers from the owner is only allowed when
-    // the SERVER found the headcount (the HEADCOUNT line under SITE TEXT). On
-    // Sep 22 the model priced Marom at 67M off a "76 employees" it found in
-    // its own search, on a site with no LinkedIn link. The bundle now says
-    // not to, and this makes sure: no server headcount and no typed revenue
-    // means the by-hand card, whatever the model wrote.
-    const modelSizedItself =
-      meta.range_variant === "number" &&
-      (meta.path_used === "B" || meta.path_used === "backup") &&
-      !siteRead?.headcount &&
-      !revenue &&
-      !pretaxProfit;
-    if (modelSizedItself) {
-      console.warn(
-        `[exit-brief] guard: model printed ${meta.range_text} with no server headcount and no intake. Sent by hand.`,
-      );
+
+    const row = VERTICALS.get(meta.vertical_matched ?? "");
+    const buyers = (meta.buyer_types ?? "").trim() || row?.buyers || "the buyers we see for a business like yours";
+    let range: RangeResult | null = null;
+    if (meta.readable === false) {
+      meta.range_variant = "unreadable";
+      meta.range_text = "";
+      meta.path_used = "unreadable";
+      resultMd = "";
+    } else if (!row) {
+      // wild-card, or an id the library does not know. By hand, honestly.
       meta.range_variant = "by_hand";
       meta.range_text = "";
       meta.path_used = "wild_card";
-      const buyers = meta.buyer_types || "the buyers we see for a business like yours";
-      resultMd = resultMd.replace(
-        /## Range and call[\s\S]*$/,
-        "## Range and call\n\n" +
-          "Your space is one we price by hand, so we won't throw out a number we can't stand behind. " +
-          "Share your revenue and we build a real range.\n\n" +
-          `There are real buyers for a business like yours: ${buyers}. ` +
-          "We work only for you, the seller, and most of our fee comes only when you sell.\n\n" +
-          "**Talk to us.** We look at your earnings together, build a real number, and name the buyers.\n",
-      );
+    } else {
+      range = computeRange({
+        row,
+        headcount: siteRead?.headcount,
+        headcountSource: siteRead?.headcountSource,
+        revenue: revenueNis,
+        profit: profitNis,
+      });
+      meta.tier = range.tier;
+      meta.headcount_used = range.headcountUsed;
+      meta.headcount_source = range.headcountSource;
+      meta.revenue_per_head = range.perHead;
+      meta.margin = range.margin;
+      meta.multiple = range.multiple;
+      if (range.outcome === "number") {
+        meta.range_variant = "number";
+        meta.range_text = rangeText(range);
+        meta.path_used = `T${range.tier}`;
+      } else {
+        meta.range_variant = "by_hand";
+        meta.range_text = "";
+        meta.path_used = range.outcome;
+      }
+    }
+    meta.buyer_types = buyers;
+
+    // The Range section, written by the server in Ben's fixed words, streamed
+    // as the last chunk so the page's "Working out the value" step ends on the
+    // same signal it always did, and stored so the sheet and the email carry
+    // the same number as the page.
+    if (meta.range_variant !== "unreadable") {
+      const rangeMd = rangeMarkdown(range, buyers);
+      resultMd = resultMd.replace(/\n*## Range and call[\s\S]*$/, "").trimEnd() + "\n\n" + rangeMd;
+      fullMarkdown += "\n\n" + rangeMd;
+      res.write(JSON.stringify({ type: "chunk", data: "\n\n" + rangeMd }) + "\n");
     }
 
-    if (meta.range_variant === "number" && meta.range_text) {
-      meta.range_text = roundRangeText(meta.range_text);
-      // The same numbers sit on the "# ₪..." line under "## Range and call".
-      resultMd = resultMd.replace(/^(#\s*)(₪[^\n]*)$/m, (_, h, r) => h + roundRangeText(r));
-    }
     const savedRun: SnapshotRun = {
       companyName: meta.company_name,
       companyOneliner: meta.company_oneliner,
@@ -653,16 +764,14 @@ async function handleExitBrief(req: Request, res: Response) {
       buyerTypes: meta.buyer_types,
       pathUsed: meta.path_used,
       resultMd,
-      // His own logo, lifted out of the page we already fetched. Undefined
-      // means the email draws the lettered square instead.
       logoUrl: siteRead?.logoUrl,
-      // /valuation is English only today. Saved with the run so the email never
-      // has to guess, and so Hebrew is a words job later.
       lang: "en",
     };
     briefStore.set(briefId, savedRun);
+    if (meta.range_variant !== "unreadable") {
+      runCache.set(key, { briefId, fullMarkdown, meta, resultMd, savedRun, at: Date.now() });
+    }
 
-    // Save the lead. Fire and forget, and never let a DB hiccup affect the seller.
     void insertValuationLead({
       briefId,
       url: normalizedUrl,
@@ -670,7 +779,7 @@ async function handleExitBrief(req: Request, res: Response) {
       pretaxProfit: pretaxProfit ?? null,
       ownerSalary: ownerSalary ?? null,
       companyName: meta.company_name ?? null,
-      companyDomain: domainFromUrl(normalizedUrl) ?? null,
+      companyDomain: domain ?? null,
       rangeVariant: meta.range_variant ?? null,
       rangeText: meta.range_text ?? null,
       buyerTypes: meta.buyer_types ?? null,
@@ -685,13 +794,8 @@ async function handleExitBrief(req: Request, res: Response) {
       ipHash: hashIp(ip),
     });
 
-    // And the row Ben can actually open. The database above needs a MySQL
-    // server that does not exist; this is the Google Sheet, which is free.
-    // Written for every run, including the ones where nobody leaves a name,
-    // because a stranger reading his range and walking is the thing Ben most
-    // needs to be able to count. Fire and forget, never blocks the seller.
     void appendValuationRow({
-      site: domainFromUrl(normalizedUrl) ?? normalizedUrl,
+      site: domain ?? normalizedUrl,
       company: meta.company_name,
       range: meta.range_text,
       revenue: revenue ? `NIS ${revenue}` : "",
@@ -702,20 +806,16 @@ async function handleExitBrief(req: Request, res: Response) {
       path: meta.path_used,
       seconds: ((Date.now() - startedAt) / 1000).toFixed(1),
       cost: runCostUsd(usage),
-      // Flips to "yes" only if he comes back and asks for the brief.
       askedForBrief: "no",
       briefId,
       brief: resultMd,
-      // v8: what the recipe multiplied. Four columns at the end of the tab.
-      headcount: meta.headcount_used === undefined ? "" : String(meta.headcount_used),
-      perHead: meta.revenue_per_head === undefined ? "" : String(meta.revenue_per_head),
-      margin: meta.margin === undefined ? "" : String(meta.margin),
-      multiple: meta.multiple === undefined ? "" : String(meta.multiple),
+      headcount: range ? `${range.headcountUsed} (${range.headcountSource})` : "",
+      perHead: range ? String(range.perHead) : "",
+      margin: range ? String(range.margin) : "",
+      multiple: range ? String(range.multiple) : "",
+      runsOnDomain: String(runsThisDomain),
     });
 
-    // Send completion with the parsed meta so the page renders clean fields,
-    // plus the signed run. The page holds that token and hands it back if it
-    // asks for the email after a restart has emptied briefStore.
     res.write(
       JSON.stringify({
         type: "done",
