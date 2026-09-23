@@ -110,7 +110,9 @@ function findLinkedIn(html: string): string | undefined {
  */
 function findStatedHeadcount(text: string): number | undefined {
   const pats = [
-    /(\d{1,4})[\s\u200e\u200f]*(?:employees|staff members|workers|עובדים|עובדות)\b/i,
+    // No \b after the word: JavaScript's \b only knows ASCII letters, so it
+    // never fires after a Hebrew word, and "60 עובדים" went unread on Sep 23.
+    /(\d{1,4})[\s\u200e\u200f]*(?:employees|staff members|workers|עובדים|עובדות)(?![A-Za-z])/i,
     /(?:team of|staff of|צוות של|מונה)[\s\u200e\u200f]*(\d{1,4})/i,
   ];
   for (const re of pats) {
