@@ -56,6 +56,8 @@ export interface ValuationRow {
   perHead?: string;
   margin?: string;
   multiple?: string;
+  /** v2: how many times this domain has been run since the last restart. 3+ is a warm lead. */
+  runsOnDomain?: string;
 }
 
 export interface LeadRow {

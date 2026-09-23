@@ -103,6 +103,26 @@ function findLinkedIn(html: string): string | undefined {
 }
 
 /**
+ * A headcount the site states itself. "60 employees", "צוות של 60 עובדים",
+ * "team of 40". The owner's own number beats LinkedIn, which counts leavers
+ * and contractors. Bounded to a small-business range so a "3,000 clients"
+ * style figure next to the wrong word cannot slip in.
+ */
+function findStatedHeadcount(text: string): number | undefined {
+  const pats = [
+    /(\d{1,4})[\s\u200e\u200f]*(?:employees|staff members|workers|עובדים|עובדות)\b/i,
+    /(?:team of|staff of|צוות של|מונה)[\s\u200e\u200f]*(\d{1,4})/i,
+  ];
+  for (const re of pats) {
+    const m = text.match(re);
+    if (!m) continue;
+    const n = Number(m[1]);
+    if (n >= 2 && n <= 5000) return n;
+  }
+  return undefined;
+}
+
+/**
  * Fetch the LinkedIn company page and read the employee band off it.
  *
  * Never throws. Anything that is not a clean band comes back undefined and the
@@ -302,8 +322,16 @@ export async function readSite(rawUrl: string): Promise<SiteRead | null> {
 
     // The LinkedIn link comes out of the page we just read, so this cannot start
     // any earlier. It is one more small fetch, about a second, capped at six.
-    const linkedIn = findLinkedIn(raw);
-    const size = linkedIn ? await readLinkedInHeadcount(linkedIn) : undefined;
+    // Headcount, in order of trust: the site states it, then the LinkedIn page
+    // the site links to. Neither: undefined, and the range math falls back to
+    // the vertical's default. The model never picks a size.
+    const stated = findStatedHeadcount(full);
+    const linkedIn = stated ? undefined : findLinkedIn(raw);
+    const size = stated
+      ? { headcount: stated, source: "site" }
+      : linkedIn
+        ? await readLinkedInHeadcount(linkedIn)
+        : undefined;
     if (linkedIn && !size) console.warn(`[exit-brief] linkedin link found, no headcount: ${linkedIn}`);
 
     const truncated = full.length > MAX_TEXT_CHARS;
@@ -344,14 +372,7 @@ export function siteReadBlock(read: SiteRead): string {
     read.text,
     "---",
   ];
-  // The recipe's first step, done for the model. When this line is present it
-  // is the headcount, already mapped to the lower third; do not search for
-  // another. When it is absent the bundle's own rule applies.
-  if (read.headcount) {
-    lines.push(
-      `HEADCOUNT: ${read.headcount} (${read.headcountSource}, from the seller's own site link). ` +
-        "Use this as headcount_used. Do not search for the headcount.",
-    );
-  }
+  // v2: the headcount stays on the server. The model never sees a size and
+  // never prices anything; valuationMath.ts does that from SiteRead.headcount.
   return lines.join("\n");
 }

@@ -79,7 +79,10 @@ var TABS = {
     'Headcount used',
     'Revenue per head',
     'Margin',
-    'Multiple'
+    'Multiple',
+    // v2 (Sep 23): how many times this domain has been run. 3 or more is
+    // somebody who keeps coming back, which is a warm lead.
+    'Runs on this domain'
   ]
 };
 
@@ -123,7 +126,8 @@ var FIELDS = {
     'headcount',
     'perHead',
     'margin',
-    'multiple'
+    'multiple',
+    'runsOnDomain'
   ]
 };
 
