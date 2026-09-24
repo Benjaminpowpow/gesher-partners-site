@@ -135,10 +135,8 @@ export function homeLang(reqPath: string): Lang | null {
  * Its own title and description, because the tool is what an ad points at and
  * "Free business valuation" is the promise in the tab.
  *
- * The Hebrew title and description are the English ones for now. The real words
- * come from site/30-hebrew-valuation-copy-ben-picks.md in session C, along with
- * the Hebrew page copy. Until then /he/valuation carries noindex, so nothing
- * half-translated can be indexed, and it is not in sitemap.xml.
+ * The Hebrew title and description come from site/30-hebrew-valuation-copy-ben-picks.md.
+ * Both pages are indexed and both sit in sitemap.xml as a pair.
  * ──────────────────────────────────────────────────────────────────────────── */
 const VALUATION_HEAD: Record<Lang, { title: string; description: string; ogLocale: string }> = {
   en: {
@@ -148,10 +146,10 @@ const VALUATION_HEAD: Record<Lang, { title: string; description: string; ogLocal
     ogLocale: "en_US",
   },
   he: {
-    // TODO-HE: session C replaces these two lines from file 30.
-    title: "Free business valuation | Gesher Partners",
+    // Verbatim from site/30-hebrew-valuation-copy-ben-picks.md (head.title, head.description).
+    title: "ניתוח שווי ראשוני בחינם | Gesher Partners",
     description:
-      "Paste your website and get an honest value range for your business in a few minutes. Private, built from public sources, from Israel's sell-side advisors.",
+      "הדבק את האתר של העסק וקבל טווח שווי כנה תוך כמה דקות. בדיסקרטיות, ממקורות ציבוריים, מליווי במכירה לצד המוכר בישראל.",
     ogLocale: "he_IL",
   },
 };
@@ -195,8 +193,6 @@ function localizeValuation(template: string, lang: Lang): string {
     `<meta property="og:locale" content="${head.ogLocale}" />`,
     `<link rel="canonical" href="${VALUATION_URL[lang]}" />`,
     hreflangFor(VALUATION_URL),
-    // Off until the Hebrew words land. Session C removes this line.
-    ...(lang === "he" ? [`<meta name="robots" content="noindex,follow" />`] : []),
   ].join("\n    ");
   return html.replace("</head>", `${extra}\n  </head>`);
 }

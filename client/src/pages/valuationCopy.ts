@@ -20,12 +20,11 @@
 export type VLang = "en" | "he";
 
 /**
- * The toggle on the valuation page is built and routable, but hidden until the
- * Hebrew words exist. Session C flips this to true and the EN / עב pair
- * appears on both pages. Until then /he/valuation only opens if you type it,
- * which is how Ben tests it.
+ * The EN / עב toggle on both valuation pages. On since session C (Sep 24),
+ * when Ben's Hebrew from file 30 landed. Set it back to false to hide the
+ * toggle again; /he/valuation still opens if typed.
  */
-export const HEBREW_VALUATION_LIVE: boolean = false;
+export const HEBREW_VALUATION_LIVE: boolean = true;
 
 /**
  * The five "when would you want to sell" codes. These are values, not words.
@@ -122,7 +121,7 @@ const COPY_V = {
   /** The five stages, by id. */
   stages: {
     read: "Reading your website",
-    learn: "Learning your size and your story",
+    learn: "Learning your size and your story in your industry",
     market: "Reading your market",
     value: "Working out the value",
     range: "Setting your range",
@@ -152,7 +151,7 @@ const COPY_V = {
       "We work only for you, the seller. Most of our fee comes only when you sell.",
     talkBtn: "Talk to us",
     briefBtn: "Get the one-page brief",
-    byHandLead: "We price your space by hand.",
+    byHandLead: "This isn't a standard case.",
     byHandBody:
       "Your business is not a cookie cutter case, so we will not throw out a number we cannot stand behind.",
     byHandBtn: "Talk to us",
@@ -212,7 +211,7 @@ const COPY_V = {
       "We read every note ourselves. You will hear from Ofir or Ben within two business days.",
     closeBtn: "Close",
     title: "Talk to us.",
-    subWithRun: "We will bring your range to the call.",
+    subWithRun: "We'll go over your range on the call.",
     subNoRun:
       "Tell us where you are. We will tell you honestly if we can help.",
     nameLabel: "Your name",
@@ -233,155 +232,153 @@ const COPY_V = {
 export type VCopy = typeof COPY_V;
 
 /**
- * English placeholders. Hebrew lands in session C from
- * site/30-hebrew-valuation-copy-ben-picks.md.
- *
- * Every key below is the English string on purpose, so /he/valuation renders
- * and can be checked for layout before a single Hebrew word exists. Session C
- * replaces these by ID from file 30 and deletes this note.
+ * The Hebrew twin. Every line is copied verbatim, by ID, from
+ * site/30-hebrew-valuation-copy-ben-picks.md (Ben's picks with Joanne, Sep 24).
+ * Hebrew never changes here first: fix file 30, then bring the line across.
  */
 const COPY_V_HE: VCopy = {
   nav: {
-    homeAriaLabel: "gesher home",
-    talkToUs: "Talk to us",
-    langAriaLabel: "Language",
+    homeAriaLabel: "דף הבית של גשר",
+    talkToUs: "לשיחת ייעוץ",
+    langAriaLabel: "שפה",
     langEn: "EN",
     langHe: "עב",
   },
 
   front: {
-    headline: "Tell us about your business.",
-    lede: "Your website is all we need for a first estimate.",
-    urlLabel: "Your website",
+    headline: "ספר לנו על העסק שלך.",
+    lede: "האתר שלך מספיק לנו לאומדן ראשוני.",
+    urlLabel: "האתר שלך",
     urlPlaceholder: "yourcompany.co.il",
-    urlError: "We need your website to start.",
-    whenLabel: "When would you want to sell",
-    whenPlaceholder: "Select...",
-    revenueLabel: "Approximate annual revenue (NIS)",
-    revenueHint: "e.g. 12M",
-    profitLabel: "Approximate annual pre-tax profit (NIS)",
-    profitHint: "e.g. 1.5M",
-    echo: (amount: string) => `We read that as ${amount}`,
-    confidential: "100% confidential. We never share your numbers.",
-    submit: "Get my valuation",
+    urlError: "צריך את כתובת האתר כדי להתחיל.",
+    whenLabel: "מתי תרצה למכור",
+    whenPlaceholder: "בחר...",
+    revenueLabel: "מחזור שנתי משוער (ש״ח)",
+    revenueHint: "למשל 12M",
+    profitLabel: "רווח שנתי לפני מס, משוער (ש״ח)",
+    profitHint: "למשל 1.5M",
+    echo: (amount: string) => `אצלנו זה ${amount}`,
+    confidential: "הכול בדיסקרטיות. אנחנו לא משתפים את המספרים שלך.",
+    submit: "לניתוח שווי ראשוני",
   },
 
   timeToSell: {
-    "under-6m": "Within 6 months",
-    "6-12m": "6 to 12 months",
-    "1-2y": "1 to 2 years",
-    "over-2y": "Over 2 years",
-    exploring: "Just exploring",
+    "under-6m": "בתוך 6 חודשים",
+    "6-12m": "6 עד 12 חודשים",
+    "1-2y": "שנה עד שנתיים",
+    "over-2y": "מעל שנתיים",
+    exploring: "רק בודק אפשרויות",
   },
 
-  money: { prefix: "NIS" },
+  money: { prefix: "ש״ח" },
 
   disclaimer:
-    "This is an estimate, not a valuation. It is built from public information and whatever you tell us here, in a few minutes. A real number needs your financials and a proper look. Nothing here is an offer, or advice to buy or sell.",
+    "זה אומדן, לא הערכת שווי. הוא נבנה ממידע ציבורי וממה שסיפרת לנו כאן, תוך כמה דקות. מספר אמיתי דורש את הדוחות הכספיים שלך ומבט מעמיק יותר. אין כאן הצעה, ואין המלצה לקנות או למכור.",
 
   working: {
-    heading: "Building your valuation",
-    sub: "This takes a minute, sometimes two.",
-    stagesAriaLabel: "Build progress",
-    longStep: "This step takes longer than the rest.",
-    ringAriaLabel: (percent: number) => `${percent} percent done`,
-    companyReading: "Reading your website.",
-    companyFallbackName: "Your business",
+    heading: "בונים את ניתוח השווי הראשוני שלך",
+    sub: "זה לוקח דקה, לפעמים שתיים.",
+    stagesAriaLabel: "בנייה של הניתוח",
+    longStep: "השלב הזה ארוך יותר מהאחרים.",
+    ringAriaLabel: (percent: number) => `${percent} אחוז הושלמו`,
+    companyReading: "קוראים את האתר שלך.",
+    companyFallbackName: "העסק שלך",
   },
 
   stages: {
-    read: "Reading your website",
-    learn: "Learning your size and your story",
-    market: "Reading your market",
-    value: "Working out the value",
-    range: "Setting your range",
+    read: "קוראים את האתר שלך",
+    learn: "לומדים את הגודל ואת הסיפור בענף שלך",
+    market: "קוראים את השוק שלך",
+    value: "מעריכים את שווי העסק שלך",
+    range: "קובעים את הטווח",
   },
 
   taglines: [
-    "We work only for you, the seller.",
-    "We run a real competitive process, buyers in Israel and abroad.",
-    "We tell you the truth, even when the truth is wait a year.",
+    "אנחנו עובדים רק בשבילך, מצד המוכר.",
+    "אנחנו מנהלים תהליך תחרותי אמיתי, עם קונים בארץ ובחו״ל.",
+    "אנחנו אומרים את האמת, גם כשהאמת היא לחכות שנה.",
   ],
 
   result: {
-    title: (company: string) => `Your ${company} Valuation Snapshot`,
+    // Ben's pick is the bare word, with no company name in it (file 30).
+    title: (_company: string) => "הניתוח",
     privateLine:
-      "Strictly private. Built from public sources. Not an offer or a valuation opinion.",
-    cardMarket: "Market",
-    cardValue: "Value",
-    cardRange: "Your range",
+      "חסוי לחלוטין. נבנה ממקורות ציבוריים. לא הצעה ולא הערכת שווי.",
+    cardMarket: "שוק",
+    cardValue: "שווי",
+    cardRange: "הטווח שלך",
     buyerLine: (types: string) =>
-      `There are real buyers for a business like yours: ${types}`,
+      `יש קונים אמיתיים לעסק כמו שלך: ${types}`,
     trust:
-      "We work only for you, the seller. Most of our fee comes only when you sell.",
-    talkBtn: "Talk to us",
-    briefBtn: "Get the one-page brief",
-    byHandLead: "We price your space by hand.",
+      "אנחנו עובדים רק בשבילך, מצד המוכר. בעיקר דמי הצלחה כשאתה מוכר, ודמי רצינות קטנים בהתחלה.",
+    talkBtn: "לשיחת ייעוץ",
+    briefBtn: "לקבלת הניתוח בעמוד אחד",
+    byHandLead: "עסק ייחודי שדורש מבט נוסף",
     byHandBody:
-      "Your business is not a cookie cutter case, so we will not throw out a number we cannot stand behind.",
-    byHandBtn: "Talk to us",
+      "העסק שלך לא מקרה סטנדרטי, ולכן לא נזרוק מספר שאי אפשר לעמוד מאחוריו.",
+    byHandBtn: "לשיחת ייעוץ",
   },
 
   brief: {
-    title: "Get your one-page brief",
-    sub: "It lands in your inbox in a few seconds.",
-    closeAriaLabel: "Close",
-    nameLabel: "Your name",
-    emailLabel: "Email",
-    phoneLabel: "Phone",
-    quiet: "100% confidential. We never share your numbers.",
-    errName: "Please tell us your name.",
-    errEmailMissing: "Please add your email. That is where the brief goes.",
-    errEmailBad: "That email looks incomplete. Check it and try again.",
-    errPhone: "Please add a phone number.",
+    title: "לקבלת הניתוח בעמוד אחד",
+    sub: "הניתוח מגיע למייל שלך תוך כמה שניות.",
+    closeAriaLabel: "סגור",
+    nameLabel: "השם שלך",
+    emailLabel: "מייל",
+    phoneLabel: "טלפון",
+    quiet: "הכול בדיסקרטיות. אנחנו לא משתפים את המספרים שלך.",
+    errName: "צריך את השם שלך.",
+    errEmailMissing: "צריך מייל. לשם מגיע הניתוח.",
+    errEmailBad: "נראה שהמייל לא שלם. כדאי לבדוק ולנסות שוב.",
+    errPhone: "צריך מספר טלפון.",
     sendFailed:
-      "We could not send it. Please try again, or write to us at office@gesherpartners.com and we will send it by hand.",
-    submit: "Send",
-    sending: "Sending...",
-    retry: "Try again",
+      "לא הצלחנו לשלוח. אפשר לנסות שוב, או לכתוב לנו ישירות: office@gesherpartners.com ונשלח את זה ידנית.",
+    submit: "שלח",
+    sending: "שולח...",
+    retry: "נסה שוב",
   },
 
   success: {
-    heading: "Thank you. Check your inbox.",
+    heading: "תודה. כדאי לבדוק את תיבת המייל.",
     subWithCompany: (company: string) =>
-      `Your ${company} Valuation Snapshot will arrive within a few minutes.`,
-    subPlain: "Your Valuation Snapshot will arrive within a few minutes.",
-    notThere: "Not there? Check spam, or write to ",
+      `ניתוח השווי הראשוני של ${company} יגיע תוך כמה דקות.`,
+    subPlain: "ניתוח השווי הראשוני יגיע תוך כמה דקות.",
+    notThere: "לא הגיע? כדאי לבדוק בספאם, או לכתוב ל",
     mail: "office@gesherpartners.com",
     notThereEnd: ".",
   },
 
   error: {
-    headingBlocked: "Not right now.",
-    headingUnreadable: "We could not read that site.",
+    headingBlocked: "לא עכשיו.",
+    headingUnreadable: "לא הצלחנו לקרוא את האתר הזה.",
     subUnreadable:
-      "Sometimes a site is too quiet, or in Hebrew only. That is no problem.",
-    talkBtn: "Talk to us instead",
-    retryBtn: "Try a different URL",
+      "לפעמים האתר שקט מדי, או בעברית בלבד. זה בסדר גמור.",
+    talkBtn: "במקום זה, לשיחת ייעוץ",
+    retryBtn: "לנסות כתובת אחרת",
   },
 
   talk: {
-    closeAriaLabel: "Close",
-    sentTitle: "Thank you.",
+    closeAriaLabel: "סגור",
+    sentTitle: "תודה.",
     sentBody:
-      "We read every note ourselves. You will hear from Ofir or Ben within two business days.",
-    closeBtn: "Close",
-    title: "Talk to us.",
-    subWithRun: "We will bring your range to the call.",
+      "אנחנו קוראים כל פנייה בעצמנו. אופיר או בנימין יחזרו אליך תוך שני ימי עסקים.",
+    closeBtn: "סגור",
+    title: "לשיחת ייעוץ.",
+    subWithRun: "נעבור על הטווח שלך בשיחה.",
     subNoRun:
-      "Tell us where you are. We will tell you honestly if we can help.",
-    nameLabel: "Your name",
-    reachLabel: "Phone or email",
-    messageLabel: "What is on your mind (optional)",
-    errName: "Please tell us your name.",
+      "ספר לנו על העסק. נגיד לך, מנקודת מבט של קונה, מה השוק כנראה יראה.",
+    nameLabel: "השם שלך",
+    reachLabel: "טלפון או מייל",
+    messageLabel: "מה חשוב לך שנדע (לא חובה)",
+    errName: "צריך את השם שלך.",
     errReachMissing:
-      "Please leave a phone number or an email so we can answer.",
-    errEmailBad: "That email looks incomplete. Check it and try again.",
+      "צריך טלפון או מייל כדי שנוכל לחזור אליך.",
+    errEmailBad: "נראה שהמייל לא שלם. כדאי לבדוק ולנסות שוב.",
     sendFailed:
-      "Your note did not go through. Please try again, or write to us at office@gesherpartners.com.",
-    submit: "Send",
-    sending: "Sending...",
-    retry: "Try again",
+      "ההודעה לא נשלחה. אפשר לנסות שוב, או לכתוב לנו ישירות: office@gesherpartners.com",
+    submit: "שלח",
+    sending: "שולח...",
+    retry: "נסה שוב",
   },
 };
 

@@ -164,9 +164,9 @@ export function todayKey(now: Date = new Date()): string {
 // They are the only English the server puts on a Hebrew screen, so they are
 // keyed by language and picked from the run's own lang.
 //
-// The Hebrew side is empty until file 30 lands (session C fills it). An empty
-// string falls back to English, which is the right failure: a man reads a
-// sentence he may not want rather than a blank screen.
+// The Hebrew side is copied verbatim from site/30-hebrew-valuation-copy-ben-picks.md.
+// An empty string would fall back to English, which is the right failure: a
+// man reads a sentence he may not want rather than a blank screen.
 type RunLang = "en" | "he";
 
 const SERVER_MESSAGES: Record<
@@ -176,21 +176,21 @@ const SERVER_MESSAGES: Record<
   // He pressed the button twice inside a minute.
   cooldown: {
     en: "You have already generated a Brief in the last minute. Wait a moment and try again, or talk to us and we will pull the Brief together by hand.",
-    he: "", // DRAFT, from file 30 in session C
+    he: "כבר הרצת ניתוח בדקה האחרונה. חכה רגע ונסה שוב, או קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
   },
   // The day's budget, or this one visitor's share of it, is gone. No dead end,
   // a way to reach a human.
   overCap: {
     en: "We have hit today's limit on free Briefs. Talk to us and we will pull the Brief together by hand.",
-    he: "", // DRAFT, from file 30 in session C
+    he: "הגענו למכסת הניתוחים החינמיים להיום. קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
   },
   notConfigured: {
     en: "Our Brief engine is not configured yet. Talk to us and we will pull the Brief together by hand.",
-    he: "", // DRAFT, from file 30 in session C
+    he: "מנוע הניתוח עדיין לא מוגדר. קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
   },
   busy: {
     en: "Our Brief engine is busy. Try again in a minute, or talk to us and we will pull the Brief together by hand.",
-    he: "", // DRAFT, from file 30 in session C
+    he: "מנוע הניתוח עמוס כרגע. נסה שוב בעוד דקה, או קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
   },
 };
 
@@ -798,7 +798,7 @@ async function handleExitBrief(req: Request, res: Response) {
       meta.multiple = range.multiple;
       if (range.outcome === "number") {
         meta.range_variant = "number";
-        meta.range_text = rangeText(range);
+        meta.range_text = rangeText(range, lang);
         meta.path_used = `T${range.tier}`;
       } else {
         meta.range_variant = "by_hand";
@@ -813,7 +813,7 @@ async function handleExitBrief(req: Request, res: Response) {
     // same signal it always did, and stored so the sheet and the email carry
     // the same number as the page.
     if (meta.range_variant !== "unreadable") {
-      const rangeMd = rangeMarkdown(range, buyers);
+      const rangeMd = rangeMarkdown(range, buyers, lang);
       resultMd = resultMd.replace(/\n*## Range and call[\s\S]*$/, "").trimEnd() + "\n\n" + rangeMd;
       fullMarkdown += "\n\n" + rangeMd;
       res.write(JSON.stringify({ type: "chunk", data: "\n\n" + rangeMd }) + "\n");

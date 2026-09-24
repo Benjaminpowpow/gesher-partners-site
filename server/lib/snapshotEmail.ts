@@ -46,9 +46,9 @@ export interface SnapshotRecipient {
 
 // ─── Copy ────────────────────────────────────────────────────────────────────
 // Every fixed string in the email, keyed by language. The Hebrew block holds
-// the English for now and session C replaces it, line for line, from the vault
-// file site/30-hebrew-valuation-copy-ben-picks.md. Hebrew is never written
-// here first.
+// Ben's picks, line for line, from the vault file
+// site/30-hebrew-valuation-copy-ben-picks.md. Hebrew is never written here
+// first.
 //
 // `headings` is not shown to anyone. The engine writes "## Market", "## Value"
 // and "## Range and call" in English inside its output in both languages,
@@ -91,38 +91,39 @@ const COPY = {
     signFirm: "Gesher Partners",
     fine: "An estimate, not a valuation. Not an offer, or advice to buy or sell.",
   },
-  // TODO-HE: every string below is the English one. Session C replaces them
-  // from file 30, by the same IDs, and deletes this note.
+  // Every line below is copied verbatim, by ID, from
+  // site/30-hebrew-valuation-copy-ben-picks.md. The headings stay English: they
+  // are markers the finder matches on, never shown to the owner.
   he: {
     dir: "rtl" as const,
     headings: { market: "Market", value: "Value", range: "Range and call" },
-    subject: (company: string) => `Your ${company} Valuation Snapshot`,
-    privateLabel: "Strictly private",
-    title: (company: string) => `Your ${company} Valuation Snapshot`,
+    subject: (company: string) => `ניתוח שווי ראשוני של ${company}`,
+    privateLabel: "בדיסקרטיות",
+    title: (company: string) => `ניתוח שווי ראשוני של ${company}`,
+    // File 30 writes the greeting as two parts split by " / ". They join here
+    // with a space, one line, the same shape as the English.
     greeting: (first: string) =>
-      first ? `Hello ${first}, here is the snapshot you just ran.` : "Here is the snapshot you just ran.",
-    rangeLabelFirstEstimate: "Your range · a first estimate",
-    rangeLabelRough: "Your range · rough",
-    rangeLabelPlain: "Your range",
+      first ? `שלום ${first}, הניתוח שהרצת מוכן.` : "הניתוח שהרצת מוכן.",
+    rangeLabelFirstEstimate: "הטווח שלך · אומדן ראשוני",
+    rangeLabelRough: "הטווח שלך · משוער",
+    rangeLabelPlain: "הטווח שלך",
     warnFirstEstimate:
-      "This number can be far off. We built it in a few minutes from the information you shared and public information. We have not seen your books.",
+      "המספר הזה יכול להיות רחוק מהמציאות. בנינו אותו תוך כמה דקות מהמידע ששיתפת וממידע ציבורי. לא ראינו את הדוחות שלך.",
     warnRough:
-      "This number can be far off. You shared no numbers, so we built it in a few minutes from your website and public information. We have not seen your books.",
-    byHandLine: "We price your space by hand.",
+      "המספר הזה יכול להיות רחוק מהמציאות. לא שיתפת מספרים, אז בנינו אותו תוך כמה דקות מהאתר וממידע ציבורי. לא ראינו את הדוחות שלך.",
+    byHandLine: "לתחום שלך אנחנו בונים הערכת שווי ראשונית",
     warnByHand:
-      "Your business is not a cookie cutter case, so we will not throw out a number we cannot stand behind.",
-    whoWouldBuyLead: "Who would buy.",
-    whoWouldBuy: (types: string) => {
-      const t = types.trim().replace(/[.\s]+$/, "");
-      return `${t.charAt(0).toUpperCase()}${t.slice(1)}.`;
-    },
-    closeLead: "It looks like you have something here.",
+      "העסק שלך לא מקרה סטנדרטי, ולכן לא נזרוק מספר שאי אפשר לעמוד מאחוריו.",
+    whoWouldBuyLead: "מי יקנה.",
+    // Hebrew has no capitals, so the list only needs its closing period.
+    whoWouldBuy: (types: string) => `${types.trim().replace(/[.\s]+$/, "")}.`,
+    closeLead: "נראה שיש כאן משהו אמיתי.",
     closeBody:
-      "To put a real number on it, we need to see your financial statements. Reply to this email and we will set up a short call. We sign an NDA before you send anything.",
-    closeRead: "We read every reply ourselves.",
-    signName: "Ofir and Benjamin",
+      "כדי לשים על זה מספר אמיתי, צריך לראות את הדוחות הכספיים שלך. השב למייל הזה ונקבע שיחת ייעוץ קצרה. נחתום על NDA לפני שתשלח משהו.",
+    closeRead: "אנחנו קוראים כל תשובה בעצמנו.",
+    signName: "אופיר ובנימין",
     signFirm: "Gesher Partners",
-    fine: "An estimate, not a valuation. Not an offer, or advice to buy or sell.",
+    fine: "אומדן, לא הערכת שווי. לא הצעה, ולא המלצה לקנות או למכור.",
   },
 } satisfies Record<Lang, unknown>;
 
@@ -238,8 +239,12 @@ export function rangeBlockFor(run: SnapshotRun, lang?: Lang): RangeBlock {
   if (byHand) {
     return { kind: "byHand", label: c.rangeLabelPlain, big: c.byHandLine, warn: c.warnByHand };
   }
+  // v8 wrote A or A1 when the owner shared his numbers. v2 (Sep 23) writes the
+  // recipe tier instead: T2 is revenue, T3 is profit, T1 is a headcount guess
+  // with no numbers from him. Without T2 and T3 here, every run since v2 told
+  // an owner who typed his numbers that he had shared none.
   const path = (run.pathUsed ?? "").toUpperCase();
-  const sharedNumbers = path === "A" || path === "A1";
+  const sharedNumbers = path === "A" || path === "A1" || path === "T2" || path === "T3";
   return {
     kind: "number",
     label: sharedNumbers ? c.rangeLabelFirstEstimate : c.rangeLabelRough,

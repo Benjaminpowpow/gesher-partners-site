@@ -97,13 +97,14 @@ describe("localizeHtml", () => {
     expect(html).not.toContain("noindex");
   });
 
-  it("serves /he/valuation right to left, and keeps it out of the index", () => {
+  it("serves /he/valuation right to left, with its Hebrew title, and lets it be indexed", () => {
     for (const url of ["/he/valuation", "/he/valuation/"]) {
       const html = localizeHtml(TEMPLATE, url);
       expect(html).toContain('<html lang="he" dir="rtl">');
       expect(html).toContain('<link rel="canonical" href="https://gesherpartners.com/he/valuation" />');
       expect(html).toContain('<meta property="og:locale" content="he_IL" />');
-      expect(html).toContain('<meta name="robots" content="noindex,follow" />');
+      expect(html).toContain("<title>ניתוח שווי ראשוני בחינם | Gesher Partners</title>");
+      expect(html).not.toContain("noindex");
       expect(html).toContain('hreflang="x-default" href="https://gesherpartners.com/valuation"');
     }
   });

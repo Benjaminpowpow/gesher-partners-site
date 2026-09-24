@@ -216,8 +216,14 @@ export function formatMoney(value: number): string {
   return Number.isInteger(m) ? `₪${m}M` : `₪${m.toFixed(1)}M`;
 }
 
-export function rangeText(r: RangeResult): string {
-  return r.outcome === "number" ? `${formatMoney(r.low)} to ${formatMoney(r.high)}` : "";
+/**
+ * "₪3.8M to ₪4.8M", or on a Hebrew run "₪3.8M עד ₪4.8M", the shape Ben picked
+ * for the Hebrew tool (site/28, site/30). The page prints it inside a
+ * left-to-right span, so it reads the same way round in both languages.
+ */
+export function rangeText(r: RangeResult, lang: "en" | "he" = "en"): string {
+  const joiner = lang === "he" ? "עד" : "to";
+  return r.outcome === "number" ? `${formatMoney(r.low)} ${joiner} ${formatMoney(r.high)}` : "";
 }
 
 // Ben's fixed lines, one per tier. The page prints these from its own copy
@@ -232,7 +238,18 @@ const TRUST = "We work only for the seller. Most of our fee is paid only when yo
 const CALL = "**Talk to us.** We'll name the buyers and show what moves the number.";
 
 /** The Range section as markdown, so the sheet and the email carry the same words as the page. */
-export function rangeMarkdown(r: RangeResult | null, buyers: string): string {
+export function rangeMarkdown(r: RangeResult | null, buyers: string, lang: "en" | "he" = "en"): string {
+  // A Hebrew run carries the figure only. The tier lines, the by-hand leads and
+  // the call line below have no approved Hebrew yet (they came with v2, after
+  // file 30 was written), and the page and the email already print the buyer
+  // line and the fee line from their own Hebrew tables. So no English sentence
+  // reaches a Hebrew screen, and nothing is written in Hebrew that Ben has not
+  // picked. When the Hebrew tier lines land in file 30, they go here.
+  if (lang === "he") {
+    return r && r.outcome === "number"
+      ? ["## Range and call", "", `# ${rangeText(r, "he")}`, ""].join("\n")
+      : ["## Range and call", ""].join("\n");
+  }
   const buyerLine = `There are real buyers for a business like yours: ${buyers}.`;
   if (r && r.outcome === "number") {
     return [

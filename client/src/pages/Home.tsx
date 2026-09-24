@@ -449,14 +449,14 @@ const COPY_HE: Copy = {
     ariaLabel: "Footer",
     disclaimer:
       "Gesher Partners אינה יועץ השקעות מורשה. אין באתר הזה ייעוץ השקעות, ולא הצעה לקנות או למכור נייר ערך כלשהו.",
-    // The valuation tool, privacy and terms pages exist in English only, so
-    // the Hebrew links go to those pages until Hebrew twins exist.
+    // The valuation tool has a Hebrew twin since Sep 24. Privacy and terms
+    // exist in English only, so those links go to the English pages.
     links: [
       { kind: "anchor", id: "how", label: "התהליך" },
       { kind: "anchor", id: "sectors", label: "ענפים" },
       { kind: "anchor", id: "founders", label: "הצוות" },
       { kind: "anchor", id: "faq", label: "שאלות ותשובות" },
-      { kind: "route", href: "/valuation", label: "ניתוח שווי ראשוני" },
+      { kind: "route", href: "/he/valuation", label: "ניתוח שווי ראשוני" },
       { kind: "route", href: "/privacy", label: "פרטיות" },
       { kind: "route", href: "/terms", label: "תנאי שימוש" },
     ] as FooterLink[],
@@ -1651,9 +1651,11 @@ export default function Home({ lang = "en" }: { lang?: Lang }) {
           </div>
         </header>
         <Hero
-          onOpenValuation={(site) =>
-            navigate(site ? `/valuation?site=${encodeURIComponent(site)}` : "/valuation")
-          }
+          onOpenValuation={(site) => {
+            // A man on /he/ stays in Hebrew: the hero sends him to the Hebrew tool.
+            const tool = lang === "he" ? "/he/valuation" : "/valuation";
+            navigate(site ? `${tool}?site=${encodeURIComponent(site)}` : tool);
+          }}
         />
         <ProofStrip />
         <LogoStrip />
