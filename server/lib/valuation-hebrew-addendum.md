@@ -130,6 +130,6 @@ and give them Hebrew twins in the page's table.
 
 | English | Hebrew | Source |
 | --- | --- | --- |
-| There are real buyers for a business like yours: [types] |  | DRAFT |
-| We work only for you, the seller. Most of our fee comes only when you sell. |  | DRAFT |
-| Talk to us. |  | DRAFT, see the word list above |
+| There are real buyers for a business like yours: [types] | יש קונים אמיתיים לעסק כמו שלך: [types] | file 30, result.buyerLine |
+| We work only for you, the seller. Most of our fee comes only when you sell. | אנחנו עובדים רק בשבילך, מצד המוכר. בעיקר דמי הצלחה כשאתה מוכר, ודמי רצינות קטנים בהתחלה. | file 30, result.trust |
+| Talk to us. | לשיחת ייעוץ. | file 30, talk.title |
