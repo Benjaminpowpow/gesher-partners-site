@@ -132,6 +132,9 @@
 .v-page[lang="he"] {
   --font-serif: var(--font-hebrew-serif);
   --font-sans: var(--font-hebrew-sans);
+  /* Eyebrows and buttons are tracked wide for English capitals. Hebrew has no
+     capitals, and spaced-out Hebrew letters read as broken words. */
+  --ls-eyebrow: 0;
 }
 /* The tagline under the logo stays in English, in the English face. */
 .v-page[lang="he"] .lockup-tag {

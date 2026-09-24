@@ -283,9 +283,10 @@ export const GESHER_LOGO_URL = "https://gesherpartners.com/brand/gesher-lockup-e
 const GESHER_LOGO_W = 132;
 const GESHER_LOGO_H = 46;
 
-function label(text: string, align: string): string {
+function label(text: string, align: string, rtl = false): string {
+  // Wide tracking suits English capitals only. Spaced Hebrew letters look broken.
   return (
-    `<span style="font-family:${FONT_SANS};font-size:11px;letter-spacing:.16em;` +
+    `<span style="font-family:${FONT_SANS};font-size:11px;letter-spacing:${rtl ? "0" : ".16em"};` +
     `text-transform:uppercase;color:${MUTED};font-weight:bold;text-align:${align};">${escapeHtml(text)}</span>`
   );
 }
@@ -353,8 +354,10 @@ export function snapshotLetterTable(run: SnapshotRun, to: SnapshotRecipient): st
       ? `font-family:${FONT_SERIF};font-size:36px;line-height:1.1;color:${BURGUNDY};`
       : `font-family:${FONT_SERIF};font-size:26px;line-height:1.2;color:${NAVY};`;
 
-  // The number is Latin-and-shekel and must not reorder inside a Hebrew line.
-  const bigInner = `<span dir="ltr">${escapeHtml(block.big)}</span>`;
+  // English: the figure is one left-to-right run. Hebrew: the line reads right
+  // to left and each figure already carries its own isolate (rangeText in
+  // valuationMath.ts), so the low figure lands on the right.
+  const bigInner = `<span dir="${dir === "rtl" && block.kind === "number" ? "rtl" : "ltr"}">${escapeHtml(block.big)}</span>`;
 
   const driverHtml = drivers
     .map((d) => para((d.lead ? leadIn(d.lead + (/[.:!?]$/.test(d.lead) ? "" : ".")) : "") + escapeHtml(d.body)))
@@ -374,7 +377,7 @@ export function snapshotLetterTable(run: SnapshotRun, to: SnapshotRecipient): st
           <img src="${GESHER_LOGO_URL}" width="${GESHER_LOGO_W}" height="${GESHER_LOGO_H}"
                alt="Gesher" style="display:block;border:0;width:${GESHER_LOGO_W}px;height:${GESHER_LOGO_H}px;">
         </td>
-        <td align="${dir === "rtl" ? "left" : "right"}" valign="middle">${label(c.privateLabel, dir === "rtl" ? "left" : "right")}</td>
+        <td align="${dir === "rtl" ? "left" : "right"}" valign="middle">${label(c.privateLabel, dir === "rtl" ? "left" : "right", dir === "rtl")}</td>
       </tr></table>
     </td></tr>
 
@@ -398,7 +401,7 @@ export function snapshotLetterTable(run: SnapshotRun, to: SnapshotRecipient): st
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
              style="border-top:1px solid ${NAVY};border-bottom:1px solid ${NAVY};margin:0 0 22px;">
         <tr><td style="padding:18px 0;">
-          <div style="margin-bottom:6px;">${label(block.label, dir === "rtl" ? "right" : "left")}</div>
+          <div style="margin-bottom:6px;">${label(block.label, dir === "rtl" ? "right" : "left", dir === "rtl")}</div>
           <div style="${bigStyle}margin-bottom:6px;">${bigInner}</div>
           <div>${small(block.warn)}</div>
         </td></tr>

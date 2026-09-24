@@ -219,11 +219,18 @@ export function formatMoney(value: number): string {
 /**
  * "₪3.8M to ₪4.8M", or on a Hebrew run "₪3.8M עד ₪4.8M", the shape Ben picked
  * for the Hebrew tool (site/28, site/30). The page prints it inside a
- * left-to-right span, so it reads the same way round in both languages.
+ * right-to-left line on Hebrew runs, with each figure isolated (see below).
  */
 export function rangeText(r: RangeResult, lang: "en" | "he" = "en"): string {
-  const joiner = lang === "he" ? "עד" : "to";
-  return r.outcome === "number" ? `${formatMoney(r.low)} ${joiner} ${formatMoney(r.high)}` : "";
+  if (r.outcome !== "number") return "";
+  if (lang === "he") {
+    // Each figure is wrapped in a left-to-right isolate (U+2066 ... U+2069) and
+    // the line itself is read right to left. Without the isolates the browser
+    // mixes "M", "₪" and "עד" into one run and prints "₪4M ₪8 עדM" (Sep 24
+    // test). With them a Hebrew reader sees the low figure first, on the right.
+    return `\u2066${formatMoney(r.low)}\u2069 עד \u2066${formatMoney(r.high)}\u2069`;
+  }
+  return `${formatMoney(r.low)} to ${formatMoney(r.high)}`;
 }
 
 // Ben's fixed lines, one per tier. The page prints these from its own copy
@@ -234,21 +241,33 @@ export const TIER_LINES: Record<1 | 2 | 3, string> = {
   3: "Based on the numbers you shared and what buyers pay for businesses like yours. A conversation is what tightens it.",
 };
 
+// The same three lines in Hebrew, verbatim from site/30 (range.tier1..3).
+const TIER_LINES_HE: Record<1 | 2 | 3, string> = {
+  1: "לפי מה שקונים משלמים על עסקים כמו שלך. עם מידע נוסף נוכל לתת לך הערכה מדויקת יותר. נשמח לתאם שיחה.",
+  2: "לפי המחזור ששיתפת ולפי מה שקונים משלמים על עסקים כמו שלך. עם מידע נוסף נוכל לתת לך הערכה מדויקת יותר. נשמח לתאם שיחה.",
+  3: "לפי המספרים ששיתפת ולפי מה שקונים משלמים על עסקים כמו שלך. עם מידע נוסף נוכל לתת לך הערכה מדויקת יותר. נשמח לתאם שיחה.",
+};
+
 const TRUST = "We work only for the seller. Most of our fee is paid only when you sell.";
 const CALL = "**Talk to us.** We'll name the buyers and show what moves the number.";
 
 /** The Range section as markdown, so the sheet and the email carry the same words as the page. */
 export function rangeMarkdown(r: RangeResult | null, buyers: string, lang: "en" | "he" = "en"): string {
-  // A Hebrew run carries the figure only. The tier lines, the by-hand leads and
-  // the call line below have no approved Hebrew yet (they came with v2, after
-  // file 30 was written), and the page and the email already print the buyer
-  // line and the fee line from their own Hebrew tables. So no English sentence
-  // reaches a Hebrew screen, and nothing is written in Hebrew that Ben has not
-  // picked. When the Hebrew tier lines land in file 30, they go here.
+  // A Hebrew run carries the figure and one line under it, in Ben's words from
+  // site/30 (Joanne, Sep 24). The buyer line, the fee line and the call button
+  // come from the page's and the email's own Hebrew tables, so they are not
+  // written here.
   if (lang === "he") {
-    return r && r.outcome === "number"
-      ? ["## Range and call", "", `# ${rangeText(r, "he")}`, ""].join("\n")
-      : ["## Range and call", ""].join("\n");
+    if (r && r.outcome === "number") {
+      return ["## Range and call", "", `# ${rangeText(r, "he")}`, "", TIER_LINES_HE[r.tier], ""].join("\n");
+    }
+    const leadHe =
+      r?.outcome === "too_big"
+        ? "העסק שלך נראה גדול ממה שהכלי הזה מתמחר באתר. על עסקים בגודל שלך אנחנו עובדים ידנית, עם המספרים שלך מולנו."
+        : r?.outcome === "too_small"
+          ? "בגודל הזה מכירה בדרך כלל הולכת לאדם, לא לחברה, והמחיר תלוי בך יותר מאשר בשוק. לכן לא נזרוק מספר."
+          : "את התחום שלך אנחנו מתמחרים ידנית, ולכן לא נזרוק מספר שאי אפשר לעמוד מאחוריו.";
+    return ["## Range and call", "", leadHe, ""].join("\n");
   }
   const buyerLine = `There are real buyers for a business like yours: ${buyers}.`;
   if (r && r.outcome === "number") {

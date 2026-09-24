@@ -1173,7 +1173,7 @@ function WorkingState({ ctx, go }: StateProps) {
 
 // ─── Result ──────────────────────────────────────────────────────────────────
 function ResultState({ ctx, go }: StateProps) {
-  const { copy: C } = useVCopy();
+  const { copy: C, lang } = useVCopy();
   const company = ctx.company || {
     name: deriveName(ctx.url, C.working.companyFallbackName),
     domain: deriveDomain(ctx.url),
@@ -1224,7 +1224,10 @@ function ResultState({ ctx, go }: StateProps) {
                     on both pages, inside a card that may be right to left. */}
                 {ctx.rangeText && (
                   <p className="v-range">
-                    <span dir="ltr">{ctx.rangeText}</span>
+                    {/* English: one left-to-right figure. Hebrew: a right-to-left
+                        line whose two figures carry their own isolates (see
+                        rangeText in server/lib/valuationMath.ts). */}
+                    <span dir={lang === "he" ? "rtl" : "ltr"}>{ctx.rangeText}</span>
                   </p>
                 )}
                 <div className="v-card-body">
