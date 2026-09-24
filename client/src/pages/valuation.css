@@ -48,8 +48,8 @@
 
   --font-serif: "Newsreader", "Source Serif Pro", Georgia, "Times New Roman", serif;
   --font-sans:  "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-hebrew-serif: "Frank Ruhl Libre", "Newsreader", Georgia, serif; /* parked */
-  --font-hebrew-sans:  "Heebo", "Inter", sans-serif;                    /* parked */
+  --font-hebrew-serif: "Frank Ruhl Libre", "Newsreader", Georgia, serif;
+  --font-hebrew-sans:  "Heebo", "Inter", sans-serif;
 
   /* Type scale (px). H1 fluid 42→60. */
   --fs-h1: clamp(42px, 5vw, 60px);
@@ -117,6 +117,34 @@
    cream background and serif tokens never leak into other routes. */
 
 .v-page, .v-page * { box-sizing: border-box; }
+
+/* ---------- Hebrew ----------
+   Same pattern as home.css. Valuation.tsx marks the page root with
+   lang="he" dir="rtl" and the .v-rtl class. Swapping the two font tokens here
+   moves every rule below that reads var(--font-serif) or var(--font-sans) to
+   Frank Ruhl Libre and Heebo in one go, so no rule needs a Hebrew twin. Both
+   faces are loaded in client/index.html.
+
+   Layout follows dir="rtl" by itself: the spacing here is logical, and the
+   working screen is a grid, so column 1 becomes the right-hand column and the
+   stage checks move to the right of their labels. The handful of rules that
+   name a physical side are flipped at the bottom of this file under .v-rtl. */
+.v-page[lang="he"] {
+  --font-serif: var(--font-hebrew-serif);
+  --font-sans: var(--font-hebrew-sans);
+}
+/* The tagline under the logo stays in English, in the English face. */
+.v-page[lang="he"] .lockup-tag {
+  font-family: "Newsreader", "Source Serif Pro", Georgia, "Times New Roman", serif;
+}
+/* Neither Hebrew face has an italic. The browser would slant it by force. */
+.v-page[lang="he"] .v-tagline-line { font-style: normal; }
+/* Wide tracking is an uppercase Latin habit. Hebrew has no uppercase. */
+.v-page[lang="he"] .v-front-h1,
+.v-page[lang="he"] .v-working-h2,
+.v-page[lang="he"] .v-result-title,
+.v-page[lang="he"] .v-range,
+.v-page[lang="he"] .v-ring-num { letter-spacing: 0; }
 
 /* ---------- Page shell ---------- */
 .v-page {
@@ -187,6 +215,37 @@
   transition: border-color var(--dur-quick) var(--ease-quiet);
 }
 .v-topbar .talk:hover { border-color: var(--navy); }
+/* The right-hand end of the bar: the language switch, then "Talk to us". With
+   the switch hidden this is a box around one button and changes nothing. */
+.v-topbar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* ---------- Language switch ----------
+   The same look as the home page's, repeated here because home.css is scoped
+   under .gesher and does not reach this route. */
+.v-lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1;
+  /* Always "EN / עב" in that order, on both pages. */
+  direction: ltr;
+  padding-inline-end: 18px;
+  border-inline-end: 0.5px solid var(--hairline);
+}
+.v-lang-switch a {
+  color: var(--taupe);
+  text-decoration: none;
+  transition: color var(--dur-quick) var(--ease-quiet);
+}
+.v-lang-switch a:hover { color: var(--navy); }
+.v-lang-switch a.lang-on { color: var(--navy); font-weight: 600; }
+.v-lang-switch .lang-sep { color: var(--hairline); }
 
 /* ---------- Main slot ---------- */
 .v-main {
@@ -582,10 +641,9 @@ textarea.v-input {
   font-variant-numeric: tabular-nums;
   letter-spacing: var(--ls-display);
 }
-@media (max-width: 640px) {
-  .v-ring, .v-ring svg { width: 108px; height: 108px; }
-  .v-ring-num { font-size: 27px; }
-}
+/* The ring gets smaller at 880 and again at 480, where it shares the top row
+   with the company card. Those two rules live with the working-screen layout
+   further down, because the size and the place it sits are one decision. */
 
 /* ---- Rotating italic tag line ----
    Stacked with grid, not absolute positioning, so the box is as tall as the
@@ -693,21 +751,48 @@ textarea.v-input {
   .v-working {
     display: flex;
     flex-direction: column;
-    gap: 36px;
-    padding: 56px 20px 96px;
+    gap: 28px;
+    padding: 48px 20px 72px;
   }
-  .v-working-right { display: contents; }
+  /* One row at the top: his company, and the ring beside it. The ring used to
+     sit below the checklist, which on a phone put the one moving thing on the
+     screen underneath the fold. Now the two things that say "we are working on
+     your business" are in the same glance, and the whole screen fits without
+     scrolling. */
+  .v-working-right {
+    order: 2;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+  }
   .v-working-head { order: 1; }
-  .v-company-card { order: 2; }
+  .v-company-card { order: 1; flex: 1 1 auto; min-width: 0; }
+  .v-ring-wrap { order: 2; flex: 0 0 auto; margin: 0; }
   .v-working-left { order: 3; }
-  .v-ring-wrap { order: 4; margin: 0; justify-content: flex-start; }
-  .v-tagline-slot { order: 5; }
+  .v-tagline-slot { order: 4; }
   .v-stages { margin-bottom: 0; }
   .v-reassure { margin-bottom: 0; }
   .v-check-row { font-size: 16px; }
+  /* Smaller, because it is now sharing the row. */
+  .v-ring, .v-ring svg { width: 84px; height: 84px; }
+  .v-ring-num { font-size: 22px; }
 }
 @media (max-width: 480px) {
-  .v-working { padding: 48px 20px 96px; }
+  .v-working { padding: 32px 20px 48px; gap: 22px; }
+  .v-working-sub { margin-bottom: 0; }
+  /* The card gives up padding so the name and the one-liner still have room
+     next to the ring at 375 wide. */
+  .v-company-card { padding: 16px; min-height: 0; }
+  .v-company-content { gap: 12px; }
+  .v-company-logo { width: 44px; height: 44px; font-size: 20px; }
+  .v-skeleton .v-skel-logo { width: 44px; height: 44px; }
+  .v-skel-lines { padding-top: 4px; gap: 8px; }
+  .v-working-right { gap: 12px; }
+  .v-ring, .v-ring svg { width: 68px; height: 68px; }
+  .v-ring-num { font-size: 19px; }
+  .v-stages { gap: 14px; }
+  .v-stage { font-size: 16px; }
 }
 
 /* ============================================================
@@ -1322,3 +1407,25 @@ a.v-btn {
 .v-card .v-point.v-point-positive .v-point-icon { color: var(--navy, #16243B); }
 .v-card .v-point.v-point-watch .v-point-icon { color: var(--burgundy, #6E2B2B); }
 .v-card .v-point-text { min-width: 0; }
+
+/* ---------- Right to left ----------
+   Only the rules that name a physical side. Everything else in this file is
+   either logical (padding-inline, gap, flex) or laid out with grid, and flips
+   by itself when the root carries dir="rtl". Nothing here can touch the
+   English page: every selector starts at .v-rtl, which only the Hebrew page
+   has. */
+
+/* The dropdown arrow sits at the end of the box, which is now the left. */
+.v-rtl .v-select-chev { right: auto; left: 12px; }
+
+/* The close cross on both popups moves with the corner. */
+.v-rtl .v-modal-close { right: auto; left: 14px; }
+
+/* Two blocks are told to align left in so many words. */
+.v-rtl .v-front-form { text-align: right; }
+.v-rtl .v-disclaimer { text-align: right; }
+
+/* A box holding a web address, an email or a phone keeps its own direction
+   (dir="ltr" is set on the input itself in Valuation.tsx), so the text starts
+   at the left edge of the box even on the Hebrew page. */
+.v-rtl .v-input[dir="ltr"] { text-align: left; }

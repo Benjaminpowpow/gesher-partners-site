@@ -11,9 +11,36 @@
  *  - Result renders Market + Value from result_md, and builds the Range card from
  *    the meta fields (range_variant, range_text, buyer_types) per 07-page-skill-bridge.
  *  - Lead capture posts to /api/exit-brief/pdf-request with the briefId.
+ *
+ * LANGUAGE. One component, two copy tables, exactly like Home.tsx. Every word
+ * on this page lives in valuationCopy.ts and reaches the screen through
+ * VCopyContext. English is at /valuation, Hebrew at /he/valuation, and the
+ * route picks which table is handed down. The Hebrew page renders right to
+ * left: lang="he" dir="rtl" plus the .v-rtl class on the page root, which
+ * valuation.css keys its few visual flips off. Never write a sentence inline
+ * in this file again; it makes the Hebrew twin impossible to keep in step.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Lockup } from "@/components/Lockup";
+import {
+  COPY_V,
+  HEBREW_VALUATION_LIVE,
+  TIME_TO_SELL_VALUES,
+  VALUATION_COPY,
+  WORKING_STAGE_IDS,
+  otherLangHref,
+  type TimeToSellValue,
+  type VCopy,
+  type VLang,
+} from "./valuationCopy";
 import "./valuation.css";
 
 // Every "talk to us" on this page opens a small form right here. It used to be
@@ -81,6 +108,51 @@ interface StateProps {
   setCtx: React.Dispatch<React.SetStateAction<Ctx>>;
 }
 
+// ─── Language plumbing ───────────────────────────────────────────────────────
+// Same shape as Home.tsx: one context carrying the copy table and the language,
+// so no component below has to be handed a prop it does not use.
+const VCopyContext = createContext<{ copy: VCopy; lang: VLang }>({
+  copy: VALUATION_COPY.en,
+  lang: "en",
+});
+const useVCopy = () => useContext(VCopyContext);
+
+// The language switch, "EN / עב", both always visible, the active one bold
+// navy. Real anchors, not client-side routes, so the server sends the right
+// per-language head with the new page. Hidden behind HEBREW_VALUATION_LIVE
+// until the Hebrew words exist; the routes work either way.
+function VLangSwitch() {
+  const { copy: C, lang } = useVCopy();
+  if (!HEBREW_VALUATION_LIVE) return null;
+  const isHe = lang === "he";
+  const search = typeof window === "undefined" ? "" : window.location.search;
+  const here = isHe ? "/he/valuation" : "/valuation";
+  const there = otherLangHref(lang, search);
+  return (
+    <div className="v-lang-switch" role="group" aria-label={C.nav.langAriaLabel}>
+      <a
+        href={isHe ? there : here}
+        lang="en"
+        className={isHe ? undefined : "lang-on"}
+        aria-current={isHe ? undefined : "true"}
+      >
+        {C.nav.langEn}
+      </a>
+      <span className="lang-sep" aria-hidden="true">
+        /
+      </span>
+      <a
+        href={isHe ? here : there}
+        lang="he"
+        className={isHe ? "lang-on" : undefined}
+        aria-current={isHe ? "true" : undefined}
+      >
+        {C.nav.langHe}
+      </a>
+    </div>
+  );
+}
+
 // ─── Intake ──────────────────────────────────────────────────────────────────
 // Revenue and profit used to be dropdowns of bands, and the engine was handed
 // the midpoint of whichever band he picked. So an owner turning over 21M and one
@@ -95,13 +167,9 @@ interface StateProps {
 // who to call today, which is what Ofir keeps asking for.
 // Digits, not words. A man scanning a dropdown reads "6" faster than "six",
 // and these are five options he is meant to pick from at a glance.
-const TIME_TO_SELL = [
-  { value: "under-6m", label: "Within 6 months" },
-  { value: "6-12m", label: "6 to 12 months" },
-  { value: "1-2y", label: "1 to 2 years" },
-  { value: "over-2y", label: "Over 2 years" },
-  { value: "exploring", label: "Just exploring" },
-];
+//
+// The five codes live in valuationCopy.ts (TIME_TO_SELL_VALUES) and the labels
+// sit beside them in each language's table.
 
 /**
  * Read a number the way a business owner writes one.
@@ -135,20 +203,17 @@ function parseAmount(raw: string): number | undefined {
 }
 
 // What we show back to him under the box, so he can see we read it the way he
-// meant it before he presses the button.
-function formatAmount(n: number): string {
+// meant it before he presses the button. The prefix is a word, so it comes from
+// the copy table; the default is the English one, because the same function
+// also builds the "NIS 12M" that rides to Ben's lead email on every run.
+function formatAmount(n: number, prefix: string = COPY_V.money.prefix): string {
   if (n >= 1_000_000) {
     const m = n / 1_000_000;
-    return `NIS ${m % 1 === 0 ? m : m.toFixed(1)}M`;
+    return `${prefix} ${m % 1 === 0 ? m : m.toFixed(1)}M`;
   }
-  if (n >= 1_000) return `NIS ${Math.round(n / 1_000)}K`;
-  return `NIS ${n}`;
+  if (n >= 1_000) return `${prefix} ${Math.round(n / 1_000)}K`;
+  return `${prefix} ${n}`;
 }
-
-// The line that has to sit under every number this tool produces. It is a read
-// off a website and a couple of figures, not a valuation anyone should sign.
-const ESTIMATE_DISCLAIMER =
-  "This is an estimate, not a valuation. It is built from public information and whatever you tell us here, in a few minutes. A real number needs your financials and a proper look. Nothing here is an offer, or advice to buy or sell.";
 
 // The five real stages of a run. The page advances them off the live stream, never
 // off a timer. It used to sit 27 seconds on one stage called "Writing your brief"
@@ -159,19 +224,9 @@ const ESTIMATE_DISCLAIMER =
 //   market -> "## Value" arrives in the text
 //   value  -> "## Range and call" arrives in the text
 //   range  -> the "done" message
-const WORKING_STAGES = [
-  { id: "read", label: "Reading your website" },
-  { id: "learn", label: "Learning your size and your story" },
-  { id: "market", label: "Reading your market" },
-  { id: "value", label: "Working out the value" },
-  { id: "range", label: "Setting your range" },
-] as const;
-
-const WORKING_TAGLINES = [
-  "We work only for you, the seller.",
-  "We run a real competitive process, buyers in Israel and abroad.",
-  "We tell you the truth, even when the truth is wait a year.",
-];
+//
+// The ids are the signals. The labels live in valuationCopy.ts.
+const STAGE_COUNT = WORKING_STAGE_IDS.length;
 
 // Working-screen timings.
 const REASSURE_AFTER_MS = 25000; // one stage running this long shows the long-step line
@@ -205,9 +260,13 @@ const RING_HANDOVER_MS = 600; // then the result page opens
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // The lead email should read the way the screen read: "Within six months", not
 // "under-6m".
+//
+// Always the English label, on both pages. This string goes to the engine, to
+// Ben's lead email and into the "Time to sell" column of the Sheet, and that
+// column has to sort and read the same whichever door the owner came in by.
 function labelForTimeToSell(value?: string): string | undefined {
   if (!value) return undefined;
-  return TIME_TO_SELL.find((o) => o.value === value)?.label;
+  return COPY_V.timeToSell[value as TimeToSellValue];
 }
 
 // What he typed, tidied for a human to read in an email. Undefined when he
@@ -256,11 +315,14 @@ function deriveDomain(url: string): string | undefined {
   }
 }
 
-function deriveName(url: string): string {
+// The name we show until the engine sends his real one. It comes off the
+// address, so it is Latin either way; the fallback when the address gives us
+// nothing is a word, so it comes from the copy table.
+function deriveName(url: string, fallback: string): string {
   const domain = deriveDomain(url);
-  if (!domain) return "Your business";
+  if (!domain) return fallback;
   const base = domain.split(".")[0];
-  if (!base) return "Your business";
+  if (!base) return fallback;
   return base.charAt(0).toUpperCase() + base.slice(1);
 }
 
@@ -336,6 +398,12 @@ function parseResultMarkdown(md: string): { Market: string[]; Value: string[]; r
   // The lead is what sits between the "# ₪..." line and the buyer line. The
   // buyer line and the fixed closing sentence are rendered from the meta, so
   // stop at the first of them.
+  //
+  // These three openers are English, and on a Hebrew run the engine writes
+  // that prose in Hebrew, so this test could never find them. That is why
+  // server/lib/valuation-hebrew-addendum.md tells the engine to end the Range
+  // card at the assumption sentence on a Hebrew run and leave the buyer line
+  // and the fee line to the page, which prints them from its own table.
   const lead: string[] = [];
   for (const line of range) {
     if (line.startsWith("#")) continue;
@@ -491,6 +559,7 @@ function AmountField({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const { copy: C } = useVCopy();
   const parsed = parseAmount(value);
   return (
     <div className="v-field">
@@ -512,13 +581,18 @@ function AmountField({
           back as NIS 12M is the difference between trust and a support email.
           Only once there is something to read back: the empty version of this
           line printed the same sentence under both boxes, which was noise. */}
-      {parsed && <p className="v-field-echo">We read that as {formatAmount(parsed)}</p>}
+      {parsed && (
+        <p className="v-field-echo">
+          {C.front.echo(formatAmount(parsed, C.money.prefix))}
+        </p>
+      )}
     </div>
   );
 }
 
 // ─── Front door ──────────────────────────────────────────────────────────────
 function FrontDoorState({ ctx, go }: StateProps) {
+  const { copy: C } = useVCopy();
   const [url, setUrl] = useState(ctx.url || "");
   const [timeToSell, setTimeToSell] = useState(ctx.timeToSell || "");
   const [revenue, setRevenue] = useState(ctx.revenue || "");
@@ -538,21 +612,22 @@ function FrontDoorState({ ctx, go }: StateProps) {
   return (
     <section className="v-front">
       <div className="v-front-inner">
-        <h1 className="v-front-h1">Tell us about your business.</h1>
-        <p className="v-front-lede">
-          Your website is all we need for a first estimate.
-        </p>
+        <h1 className="v-front-h1">{C.front.headline}</h1>
+        <p className="v-front-lede">{C.front.lede}</p>
 
         <form className="v-front-form" onSubmit={handleSubmit} noValidate>
           <div className="v-field">
             <label htmlFor="v-url" className="v-field-label">
-              Your website
+              {C.front.urlLabel}
             </label>
+            {/* A web address is Latin whatever the page language is, so the
+                box keeps its own direction and the placeholder with it. */}
             <input
               id="v-url"
               type="text"
+              dir="ltr"
               className={"v-input" + (touched && urlBad ? " has-error" : "")}
-              placeholder="yourcompany.co.il"
+              placeholder={C.front.urlPlaceholder}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               autoComplete="url"
@@ -563,14 +638,14 @@ function FrontDoorState({ ctx, go }: StateProps) {
             />
             {touched && urlBad && (
               <p className="v-field-error" role="alert">
-                We need your website to start.
+                {C.front.urlError}
               </p>
             )}
           </div>
 
           <div className="v-field">
             <label htmlFor="v-when" className="v-field-label">
-              When would you want to sell
+              {C.front.whenLabel}
             </label>
             <div className="v-select-wrap">
               <select
@@ -579,10 +654,10 @@ function FrontDoorState({ ctx, go }: StateProps) {
                 value={timeToSell}
                 onChange={(e) => setTimeToSell(e.target.value)}
               >
-                <option value="">Select...</option>
-                {TIME_TO_SELL.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
+                <option value="">{C.front.whenPlaceholder}</option>
+                {TIME_TO_SELL_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {C.timeToSell[value]}
                   </option>
                 ))}
               </select>
@@ -601,15 +676,15 @@ function FrontDoorState({ ctx, go }: StateProps) {
 
           <AmountField
             id="v-rev"
-            label="Approximate annual revenue (NIS)"
-            hint="e.g. 12M"
+            label={C.front.revenueLabel}
+            hint={C.front.revenueHint}
             value={revenue}
             onChange={setRevenue}
           />
           <AmountField
             id="v-profit"
-            label="Approximate annual pre-tax profit (NIS)"
-            hint="e.g. 1.5M"
+            label={C.front.profitLabel}
+            hint={C.front.profitHint}
             value={profit}
             onChange={setProfit}
           />
@@ -625,15 +700,15 @@ function FrontDoorState({ ctx, go }: StateProps) {
                 strokeLinejoin="round"
               />
             </svg>
-            100% confidential. We never share your numbers.
+            {C.front.confidential}
           </p>
 
           <button type="submit" className="v-btn v-btn-primary v-btn-block">
-            Get my valuation
+            {C.front.submit}
           </button>
         </form>
 
-        <p className="v-disclaimer">{ESTIMATE_DISCLAIMER}</p>
+        <p className="v-disclaimer">{C.disclaimer}</p>
       </div>
     </section>
   );
@@ -653,6 +728,7 @@ function allowRerun(): void {
 
 // ─── Working ─────────────────────────────────────────────────────────────────
 function WorkingState({ ctx, go }: StateProps) {
+  const { copy: C, lang } = useVCopy();
   // 0 to 4 is the stage being worked on now. 5 means the engine has finished.
   const [stageIdx, setStageIdx] = useState(0);
   const [tagIdx, setTagIdx] = useState(0);
@@ -665,7 +741,10 @@ function WorkingState({ ctx, go }: StateProps) {
   const [oneliner, setOneliner] = useState<string | undefined>(undefined);
 
   const domain = useMemo(() => deriveDomain(ctx.url), [ctx.url]);
-  const name = useMemo(() => deriveName(ctx.url), [ctx.url]);
+  const name = useMemo(
+    () => deriveName(ctx.url, C.working.companyFallbackName),
+    [ctx.url, C.working.companyFallbackName],
+  );
 
   const runStartedAt = useRef(Date.now());
   const stageRef = useRef(0); // the same number as stageIdx, readable inside the stream loop
@@ -687,21 +766,22 @@ function WorkingState({ ctx, go }: StateProps) {
     if (next <= stageRef.current) return;
     stageRef.current = next;
     stageStartedAt.current = Date.now();
-    const finished = WORKING_STAGES[next - 1];
+    const finished = WORKING_STAGE_IDS[next - 1];
     console.log(
-      `[valuation] ${finished ? finished.id : "done"} ${Date.now() - runStartedAt.current}ms`,
+      `[valuation] ${finished ?? "done"} ${Date.now() - runStartedAt.current}ms`,
     );
     setStageIdx(next);
   }, []);
 
   // Rotating italic tagline.
+  const taglineCount = C.taglines.length;
   useEffect(() => {
     const t = setInterval(
-      () => setTagIdx((i) => (i + 1) % WORKING_TAGLINES.length),
+      () => setTagIdx((i) => (i + 1) % taglineCount),
       TAG_MS,
     );
     return () => clearInterval(t);
-  }, []);
+  }, [taglineCount]);
 
   // Company card: brief skeleton, then the real logo. Seeing their own logo is the proof.
   useEffect(() => {
@@ -713,7 +793,7 @@ function WorkingState({ ctx, go }: StateProps) {
   // restarts every time the stage changes.
   useEffect(() => {
     setReassure(false);
-    if (stageIdx >= WORKING_STAGES.length) return;
+    if (stageIdx >= STAGE_COUNT) return;
     const t = setTimeout(() => setReassure(true), REASSURE_AFTER_MS);
     return () => clearTimeout(t);
   }, [stageIdx]);
@@ -729,13 +809,13 @@ function WorkingState({ ctx, go }: StateProps) {
   // The ring creeps toward the next checkpoint while the engine works, and stops
   // 88% of the way there. Landing a checkpoint is what carries it over.
   useEffect(() => {
-    if (finishing || stageIdx >= WORKING_STAGES.length) return;
+    if (finishing || stageIdx >= STAGE_COUNT) return;
     function tick() {
       const inStage = Date.now() - stageStartedAt.current;
       const median = MEDIAN_STAGE_MS[stageIdx] || 10000;
       const share = Math.min(RING_CREEP, (inStage / median) * RING_CREEP);
       const next = Math.max(
-        (stageIdx + share) / WORKING_STAGES.length,
+        (stageIdx + share) / STAGE_COUNT,
         peakRef.current,
       );
       peakRef.current = next;
@@ -765,7 +845,11 @@ function WorkingState({ ctx, go }: StateProps) {
     async function run() {
       try {
         // His own figures, not the midpoint of a band he was made to pick.
-        const payload: Record<string, string> = { url: ctx.url };
+        // The language of the page at the moment he pressed the button is the
+        // language of the brief, the email and the row in Ben's Sheet. It
+        // travels with the run and is saved on it, so nothing downstream ever
+        // has to guess.
+        const payload: Record<string, string> = { url: ctx.url, lang };
         const rev = parseAmount(ctx.revenue);
         const prof = parseAmount(ctx.profit);
         if (rev) payload.revenue = String(rev);
@@ -913,14 +997,16 @@ function WorkingState({ ctx, go }: StateProps) {
           return;
         }
 
-        advanceTo(WORKING_STAGES.length); // the fifth checkpoint, all five landed
+        advanceTo(STAGE_COUNT); // the fifth checkpoint, all five landed
 
         const patch: Patch = {
           briefId: done.briefId,
           runToken: done.run_token,
           resultMd: md,
           company: {
-            name: meta.company_name || deriveName(ctx.url),
+            name:
+              meta.company_name ||
+              deriveName(ctx.url, C.working.companyFallbackName),
             oneliner: meta.company_oneliner,
             domain: deriveDomain(ctx.url),
           },
@@ -964,18 +1050,20 @@ function WorkingState({ ctx, go }: StateProps) {
   return (
     <section className="v-working">
       <div className="v-working-head">
-        <h2 className="v-working-h2">Building your valuation</h2>
-        <p className="v-working-sub">
-          This takes a minute, sometimes two.
-        </p>
+        <h2 className="v-working-h2">{C.working.heading}</h2>
+        <p className="v-working-sub">{C.working.sub}</p>
       </div>
 
       <div className="v-working-left">
-        <ol className="v-stages" aria-live="polite" aria-label="Build progress">
-          {WORKING_STAGES.map((stage, i) => {
+        <ol
+          className="v-stages"
+          aria-live="polite"
+          aria-label={C.working.stagesAriaLabel}
+        >
+          {WORKING_STAGE_IDS.map((stageId, i) => {
             const status = i < stageIdx ? "done" : i === stageIdx ? "active" : "pending";
             return (
-              <li key={stage.id} className={"v-stage is-" + status}>
+              <li key={stageId} className={"v-stage is-" + status}>
                 <span className="v-stage-mark" aria-hidden="true">
                   {status === "done" && (
                     <svg viewBox="0 0 18 18" className="v-stage-check">
@@ -991,7 +1079,7 @@ function WorkingState({ ctx, go }: StateProps) {
                   )}
                   {status === "active" && <span className="v-stage-dot"></span>}
                 </span>
-                <span className="v-stage-label">{stage.label}</span>
+                <span className="v-stage-label">{C.stages[stageId]}</span>
               </li>
             );
           })}
@@ -1000,11 +1088,11 @@ function WorkingState({ ctx, go }: StateProps) {
         <p
           className={
             "v-reassure" +
-            (reassure && stageIdx < WORKING_STAGES.length ? " is-visible" : "")
+            (reassure && stageIdx < STAGE_COUNT ? " is-visible" : "")
           }
           aria-live="polite"
         >
-          This step takes longer than the rest.
+          {C.working.longStep}
         </p>
       </div>
 
@@ -1014,7 +1102,7 @@ function WorkingState({ ctx, go }: StateProps) {
           <div
             className={"v-ring" + (finishing ? " is-finishing" : "")}
             role="img"
-            aria-label={pct + " percent done"}
+            aria-label={C.working.ringAriaLabel(pct)}
           >
             <svg viewBox="0 0 132 132" aria-hidden="true">
               <circle className="track" cx="66" cy="66" r={RING_R} />
@@ -1027,7 +1115,10 @@ function WorkingState({ ctx, go }: StateProps) {
                 strokeDashoffset={RING_C * (1 - progress)}
               />
             </svg>
-            <span className="v-ring-num">{pct}%</span>
+            {/* A percentage stays "42%", never "%42", on a right-to-left page. */}
+            <span className="v-ring-num" dir="ltr">
+              {pct}%
+            </span>
           </div>
         </div>
 
@@ -1036,14 +1127,19 @@ function WorkingState({ ctx, go }: StateProps) {
             <div className="v-company-content v-fade-in" key="filled">
               <CompanyLogo domain={domain} name={shownName} className="v-company-logo" />
               <div className="v-company-body">
-                <h3 className="v-company-name">{shownName}</h3>
+                {/* Until the engine sends his real name this is his domain
+                    dressed up, so it is Latin and must not flip on the Hebrew
+                    page. His own name, when it lands, is left alone. */}
+                <h3 className="v-company-name">
+                  {companyName ? shownName : <span dir="ltr">{shownName}</span>}
+                </h3>
                 {/* The key swap replays the fade, so the moment his own business
                     is described back to him is the moment the line changes. */}
                 <p
                   className="v-company-tagline v-fade-in"
                   key={oneliner ? "oneliner" : "reading"}
                 >
-                  {oneliner || "Reading your website."}
+                  {oneliner || C.working.companyReading}
                 </p>
               </div>
             </div>
@@ -1061,7 +1157,7 @@ function WorkingState({ ctx, go }: StateProps) {
 
       <div className="v-tagline-slot">
         <div className="v-tagline" aria-hidden="true">
-          {WORKING_TAGLINES.map((t, i) => (
+          {C.taglines.map((t, i) => (
             <span
               key={i}
               className={"v-tagline-line" + (i === tagIdx ? " is-visible" : "")}
@@ -1077,12 +1173,14 @@ function WorkingState({ ctx, go }: StateProps) {
 
 // ─── Result ──────────────────────────────────────────────────────────────────
 function ResultState({ ctx, go }: StateProps) {
-  const company = ctx.company || { name: deriveName(ctx.url), domain: deriveDomain(ctx.url) };
+  const { copy: C } = useVCopy();
+  const company = ctx.company || {
+    name: deriveName(ctx.url, C.working.companyFallbackName),
+    domain: deriveDomain(ctx.url),
+  };
   const variant = ctx.rangeVariant || "number";
   const sections = useMemo(() => parseResultMarkdown(ctx.resultMd || ""), [ctx.resultMd]);
-  const buyerLine = ctx.buyerTypes
-    ? `There are real buyers for a business like yours: ${ctx.buyerTypes}`
-    : "";
+  const buyerLine = ctx.buyerTypes ? C.result.buyerLine(ctx.buyerTypes) : "";
 
   // This used to leave a note in sessionStorage for the home page's contact
   // form, because "talk to us" sent the owner there. It opens a popup on this
@@ -1095,16 +1193,14 @@ function ResultState({ ctx, go }: StateProps) {
         <header className="v-result-header">
           <CompanyLogo domain={company.domain} name={company.name} className="v-result-logo" />
           <div className="v-result-titlewrap">
-            <h1 className="v-result-title">Your {company.name} Valuation Snapshot</h1>
-            <p className="v-result-disclaimer">
-              Strictly private. Built from public sources. Not an offer or a valuation opinion.
-            </p>
+            <h1 className="v-result-title">{C.result.title(company.name)}</h1>
+            <p className="v-result-disclaimer">{C.result.privateLine}</p>
           </div>
         </header>
 
         <div className="v-cards">
           <article className="v-card">
-            <h2 className="v-card-h">Market</h2>
+            <h2 className="v-card-h">{C.result.cardMarket}</h2>
             <div className="v-card-body">
               {sections.Market.map((p, i) => (
                 <p key={i}>{renderInline(p)}</p>
@@ -1113,24 +1209,28 @@ function ResultState({ ctx, go }: StateProps) {
           </article>
 
           <article className="v-card">
-            <h2 className="v-card-h">Value</h2>
+            <h2 className="v-card-h">{C.result.cardValue}</h2>
             <div className="v-card-body">
               {sections.Value.map((p, i) => renderValuePoint(p, i))}
             </div>
           </article>
 
           <article className="v-card v-card-accent">
-            <h2 className="v-card-h">Your range</h2>
+            <h2 className="v-card-h">{C.result.cardRange}</h2>
 
             {variant === "number" ? (
               <>
-                {ctx.rangeText && <p className="v-range">{ctx.rangeText}</p>}
+                {/* "₪3.8M to ₪4.8M" is a figure. It reads the same way round
+                    on both pages, inside a card that may be right to left. */}
+                {ctx.rangeText && (
+                  <p className="v-range">
+                    <span dir="ltr">{ctx.rangeText}</span>
+                  </p>
+                )}
                 <div className="v-card-body">
                   {sections.rangeLead && <p>{renderInline(sections.rangeLead)}</p>}
                   {buyerLine && <p>{buyerLine}</p>}
-                  <p className="v-trust">
-                    We work only for you, the seller. Most of our fee comes only when you sell.
-                  </p>
+                  <p className="v-trust">{C.result.trust}</p>
                 </div>
                 <div className="v-card-actions">
                   <button
@@ -1138,29 +1238,24 @@ function ResultState({ ctx, go }: StateProps) {
                     className="v-btn v-btn-primary v-btn-block"
                     onClick={openTalk}
                   >
-                    Talk to us
+                    {C.result.talkBtn}
                   </button>
                   <button
                     type="button"
                     className="v-btn v-btn-outline v-btn-block"
                     onClick={() => go("lead-capture")}
                   >
-                    Get the one-page brief
+                    {C.result.briefBtn}
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <p className="v-byhand-lead">We price your space by hand.</p>
+                <p className="v-byhand-lead">{C.result.byHandLead}</p>
                 <div className="v-card-body">
-                  <p>
-                    Your business is not a cookie cutter case, so we will not throw out a
-                    number we cannot stand behind.
-                  </p>
+                  <p>{C.result.byHandBody}</p>
                   {buyerLine && <p>{buyerLine}</p>}
-                  <p className="v-trust">
-                    We work only for you, the seller. Most of our fee comes only when you sell.
-                  </p>
+                  <p className="v-trust">{C.result.trust}</p>
                 </div>
                 <div className="v-card-actions">
                   <button
@@ -1168,7 +1263,7 @@ function ResultState({ ctx, go }: StateProps) {
                     className="v-btn v-btn-primary v-btn-block"
                     onClick={openTalk}
                   >
-                    Build your number with Ofir and Benjamin
+                    {C.result.byHandBtn}
                   </button>
                 </div>
               </>
@@ -1178,7 +1273,7 @@ function ResultState({ ctx, go }: StateProps) {
           {/* The number he just read, said plainly for what it is. It sits under
               the range, not buried in a footer, because this is the screen where
               a man decides what to believe. */}
-          <p className="v-disclaimer">{ESTIMATE_DISCLAIMER}</p>
+          <p className="v-disclaimer">{C.disclaimer}</p>
         </div>
       </div>
 
@@ -1191,6 +1286,7 @@ function ResultState({ ctx, go }: StateProps) {
 
 // ─── Lead capture (modal over the result) ────────────────────────────────────
 function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
+  const { copy: C } = useVCopy();
   const [name, setName] = useState(ctx.lead?.name || "");
   const [email, setEmail] = useState(ctx.lead?.email || "");
   const [phone, setPhone] = useState(ctx.lead?.phone || "");
@@ -1236,13 +1332,13 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
   const problem = !touched
     ? null
     : nameBad
-      ? "Please tell us your name."
+      ? C.brief.errName
       : !email.trim()
-        ? "Please add your email. That is where the brief goes."
+        ? C.brief.errEmailMissing
         : !looksLikeEmail(email)
-          ? "That email looks incomplete. Check it and try again."
+          ? C.brief.errEmailBad
           : phoneBad
-            ? "Please add a phone number."
+            ? C.brief.errPhone
             : null;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -1312,7 +1408,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
           <button
             type="button"
             className="v-modal-close"
-            aria-label="Close"
+            aria-label={C.brief.closeAriaLabel}
             onClick={() => go("result")}
           >
             <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -1327,14 +1423,14 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
           </button>
 
           <h2 id="v-modal-title" className="v-modal-title">
-            Get your one-page brief
+            {C.brief.title}
           </h2>
-          <p className="v-modal-sub">It lands in your inbox in a few seconds.</p>
+          <p className="v-modal-sub">{C.brief.sub}</p>
 
           <form className="v-modal-form" onSubmit={handleSubmit} noValidate>
             <div className="v-field">
               <label htmlFor="lc-name" className="v-field-label">
-                Your name
+                {C.brief.nameLabel}
               </label>
               <input
                 id="lc-name"
@@ -1349,11 +1445,14 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
 
             <div className="v-field">
               <label htmlFor="lc-email" className="v-field-label">
-                Email
+                {C.brief.emailLabel}
               </label>
+              {/* An address is Latin, and a phone number reads left to right
+                  even in Hebrew. Both boxes keep their own direction. */}
               <input
                 id="lc-email"
                 type="email"
+                dir="ltr"
                 className={"v-input v-input-sm" + (touched && emailBad ? " has-error" : "")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -1367,11 +1466,12 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
 
             <div className="v-field">
               <label htmlFor="lc-phone" className="v-field-label">
-                Phone
+                {C.brief.phoneLabel}
               </label>
               <input
                 id="lc-phone"
                 type="tel"
+                dir="ltr"
                 className={"v-input v-input-sm" + (touched && phoneBad ? " has-error" : "")}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -1381,9 +1481,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
               />
             </div>
 
-            <p className="v-modal-quiet">
-              100% confidential. We never share your numbers.
-            </p>
+            <p className="v-modal-quiet">{C.brief.quiet}</p>
 
             {/* A field he has to fix comes first. Only once the form is clean
                 does a failed send get to speak, so the two never argue. */}
@@ -1394,8 +1492,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
             ) : (
               failed && (
                 <p className="v-modal-error" role="alert">
-                  We could not send it. Please try again, or write to us at
-                  office@gesherpartners.com and we will send it by hand.
+                  {C.brief.sendFailed}
                 </p>
               )
             )}
@@ -1405,7 +1502,7 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
               className="v-btn v-btn-primary v-btn-block v-modal-submit"
               disabled={submitting}
             >
-              {submitting ? "Sending..." : failed ? "Try again" : "Send"}
+              {submitting ? C.brief.sending : failed ? C.brief.retry : C.brief.submit}
             </button>
           </form>
         </div>
@@ -1416,23 +1513,23 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
 
 // ─── Success ─────────────────────────────────────────────────────────────────
 function SuccessState({ ctx }: StateProps) {
+  const { copy: C } = useVCopy();
   const company = ctx.company?.name?.trim();
   return (
     <section className="v-success">
       <div className="v-success-inner">
-        <h1 className="v-success-h1">Thank you. Check your inbox.</h1>
+        <h1 className="v-success-h1">{C.success.heading}</h1>
         <p className="v-success-sub">
-          Your {company ? `${company} ` : ""}Valuation Snapshot will arrive within a few
-          minutes.
+          {company ? C.success.subWithCompany(company) : C.success.subPlain}
         </p>
         {/* The sending domain is new, so some first emails will be filtered.
             Saying so costs nothing and saves the lead. */}
         <p className="v-success-next">
-          Not there? Check spam, or write to{" "}
-          <a className="v-success-mail" href="mailto:office@gesherpartners.com">
-            office@gesherpartners.com
+          {C.success.notThere}
+          <a className="v-success-mail" href={`mailto:${C.success.mail}`} dir="ltr">
+            {C.success.mail}
           </a>
-          .
+          {C.success.notThereEnd}
         </p>
       </div>
     </section>
@@ -1441,27 +1538,26 @@ function SuccessState({ ctx }: StateProps) {
 
 // ─── Error ───────────────────────────────────────────────────────────────────
 function ErrorState({ ctx, go }: StateProps) {
+  const { copy: C } = useVCopy();
   // Two different dead ends, two different headings. When the server handed
   // back a sentence (the daily cap, the per-minute limit, a busy engine) it is
-  // the truth and it goes on screen. Otherwise we could not read the site.
+  // the truth and it goes on screen. The server picks that sentence by the
+  // language the run was started in. Otherwise we could not read the site.
   const serverSaid = ctx.errorMessage;
   return (
     <section className="v-error">
       <div className="v-error-inner">
         <h1 className="v-error-h1">
-          {serverSaid ? "Not right now." : "We could not read that site."}
+          {serverSaid ? C.error.headingBlocked : C.error.headingUnreadable}
         </h1>
-        <p className="v-error-sub">
-          {serverSaid ??
-            "Sometimes a site is too quiet, or in Hebrew only. That is no problem."}
-        </p>
+        <p className="v-error-sub">{serverSaid ?? C.error.subUnreadable}</p>
         <div className="v-error-actions">
           <button
             type="button"
             className="v-btn v-btn-primary v-error-btn"
             onClick={openTalk}
           >
-            Talk to us instead
+            {C.error.talkBtn}
           </button>
           <button
             type="button"
@@ -1471,7 +1567,7 @@ function ErrorState({ ctx, go }: StateProps) {
               go("front-door", { errorMessage: undefined });
             }}
           >
-            Try a different URL
+            {C.error.retryBtn}
           </button>
         </div>
       </div>
@@ -1485,6 +1581,7 @@ function ErrorState({ ctx, go }: StateProps) {
 // be done. When he ran a valuation, it rides along with the lead, so the note
 // that reaches office@ says who he is and what he was quoted.
 function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
+  const { copy: C, lang } = useVCopy();
   const [name, setName] = useState(ctx.lead?.name || "");
   const [reach, setReach] = useState(ctx.lead?.email || ctx.lead?.phone || "");
   const [message, setMessage] = useState("");
@@ -1523,11 +1620,11 @@ function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
   const problem = !touched
     ? null
     : nameBad
-      ? "Please tell us your name."
+      ? C.talk.errName
       : !reach.trim()
-        ? "Please leave a phone number or an email so we can answer."
+        ? C.talk.errReachMissing
         : reachIsEmail && !looksLikeEmail(reach)
-          ? "That email looks incomplete. Check it and try again."
+          ? C.talk.errEmailBad
           : null;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -1544,7 +1641,9 @@ function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
           email: reachIsEmail ? reach.trim() : undefined,
           phone: reachIsEmail ? undefined : reach.trim(),
           message: message.trim() || "(no message)",
-          sourcePage: "/valuation",
+          // Which door he came in by. The Sheet's "Source page" column is how
+          // Ben tells a Hebrew visitor from an English one.
+          sourcePage: lang === "he" ? "/he/valuation" : "/valuation",
           ...(ctx.briefId
             ? {
                 valuation: {
@@ -1580,7 +1679,12 @@ function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
         aria-modal="true"
         aria-labelledby="v-talk-title"
       >
-        <button type="button" className="v-modal-close" aria-label="Close" onClick={onClose}>
+        <button
+          type="button"
+          className="v-modal-close"
+          aria-label={C.talk.closeAriaLabel}
+          onClick={onClose}
+        >
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path
               d="M3.5 3.5l9 9M12.5 3.5l-9 9"
@@ -1595,35 +1699,30 @@ function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
         {status === "sent" ? (
           <>
             <h2 id="v-talk-title" className="v-modal-title">
-              Thank you.
+              {C.talk.sentTitle}
             </h2>
-            <p className="v-modal-sub">
-              We read every note ourselves. You will hear from Ofir or Ben within two
-              business days.
-            </p>
+            <p className="v-modal-sub">{C.talk.sentBody}</p>
             <button
               type="button"
               className="v-btn v-btn-primary v-btn-block v-modal-submit"
               onClick={onClose}
             >
-              Close
+              {C.talk.closeBtn}
             </button>
           </>
         ) : (
           <>
             <h2 id="v-talk-title" className="v-modal-title">
-              Talk to us.
+              {C.talk.title}
             </h2>
             <p className="v-modal-sub">
-              {ctx.briefId
-                ? "We will bring your range to the call."
-                : "Tell us where you are. We will tell you honestly if we can help."}
+              {ctx.briefId ? C.talk.subWithRun : C.talk.subNoRun}
             </p>
 
             <form className="v-modal-form" onSubmit={handleSubmit} noValidate>
               <div className="v-field">
                 <label htmlFor="talk-name" className="v-field-label">
-                  Your name
+                  {C.talk.nameLabel}
                 </label>
                 <input
                   id="talk-name"
@@ -1638,11 +1737,13 @@ function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
 
               <div className="v-field">
                 <label htmlFor="talk-reach" className="v-field-label">
-                  Phone or email
+                  {C.talk.reachLabel}
                 </label>
+                {/* A phone number or an address, either way Latin. */}
                 <input
                   id="talk-reach"
                   type="text"
+                  dir="ltr"
                   className={"v-input v-input-sm" + (touched && reachBad ? " has-error" : "")}
                   value={reach}
                   onChange={(e) => setReach(e.target.value)}
@@ -1654,7 +1755,7 @@ function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
 
               <div className="v-field">
                 <label htmlFor="talk-message" className="v-field-label">
-                  What is on your mind (optional)
+                  {C.talk.messageLabel}
                 </label>
                 <textarea
                   id="talk-message"
@@ -1672,8 +1773,7 @@ function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
               ) : (
                 status === "failed" && (
                   <p className="v-modal-error" role="alert">
-                    Your note did not go through. Please try again, or write to us at
-                    office@gesherpartners.com.
+                    {C.talk.sendFailed}
                   </p>
                 )
               )}
@@ -1683,7 +1783,11 @@ function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
                 className="v-btn v-btn-primary v-btn-block v-modal-submit"
                 disabled={status === "sending"}
               >
-                {status === "sending" ? "Sending..." : status === "failed" ? "Try again" : "Send"}
+                {status === "sending"
+                  ? C.talk.sending
+                  : status === "failed"
+                    ? C.talk.retry
+                    : C.talk.submit}
               </button>
             </form>
           </>
@@ -1702,7 +1806,9 @@ const STATE_COMPONENTS: Record<ScreenId, (props: StateProps) => React.ReactEleme
   error: ErrorState,
 };
 
-export default function Valuation() {
+export default function Valuation({ lang = "en" }: { lang?: VLang }) {
+  const copy = VALUATION_COPY[lang];
+  const dir = lang === "he" ? "rtl" : "ltr";
   const [state, setState] = useState<ScreenId>("front-door");
   const [talkOpen, setTalkOpen] = useState(false);
   const [ctx, setCtx] = useState<Ctx>({
@@ -1729,27 +1835,50 @@ export default function Valuation() {
     return () => window.removeEventListener(TALK_EVENT, onTalk);
   }, []);
 
+  // The server sets <html lang dir> on first load (server/_core/vite.ts).
+  // This keeps it right after a client-side hop, and puts it back to English
+  // on the way out, the same way Home.tsx does.
+  useEffect(() => {
+    const el = document.documentElement;
+    el.lang = lang;
+    el.setAttribute("dir", dir);
+    return () => {
+      el.lang = "en";
+      el.setAttribute("dir", "ltr");
+    };
+  }, [lang, dir]);
+
   const StateComponent = STATE_COMPONENTS[state] || FrontDoorState;
 
   return (
-    <div className="v-page" data-state={state}>
-      <header className="v-topbar">
-        <a className="brand" href="/" aria-label="gesher home">
-          {/* The same lockup the home page uses, tagline and all. This page
-              used to show the mark and wordmark only, so an owner who came
-              here off an ad never saw what the firm does. */}
-          <Lockup markHeight={24} />
-        </a>
-        <button type="button" className="talk" onClick={openTalk}>
-          Talk to us
-        </button>
-      </header>
+    <VCopyContext.Provider value={{ copy, lang }}>
+      <div
+        className={lang === "he" ? "v-page v-rtl" : "v-page"}
+        data-state={state}
+        lang={lang}
+        dir={dir}
+      >
+        <header className="v-topbar">
+          <a className="brand" href={lang === "he" ? "/he/" : "/"} aria-label={copy.nav.homeAriaLabel}>
+            {/* The same lockup the home page uses, tagline and all. This page
+                used to show the mark and wordmark only, so an owner who came
+                here off an ad never saw what the firm does. */}
+            <Lockup markHeight={24} />
+          </a>
+          <div className="v-topbar-right">
+            <VLangSwitch />
+            <button type="button" className="talk" onClick={openTalk}>
+              {copy.nav.talkToUs}
+            </button>
+          </div>
+        </header>
 
-      <main className="v-main" id="main">
-        <StateComponent ctx={ctx} go={go} setCtx={setCtx} />
-      </main>
+        <main className="v-main" id="main">
+          <StateComponent ctx={ctx} go={go} setCtx={setCtx} />
+        </main>
 
-      {talkOpen && <TalkModal ctx={ctx} onClose={() => setTalkOpen(false)} />}
-    </div>
+        {talkOpen && <TalkModal ctx={ctx} onClose={() => setTalkOpen(false)} />}
+      </div>
+    </VCopyContext.Provider>
   );
 }

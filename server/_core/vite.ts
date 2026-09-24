@@ -10,9 +10,13 @@ import { FAQ_ITEMS, FAQ_ITEMS_HE, type FaqItem } from "@shared/faq";
 /* ─── Homepage head, per language ─────────────────────────────────────────────
  * English lives at the root (/), Hebrew under /he/. Decided 2026-09-16: English
  * stays where it is live and indexed; Hebrew is the twin. The old /en/ URLs
- * 301 to the root (see index.ts). Only the two homepage routes are localized;
- * every other route returns the template unchanged, so the valuation tool and
- * the legal pages are untouched.
+ * 301 to the root (see index.ts).
+ *
+ * Since 2026-09-22 the valuation tool has its own pair too, /valuation and
+ * /he/valuation, with its own title and description. Before that /valuation
+ * served the home page's title, so a man who landed on the tool off an ad saw
+ * "Sell-side M&A advisor" in his browser tab. The legal pages and everything
+ * else still return the template unchanged.
  *
  * The title, description, Open Graph text, canonical, hreflang twins and the
  * two schema blocks go in here rather than in client/index.html, because
@@ -35,11 +39,21 @@ const HOME_URL: Record<Lang, string> = {
   he: `${SITE}/he/`,
 };
 
-const HREFLANG = [
-  `<link rel="alternate" hreflang="en" href="${HOME_URL.en}" />`,
-  `<link rel="alternate" hreflang="he" href="${HOME_URL.he}" />`,
-  `<link rel="alternate" hreflang="x-default" href="${HOME_URL.en}" />`,
-].join("\n    ");
+const VALUATION_URL: Record<Lang, string> = {
+  en: `${SITE}/valuation`,
+  he: `${SITE}/he/valuation`,
+};
+
+/** The three alternate links for one pair of pages. x-default is English. */
+function hreflangFor(urls: Record<Lang, string>): string {
+  return [
+    `<link rel="alternate" hreflang="en" href="${urls.en}" />`,
+    `<link rel="alternate" hreflang="he" href="${urls.he}" />`,
+    `<link rel="alternate" hreflang="x-default" href="${urls.en}" />`,
+  ].join("\n    ");
+}
+
+const HREFLANG = hreflangFor(HOME_URL);
 
 type HomeHead = {
   title: string; // already HTML-escaped, goes straight into <title>
@@ -117,10 +131,83 @@ export function homeLang(reqPath: string): Lang | null {
   return null;
 }
 
+/* ─── The valuation tool's head ───────────────────────────────────────────────
+ * Its own title and description, because the tool is what an ad points at and
+ * "Free business valuation" is the promise in the tab.
+ *
+ * The Hebrew title and description are the English ones for now. The real words
+ * come from site/30-hebrew-valuation-copy-ben-picks.md in session C, along with
+ * the Hebrew page copy. Until then /he/valuation carries noindex, so nothing
+ * half-translated can be indexed, and it is not in sitemap.xml.
+ * ──────────────────────────────────────────────────────────────────────────── */
+const VALUATION_HEAD: Record<Lang, { title: string; description: string; ogLocale: string }> = {
+  en: {
+    title: "Free business valuation | Gesher Partners",
+    description:
+      "Paste your website and get an honest value range for your business in a few minutes. Private, built from public sources, from Israel's sell-side advisors.",
+    ogLocale: "en_US",
+  },
+  he: {
+    // TODO-HE: session C replaces these two lines from file 30.
+    title: "Free business valuation | Gesher Partners",
+    description:
+      "Paste your website and get an honest value range for your business in a few minutes. Private, built from public sources, from Israel's sell-side advisors.",
+    ogLocale: "he_IL",
+  },
+};
+
+/** Which valuation page a request path is, if any. */
+export function valuationLang(reqPath: string): Lang | null {
+  if (reqPath === "/valuation" || reqPath === "/valuation/") return "en";
+  if (reqPath === "/he/valuation" || reqPath === "/he/valuation/") return "he";
+  return null;
+}
+
+/** The valuation pages: title, description, canonical, og, hreflang. */
+function localizeValuation(template: string, lang: Lang): string {
+  const head = VALUATION_HEAD[lang];
+  let html = template
+    .replace(/<title>[\s\S]*?<\/title>/, `<title>${head.title}</title>`)
+    .replace(
+      /<meta name="description" content="[^"]*"\s*\/>/,
+      `<meta name="description" content="${head.description}" />`
+    )
+    .replace(/<meta property="og:title" content="[^"]*"\s*\/>/,
+      `<meta property="og:title" content="${head.title}" />`
+    )
+    .replace(/<meta property="og:description" content="[^"]*"\s*\/>/,
+      `<meta property="og:description" content="${head.description}" />`
+    )
+    .replace(/<meta name="twitter:title" content="[^"]*"\s*\/>/,
+      `<meta name="twitter:title" content="${head.title}" />`
+    )
+    .replace(/<meta name="twitter:description" content="[^"]*"\s*\/>/,
+      `<meta name="twitter:description" content="${head.description}" />`
+    )
+    // og:url is the only tag in index.html carrying the bare site URL.
+    .replace('content="https://gesherpartners.com"', `content="${VALUATION_URL[lang]}"`);
+
+  if (lang === "he") {
+    html = html.replace(/<html[^>]*>/, '<html lang="he" dir="rtl">');
+  }
+
+  const extra = [
+    `<meta property="og:locale" content="${head.ogLocale}" />`,
+    `<link rel="canonical" href="${VALUATION_URL[lang]}" />`,
+    hreflangFor(VALUATION_URL),
+    // Off until the Hebrew words land. Session C removes this line.
+    ...(lang === "he" ? [`<meta name="robots" content="noindex,follow" />`] : []),
+  ].join("\n    ");
+  return html.replace("</head>", `${extra}\n  </head>`);
+}
+
 export function localizeHtml(template: string, url: string): string {
   const reqPath = url.split("?")[0].split("#")[0];
   const lang = homeLang(reqPath);
-  if (!lang) return template;
+  if (!lang) {
+    const vLang = valuationLang(reqPath);
+    return vLang ? localizeValuation(template, vLang) : template;
+  }
 
   const head = HOME_HEAD[lang];
   let html = template
