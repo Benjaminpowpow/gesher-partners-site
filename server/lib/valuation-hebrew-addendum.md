@@ -86,39 +86,40 @@ Rows marked **[site]** are already live on gesherpartners.com, taken from the
 approved Hebrew in the vault at `site/23-hebrew-copy-ben-picks.md`. Use them
 exactly as written. They are the firm's own words and must not drift.
 
-Rows marked **DRAFT** are empty on purpose. Claude does not write Hebrew for
-this firm; Ben fills these in the translation step and session C brings them
-back here. Until a row is filled, use your own plain Hebrew for that term.
+Rows marked **file 30** are Ben's picks with Joanne (Sep 24), from
+`site/30-hebrew-valuation-copy-ben-picks.md`. Use them exactly as written, the
+same word every time.
 
 | English | Hebrew | Source |
 | --- | --- | --- |
 | valuation | הערכת שווי | [site] |
 | value range | טווח שווי | [site] |
 | first valuation read (the name of this tool) | ניתוח שווי ראשוני | [site] |
-| estimate |  | DRAFT |
+| estimate | אומדן | file 30 |
 | multiple | מכפיל | [site] |
 | revenue | מחזור | [site] |
-| pre-tax profit |  | DRAFT |
-| EBITDA |  | DRAFT |
-| operating profit |  | DRAFT |
-| margin |  | DRAFT |
-| working capital |  | DRAFT |
-| net debt |  | DRAFT |
+| pre-tax profit | רווח לפני מס | file 30 |
+| EBITDA | EBITDA | file 30 |
+| operating profit | רווח תפעולי | file 30 |
+| margin | מרווח | file 30 |
+| working capital | הון חוזר | file 30 |
+| net debt | חוב נטו | file 30 |
 | earn-out | תשלום מותנה | [site] |
 | buyer | קונה | [site] |
 | strategic buyer | קונה אסטרטגי | [site] |
-| financial buyer |  | DRAFT |
+| financial buyer | קונה פיננסי | file 30 |
 | private equity fund | קרן השקעות | [site] |
 | holding group | קבוצת אחזקות | [site] |
 | competitive process | תהליך תחרותי | [site] |
-| sell-side advisor |  | DRAFT |
+| sell-side advisor | ליווי לצד המוכר | file 30 |
 | due diligence | בדיקת נאותות | [site] |
 | NDA | הסכם סודיות | [site] |
 | financials | דוחות כספיים | [site] |
 | owner | בעל העסק | [site] |
 | family business | עסק משפחתי | [site] |
-| headcount |  | DRAFT |
+| headcount | מספר עובדים | file 30 |
 | customers | לקוחות | [site] |
+| synergistic buyer | קונה סינרגטי | file 30 |
 | talk to us | לשיחת ייעוץ | [site] |
 
 ## 5. The fixed sentences
