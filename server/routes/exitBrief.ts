@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import { createHash } from "node:crypto";
-import { EXIT_BRIEF_SYSTEM_PROMPT } from "../lib/exitBriefSkill";
+import { EXIT_BRIEF_SYSTEM_PROMPT, HEBREW_ADDENDUM } from "../lib/exitBriefSkill";
 import {
   appendLeadRow,
   appendValuationRow,
@@ -159,10 +159,52 @@ export function todayKey(now: Date = new Date()): string {
   }).format(now);
 }
 
-// The message the seller sees when either gate closes. It is the same sentence
-// the engine already uses when it is busy: no dead end, a way to reach a human.
-const OVER_CAP_MESSAGE =
-  "We have hit today's limit on free Briefs. Talk to us and we will pull the Brief together by hand.";
+// ─── What the server says when it refuses ───────────────────────────────────
+// Four sentences, and the seller reads whichever matches the page he is on.
+// They are the only English the server puts on a Hebrew screen, so they are
+// keyed by language and picked from the run's own lang.
+//
+// The Hebrew side is copied verbatim from site/30-hebrew-valuation-copy-ben-picks.md.
+// An empty string would fall back to English, which is the right failure: a
+// man reads a sentence he may not want rather than a blank screen.
+type RunLang = "en" | "he";
+
+const SERVER_MESSAGES: Record<
+  "cooldown" | "overCap" | "notConfigured" | "busy",
+  Record<RunLang, string>
+> = {
+  // He pressed the button twice inside a minute.
+  cooldown: {
+    en: "You have already generated a Brief in the last minute. Wait a moment and try again, or talk to us and we will pull the Brief together by hand.",
+    he: "כבר הרצת ניתוח בדקה האחרונה. חכה רגע ונסה שוב, או קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
+  },
+  // The day's budget, or this one visitor's share of it, is gone. No dead end,
+  // a way to reach a human.
+  overCap: {
+    en: "We have hit today's limit on free Briefs. Talk to us and we will pull the Brief together by hand.",
+    he: "הגענו למכסת הניתוחים החינמיים להיום. קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
+  },
+  notConfigured: {
+    en: "Our Brief engine is not configured yet. Talk to us and we will pull the Brief together by hand.",
+    he: "מנוע הניתוח עדיין לא מוגדר. קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
+  },
+  busy: {
+    en: "Our Brief engine is busy. Try again in a minute, or talk to us and we will pull the Brief together by hand.",
+    he: "מנוע הניתוח עמוס כרגע. נסה שוב בעוד דקה, או קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
+  },
+};
+
+function serverMessage(
+  key: keyof typeof SERVER_MESSAGES,
+  lang: RunLang,
+): string {
+  return SERVER_MESSAGES[key][lang] || SERVER_MESSAGES[key].en;
+}
+
+/** Only "he" or "en". Anything else, including nothing, is English. */
+function readLang(raw: unknown): RunLang {
+  return raw === "he" ? "he" : "en";
+}
 
 // ─── In-memory stores ───────────────────────────────────────────────────────
 // briefId -> the seller brief markdown (v7 is seller-only, no trace)
@@ -225,6 +267,13 @@ function sourcePageFromReferer(req: Request): string | undefined {
   }
 }
 
+// Which language a contact form was filled in, read off the page it sat on.
+// Every Hebrew page lives under /he, so the path is the whole answer and no
+// form has to send a new field.
+function langFromSourcePage(sourcePage?: string): RunLang {
+  return sourcePage === "/he" || sourcePage?.startsWith("/he/") ? "he" : "en";
+}
+
 function domainFromUrl(url: string): string | undefined {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -258,6 +307,8 @@ function valuationBlockHtml(v?: {
   profit?: string;
   ownerSalary?: string;
   timeToSell?: string;
+  /** "en" or "he". Which page he ran the tool on. */
+  lang?: string;
 }): string {
   if (!v || !v.site) return "";
   const row = (label: string, value?: string) =>
@@ -275,6 +326,7 @@ function valuationBlockHtml(v?: {
         ${row("Pre-tax profit", v.profit)}
         ${row("Owner salary", v.ownerSalary)}
         ${row("Wants to sell", v.timeToSell)}
+        ${row("Language", v.lang)}
         ${row("Brief ID", v.briefId)}
       </table>
     </div>
@@ -319,8 +371,10 @@ interface CachedRun {
   at: number;
 }
 const runCache = new Map<string, CachedRun>();
-function cacheKey(domain: string, revenue?: string, profit?: string): string {
-  return `${domain}|${(revenue ?? "").replace(/\D/g, "")}|${(profit ?? "").replace(/\D/g, "")}`;
+function cacheKey(domain: string, revenue?: string, profit?: string, lang: string = "en"): string {
+  // The language is part of the key: a Hebrew run must never be served an
+  // English brief from the cache, or the other way round.
+  return `${lang}|${domain}|${(revenue ?? "").replace(/\D/g, "")}|${(profit ?? "").replace(/\D/g, "")}`;
 }
 // How many times each domain has been run. Three or more is an owner who
 // keeps coming back, which Ben wants flagged in the sheet.
@@ -422,6 +476,10 @@ function stripLeadingRules(s: string): string {
 
 // ─── Route: POST /api/exit-brief ────────────────────────────────────────────
 async function handleExitBrief(req: Request, res: Response) {
+  // Read first, because a refusal has to come back in the language of the
+  // page he is standing on, and a cached run must match his language.
+  const lang = readLang((req.body as { lang?: unknown } | undefined)?.lang);
+
   const body = req.body as {
     url?: string;
     revenue?: string;
@@ -429,6 +487,8 @@ async function handleExitBrief(req: Request, res: Response) {
     owner_salary?: string;
     /** "Within six months", "Just exploring". Words, already, not a code. */
     time_to_sell?: string;
+    /** "en" or "he". Which door the owner came in by. */
+    lang?: string;
     // Tolerate the old field names during the transition.
     ebitda?: string;
     sde?: string;
@@ -462,7 +522,7 @@ async function handleExitBrief(req: Request, res: Response) {
   const domain = domainFromUrl(normalizedUrl);
   const revenueNis = parseNis(revenue);
   const profitNis = parseNis(pretaxProfit);
-  const key = cacheKey(domain ?? normalizedUrl, revenue, pretaxProfit);
+  const key = cacheKey(domain ?? normalizedUrl, revenue, pretaxProfit, lang);
   const runsThisDomain = (runsByDomain.get(domain ?? normalizedUrl) ?? 0) + 1;
   runsByDomain.set(domain ?? normalizedUrl, runsThisDomain);
 
@@ -494,6 +554,7 @@ async function handleExitBrief(req: Request, res: Response) {
       margin: hit.meta.margin === undefined ? "" : String(hit.meta.margin),
       multiple: hit.meta.multiple === undefined ? "" : String(hit.meta.multiple),
       runsOnDomain: String(runsThisDomain),
+      lang,
     });
     res.write(
       JSON.stringify({
@@ -513,10 +574,7 @@ async function handleExitBrief(req: Request, res: Response) {
   const last = rateLimitStore.get(ip) ?? 0;
 
   if (now - last < IP_COOLDOWN_MS) {
-    res.status(429).json({
-      error:
-        "You have already generated a Brief in the last minute. Wait a moment and try again, or talk to us and we will pull the Brief together by hand.",
-    });
+    res.status(429).json({ error: serverMessage("cooldown", lang) });
     return;
   }
 
@@ -524,22 +582,19 @@ async function handleExitBrief(req: Request, res: Response) {
 
   if (briefsToday >= dailyCap()) {
     console.warn(`[exit-brief] Daily cap of ${dailyCap()} reached for ${usageDay}.`);
-    res.status(429).json({ error: OVER_CAP_MESSAGE });
+    res.status(429).json({ error: serverMessage("overCap", lang) });
     return;
   }
 
   if ((briefsTodayByIp.get(ip) ?? 0) >= perIpDailyLimit()) {
     console.warn(`[exit-brief] Per-IP daily limit of ${perIpDailyLimit()} reached.`);
-    res.status(429).json({ error: OVER_CAP_MESSAGE });
+    res.status(429).json({ error: serverMessage("overCap", lang) });
     return;
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    res.status(500).json({
-      error:
-        "Our Brief engine is not configured yet. Talk to us and we will pull the Brief together by hand.",
-    });
+    res.status(500).json({ error: serverMessage("notConfigured", lang) });
     return;
   }
 
@@ -603,6 +658,7 @@ async function handleExitBrief(req: Request, res: Response) {
       cost: "0",
       askedForBrief: "no",
       runsOnDomain: String(runsThisDomain),
+      lang,
     });
     return;
   }
@@ -638,12 +694,19 @@ async function handleExitBrief(req: Request, res: Response) {
       ...(WANTS_ADAPTIVE_THINKING ? {} : { temperature: 0 }),
       // v7: cache the ~10k-token bundle so it is billed once, not re-sent every run.
       // The seller URL + intake stay the dynamic part in the user message.
+      // The Hebrew block rides after the bundle, as its own uncached piece, so
+      // the bundle's cache entry is the same object on an English run and a
+      // Hebrew one. Same brain, one added instruction sheet. Nothing about
+      // language is ever written into the bundle itself.
       system: [
         {
           type: "text",
           text: EXIT_BRIEF_SYSTEM_PROMPT,
           cache_control: { type: "ephemeral" },
         },
+        ...(lang === "he" && HEBREW_ADDENDUM
+          ? [{ type: "text" as const, text: HEBREW_ADDENDUM }]
+          : []),
       ],
       messages: [{ role: "user", content: userMessage }],
       stream: true,
@@ -735,7 +798,7 @@ async function handleExitBrief(req: Request, res: Response) {
       meta.multiple = range.multiple;
       if (range.outcome === "number") {
         meta.range_variant = "number";
-        meta.range_text = rangeText(range);
+        meta.range_text = rangeText(range, lang);
         meta.path_used = `T${range.tier}`;
       } else {
         meta.range_variant = "by_hand";
@@ -750,7 +813,7 @@ async function handleExitBrief(req: Request, res: Response) {
     // same signal it always did, and stored so the sheet and the email carry
     // the same number as the page.
     if (meta.range_variant !== "unreadable") {
-      const rangeMd = rangeMarkdown(range, buyers);
+      const rangeMd = rangeMarkdown(range, buyers, lang);
       resultMd = resultMd.replace(/\n*## Range and call[\s\S]*$/, "").trimEnd() + "\n\n" + rangeMd;
       fullMarkdown += "\n\n" + rangeMd;
       res.write(JSON.stringify({ type: "chunk", data: "\n\n" + rangeMd }) + "\n");
@@ -765,7 +828,9 @@ async function handleExitBrief(req: Request, res: Response) {
       pathUsed: meta.path_used,
       resultMd,
       logoUrl: siteRead?.logoUrl,
-      lang: "en",
+      // The language of the page he pressed the button on. Saved with the run,
+      // so the email, the PDF request and the Sheet row never have to guess.
+      lang,
     };
     briefStore.set(briefId, savedRun);
     if (meta.range_variant !== "unreadable") {
@@ -814,6 +879,9 @@ async function handleExitBrief(req: Request, res: Response) {
       margin: range ? String(range.margin) : "",
       multiple: range ? String(range.multiple) : "",
       runsOnDomain: String(runsThisDomain),
+      // Which door he came in by. Ben can count Hebrew runs against
+      // English ones in the same tab.
+      lang,
     });
 
     res.write(
@@ -828,10 +896,7 @@ async function handleExitBrief(req: Request, res: Response) {
     res.end();
   } catch (err) {
     console.error("[exit-brief] Anthropic error:", err);
-    res.status(500).json({
-      error:
-        "Our Brief engine is busy. Try again in a minute, or talk to us and we will pull the Brief together by hand.",
-    });
+    res.status(500).json({ error: serverMessage("busy", lang) });
   }
 }
 
@@ -872,6 +937,8 @@ async function handleContact(req: Request, res: Response) {
     return;
   }
 
+  const leadSourcePage = sourcePage ?? sourcePageFromReferer(req);
+
   // Start the Sheet write now and settle it at the end. It runs alongside the
   // email instead of in front of it, so a slow or broken Sheet never holds the
   // email up. appendLeadRow never rejects, so this promise is safe to hold.
@@ -895,7 +962,8 @@ async function handleContact(req: Request, res: Response) {
     valuationTimeToSell: valuation?.timeToSell,
     // The page the form sat on. Falls back to the referring URL when the form
     // does not send one.
-    sourcePage: sourcePage ?? sourcePageFromReferer(req),
+    sourcePage: leadSourcePage,
+    lang: langFromSourcePage(leadSourcePage),
   });
 
   const resendKey = process.env.RESEND_API_KEY;
@@ -1079,7 +1147,7 @@ async function handlePdfRequest(req: Request, res: Response) {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 20px;">
         <h2 style="color: #1B3A5C; margin-bottom: 8px;">New Valuation Snapshot lead</h2>
         <p style="color: #666; font-size: 14px; margin: 0 0 24px;">His copy of the Brief has already been sent to him. Nothing is owed.</p>
-        ${valuationBlockHtml({ ...shown, briefId })}
+        ${valuationBlockHtml({ ...shown, briefId, lang: run.lang })}
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 100px;">Name</td>

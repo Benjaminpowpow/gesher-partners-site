@@ -114,6 +114,11 @@ describe("the range block, by state", () => {
     expect(b.label).toBe("Your range · rough");
     expect(b.warn).toContain("You shared no numbers");
   });
+  it("v2 tiers: T2 and T3 are a first estimate, T1 is rough", () => {
+    expect(rangeBlockFor({ ...RUN, pathUsed: "T3" }).label).toBe("Your range · a first estimate");
+    expect(rangeBlockFor({ ...RUN, pathUsed: "T2" }).label).toBe("Your range · a first estimate");
+    expect(rangeBlockFor({ ...RUN, pathUsed: "T1" }).warn).toContain("You shared no numbers");
+  });
   it("the backup band is rough", () => {
     expect(rangeBlockFor({ ...RUN, pathUsed: "backup" }).label).toBe("Your range · rough");
   });
@@ -193,5 +198,20 @@ describe("the plain-text part", () => {
   });
   it("greets by first name", () => {
     expect(text).toContain("Hello Benjamin,");
+  });
+});
+
+describe("the Hebrew letter", () => {
+  const HE: SnapshotRun = { ...RUN, lang: "he", rangeText: "₪11.6M עד ₪12.2M", pathUsed: "T3" };
+  it("uses Ben's picks from file 30, not the English", () => {
+    expect(snapshotSubject(HE)).toBe("ניתוח שווי ראשוני של Optima");
+    const html = buildSnapshotEmailHtml(HE, { name: "חיים כהן" });
+    expect(html).toContain('dir="rtl"');
+    expect(html).toContain("שלום חיים, הניתוח שהרצת מוכן.");
+    expect(html).toContain("הטווח שלך · אומדן ראשוני");
+    expect(html).toContain("אומדן, לא הערכת שווי. לא הצעה, ולא המלצה לקנות או למכור.");
+    expect(html).toContain("₪11.6M עד ₪12.2M");
+    expect(html).not.toContain("Valuation Snapshot");
+    expect(html).not.toContain("תמצית");
   });
 });

@@ -27,7 +27,13 @@ function Router() {
       <Route path="/en/">
         <Redirect to="/" replace />
       </Route>
-      <Route path="/valuation" component={Valuation} />
+      {/* The valuation tool, same two-URL model as the home page. The Hebrew
+          route works today but nothing links to it: the toggle is hidden
+          behind HEBREW_VALUATION_LIVE in pages/valuationCopy.ts until the
+          Hebrew words land. */}
+      <Route path="/valuation" component={() => <Valuation lang="en" />} />
+      <Route path="/he/valuation" component={() => <Valuation lang="he" />} />
+      <Route path="/he/valuation/" component={() => <Valuation lang="he" />} />
       <Route path="/exit-brief" component={ExitBrief} />
       <Route path="/test-render" component={TestRender} />
       <Route path="/privacy" component={Privacy} />

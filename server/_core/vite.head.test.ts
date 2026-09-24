@@ -3,7 +3,7 @@
  * localizeHtml on Render, so this is what crawlers and link previews read.
  */
 import { describe, expect, it } from "vitest";
-import { homeLang, localizeHtml } from "./vite";
+import { homeLang, localizeHtml, valuationLang } from "./vite";
 
 const TEMPLATE = `<!doctype html>
 <html lang="en" dir="ltr">
@@ -32,10 +32,24 @@ describe("homeLang", () => {
   });
 });
 
+describe("valuationLang", () => {
+  it("maps both valuation URLs", () => {
+    expect(valuationLang("/valuation")).toBe("en");
+    expect(valuationLang("/valuation/")).toBe("en");
+    expect(valuationLang("/he/valuation")).toBe("he");
+    expect(valuationLang("/he/valuation/")).toBe("he");
+  });
+  it("leaves every other route alone", () => {
+    expect(valuationLang("/")).toBeNull();
+    expect(valuationLang("/he/")).toBeNull();
+    expect(valuationLang("/privacy")).toBeNull();
+  });
+});
+
 describe("localizeHtml", () => {
   it("returns other routes byte for byte", () => {
-    expect(localizeHtml(TEMPLATE, "/valuation")).toBe(TEMPLATE);
     expect(localizeHtml(TEMPLATE, "/privacy?x=1")).toBe(TEMPLATE);
+    expect(localizeHtml(TEMPLATE, "/terms")).toBe(TEMPLATE);
   });
 
   it("serves the English head at the root", () => {
@@ -66,6 +80,32 @@ describe("localizeHtml", () => {
       expect(html).toContain('hreflang="x-default" href="https://gesherpartners.com/"');
       expect(html).toContain('"@type":"FAQPage","inLanguage":"he"');
       expect(html).toContain("כמה העסק שלי שווה?");
+    }
+  });
+
+  it("gives /valuation its own title and canonical", () => {
+    const html = localizeHtml(TEMPLATE, "/valuation?site=ash-electric.co.il");
+    expect(html).toContain('<html lang="en" dir="ltr">');
+    expect(html).toContain("<title>Free business valuation | Gesher Partners</title>");
+    expect(html).toContain('<link rel="canonical" href="https://gesherpartners.com/valuation" />');
+    expect(html).toContain('<meta property="og:url" content="https://gesherpartners.com/valuation" />');
+    expect(html).toContain('hreflang="he" href="https://gesherpartners.com/he/valuation"');
+    expect(html).toContain('hreflang="x-default" href="https://gesherpartners.com/valuation"');
+    expect(html).toContain('<meta property="og:locale" content="en_US" />');
+    // No FAQ schema on the tool. Those nine questions live on the home page.
+    expect(html).not.toContain('"@type":"FAQPage"');
+    expect(html).not.toContain("noindex");
+  });
+
+  it("serves /he/valuation right to left, with its Hebrew title, and lets it be indexed", () => {
+    for (const url of ["/he/valuation", "/he/valuation/"]) {
+      const html = localizeHtml(TEMPLATE, url);
+      expect(html).toContain('<html lang="he" dir="rtl">');
+      expect(html).toContain('<link rel="canonical" href="https://gesherpartners.com/he/valuation" />');
+      expect(html).toContain('<meta property="og:locale" content="he_IL" />');
+      expect(html).toContain("<title>ניתוח שווי ראשוני בחינם | Gesher Partners</title>");
+      expect(html).not.toContain("noindex");
+      expect(html).toContain('hreflang="x-default" href="https://gesherpartners.com/valuation"');
     }
   });
 

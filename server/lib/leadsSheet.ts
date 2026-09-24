@@ -58,6 +58,12 @@ export interface ValuationRow {
   multiple?: string;
   /** v2: how many times this domain has been run since the last restart. 3+ is a warm lead. */
   runsOnDomain?: string;
+  /**
+   * "en" or "he". Which door he came in by: /valuation or /he/valuation. Added
+   * Sep 22 with the Hebrew tool, so Ben can count the two side by side. Last
+   * column, same reason as the four above.
+   */
+  lang?: string;
 }
 
 export interface LeadRow {
@@ -88,6 +94,8 @@ export interface LeadRow {
   valuationBriefId?: string;
   /** How soon he says he wants out. The field that decides who Ben calls today. */
   valuationTimeToSell?: string;
+  /** "en" or "he". Which language the page he wrote in was showing. */
+  lang?: string;
 }
 
 /**
@@ -114,6 +122,7 @@ export async function appendLeadRow(row: LeadRow): Promise<boolean> {
     valuationOwnerSalary: row.valuationOwnerSalary ?? "",
     valuationBriefId: row.valuationBriefId ?? "",
     valuationTimeToSell: row.valuationTimeToSell ?? "",
+    lang: row.lang ?? "",
   });
 }
 

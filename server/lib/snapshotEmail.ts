@@ -45,13 +45,21 @@ export interface SnapshotRecipient {
 }
 
 // ─── Copy ────────────────────────────────────────────────────────────────────
-// Every fixed string in the email, keyed by language. Hebrew comes from Ofir,
-// the same as the page, and is not machine translated. Until it does, `he` is
-// absent and the builder falls back to `en`, which is safe because /valuation
-// is English only today.
+// Every fixed string in the email, keyed by language. The Hebrew block holds
+// Ben's picks, line for line, from the vault file
+// site/30-hebrew-valuation-copy-ben-picks.md. Hebrew is never written here
+// first.
+//
+// `headings` is not shown to anyone. The engine writes "## Market", "## Value"
+// and "## Range and call" in English inside its output in both languages,
+// because the page and this file find their sections by matching those lines.
+// Keying them here means the finder asks the language's own dictionary instead
+// of a hardcoded English word, so the day the markers change they change in one
+// place.
 const COPY = {
   en: {
     dir: "ltr" as const,
+    headings: { market: "Market", value: "Value", range: "Range and call" },
     subject: (company: string) => `Your ${company} Valuation Snapshot`,
     privateLabel: "Strictly private",
     title: (company: string) => `Your ${company} Valuation Snapshot`,
@@ -83,12 +91,44 @@ const COPY = {
     signFirm: "Gesher Partners",
     fine: "An estimate, not a valuation. Not an offer, or advice to buy or sell.",
   },
-} satisfies Record<string, unknown>;
+  // Every line below is copied verbatim, by ID, from
+  // site/30-hebrew-valuation-copy-ben-picks.md. The headings stay English: they
+  // are markers the finder matches on, never shown to the owner.
+  he: {
+    dir: "rtl" as const,
+    headings: { market: "Market", value: "Value", range: "Range and call" },
+    subject: (company: string) => `ניתוח שווי ראשוני של ${company}`,
+    privateLabel: "בדיסקרטיות",
+    title: (company: string) => `ניתוח שווי ראשוני של ${company}`,
+    // File 30 writes the greeting as two parts split by " / ". They join here
+    // with a space, one line, the same shape as the English.
+    greeting: (first: string) =>
+      first ? `שלום ${first}, הניתוח שהרצת מוכן.` : "הניתוח שהרצת מוכן.",
+    rangeLabelFirstEstimate: "הטווח שלך · אומדן ראשוני",
+    rangeLabelRough: "הטווח שלך · משוער",
+    rangeLabelPlain: "הטווח שלך",
+    warnFirstEstimate:
+      "המספר הזה יכול להיות רחוק מהמציאות. בנינו אותו תוך כמה דקות מהמידע ששיתפת וממידע ציבורי. לא ראינו את הדוחות שלך.",
+    warnRough:
+      "המספר הזה יכול להיות רחוק מהמציאות. לא שיתפת מספרים, אז בנינו אותו תוך כמה דקות מהאתר וממידע ציבורי. לא ראינו את הדוחות שלך.",
+    byHandLine: "לתחום שלך אנחנו בונים הערכת שווי ראשונית",
+    warnByHand:
+      "העסק שלך לא מקרה סטנדרטי, ולכן לא נזרוק מספר שאי אפשר לעמוד מאחוריו.",
+    whoWouldBuyLead: "מי יקנה.",
+    // Hebrew has no capitals, so the list only needs its closing period.
+    whoWouldBuy: (types: string) => `${types.trim().replace(/[.\s]+$/, "")}.`,
+    closeLead: "נראה שיש כאן משהו אמיתי.",
+    closeBody:
+      "כדי לשים על זה מספר אמיתי, צריך לראות את הדוחות הכספיים שלך. השב למייל הזה ונקבע שיחת ייעוץ קצרה. נחתום על NDA לפני שתשלח משהו.",
+    closeRead: "אנחנו קוראים כל תשובה בעצמנו.",
+    signName: "אופיר ובנימין",
+    signFirm: "Gesher Partners",
+    fine: "אומדן, לא הערכת שווי. לא הצעה, ולא המלצה לקנות או למכור.",
+  },
+} satisfies Record<Lang, unknown>;
 
 function copyFor(lang?: Lang) {
-  // Only `en` exists so far. A run tagged `he` reads English rather than
-  // half-translated Hebrew, which is the failure Ofir would mind least.
-  return COPY.en;
+  return lang === "he" ? COPY.he : COPY.en;
 }
 
 // ─── Small helpers ───────────────────────────────────────────────────────────
@@ -122,13 +162,39 @@ export function firstSentence(s: string): string {
 }
 
 /**
+ * Swap the engine's three marker headings for the ones in a language's
+ * dictionary, before anything reads the markdown.
+ *
+ * The engine writes them in English in both languages, on purpose, because
+ * they are markers and not words anyone reads. This is the one place the email
+ * turns a marker into the heading its own language calls it. On an English run
+ * the dictionary says the same three words, so the markdown comes out
+ * unchanged, character for character.
+ */
+export function withHeadings(
+  resultMd: string,
+  headings: { market: string; value: string; range: string },
+): string {
+  return resultMd
+    .replace(/^##\s+Market\s*$/gm, `## ${headings.market}`)
+    .replace(/^##\s+Value\s*$/gm, `## ${headings.value}`)
+    .replace(/^##\s+Range and call\s*$/gm, `## ${headings.range}`);
+}
+
+/**
  * Pull the Value drivers out of the saved markdown.
  *
  * Each driver is "**Lead-in.** Body sentence. More sentences." The email keeps
  * the lead-in and the first sentence of the body. The Market section stays on
  * the page and never reaches the email.
+ *
+ * `valueHeading` is whatever withHeadings just wrote, so this never has to know
+ * which language it is reading.
  */
-export function valueDrivers(resultMd?: string): { lead: string; body: string }[] {
+export function valueDrivers(
+  resultMd?: string,
+  valueHeading: string = "Value",
+): { lead: string; body: string }[] {
   if (!resultMd) return [];
   const out: { lead: string; body: string }[] = [];
   let inValue = false;
@@ -136,7 +202,7 @@ export function valueDrivers(resultMd?: string): { lead: string; body: string }[
     const line = raw.trim();
     const heading = line.match(/^##\s+(.+?)\s*$/);
     if (heading) {
-      inValue = heading[1].trim() === "Value";
+      inValue = heading[1].trim() === valueHeading;
       continue;
     }
     if (!inValue || !line) continue;
@@ -173,8 +239,12 @@ export function rangeBlockFor(run: SnapshotRun, lang?: Lang): RangeBlock {
   if (byHand) {
     return { kind: "byHand", label: c.rangeLabelPlain, big: c.byHandLine, warn: c.warnByHand };
   }
+  // v8 wrote A or A1 when the owner shared his numbers. v2 (Sep 23) writes the
+  // recipe tier instead: T2 is revenue, T3 is profit, T1 is a headcount guess
+  // with no numbers from him. Without T2 and T3 here, every run since v2 told
+  // an owner who typed his numbers that he had shared none.
   const path = (run.pathUsed ?? "").toUpperCase();
-  const sharedNumbers = path === "A" || path === "A1";
+  const sharedNumbers = path === "A" || path === "A1" || path === "T2" || path === "T3";
   return {
     kind: "number",
     label: sharedNumbers ? c.rangeLabelFirstEstimate : c.rangeLabelRough,
@@ -273,7 +343,10 @@ export function snapshotLetterTable(run: SnapshotRun, to: SnapshotRecipient): st
   const dir = c.dir;
   const company = run.companyName?.trim() || "business";
   const block = rangeBlockFor(run, run.lang);
-  const drivers = valueDrivers(run.resultMd);
+  const drivers = valueDrivers(
+    withHeadings(run.resultMd ?? "", c.headings),
+    c.headings.value,
+  );
 
   const bigStyle =
     block.kind === "number"
@@ -371,7 +444,10 @@ export function buildSnapshotEmailText(run: SnapshotRun, to: SnapshotRecipient):
   if (run.companyOneliner?.trim()) lines.push(run.companyOneliner.trim(), "");
   lines.push(c.greeting(firstName(to.name)), "");
   lines.push(block.label.toUpperCase(), block.big, block.warn, "");
-  for (const d of valueDrivers(run.resultMd)) {
+  for (const d of valueDrivers(
+    withHeadings(run.resultMd ?? "", c.headings),
+    c.headings.value,
+  )) {
     lines.push(d.lead ? `${d.lead} ${d.body}` : d.body);
   }
   if (run.buyerTypes?.trim()) lines.push("", `${c.whoWouldBuyLead} ${c.whoWouldBuy(run.buyerTypes)}`);

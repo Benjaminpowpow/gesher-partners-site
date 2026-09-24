@@ -4,8 +4,8 @@
   and are blocked in robots.txt, so they must not appear here.
   The homepage exists in two languages: English at the root, Hebrew at /he/.
   Each names the other as its twin, with x-default on the English page. The
-  valuation tool, privacy and terms pages exist in English only for now, so
-  they have no /he/ entry yet.
+  valuation tool has the same pair since Sep 24 (/valuation and /he/valuation).
+  Privacy and terms exist in English only for now, so they have no /he/ entry.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
@@ -28,7 +28,19 @@
   </url>
   <url>
     <loc>https://gesherpartners.com/valuation</loc>
-    <lastmod>2026-09-15</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://gesherpartners.com/valuation" />
+    <xhtml:link rel="alternate" hreflang="he" href="https://gesherpartners.com/he/valuation" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://gesherpartners.com/valuation" />
+    <lastmod>2026-09-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://gesherpartners.com/he/valuation</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://gesherpartners.com/valuation" />
+    <xhtml:link rel="alternate" hreflang="he" href="https://gesherpartners.com/he/valuation" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://gesherpartners.com/valuation" />
+    <lastmod>2026-09-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
