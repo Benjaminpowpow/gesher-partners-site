@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import { createHash } from "node:crypto";
-import { EXIT_BRIEF_SYSTEM_PROMPT } from "../lib/exitBriefSkill";
+import { EXIT_BRIEF_SYSTEM_PROMPT, HEBREW_ADDENDUM } from "../lib/exitBriefSkill";
 import {
   appendLeadRow,
   appendValuationRow,
@@ -152,10 +152,52 @@ export function todayKey(now: Date = new Date()): string {
   }).format(now);
 }
 
-// The message the seller sees when either gate closes. It is the same sentence
-// the engine already uses when it is busy: no dead end, a way to reach a human.
-const OVER_CAP_MESSAGE =
-  "We have hit today's limit on free Briefs. Book a call with Ofir and we will pull the Brief together by hand.";
+// ─── What the server says when it refuses ───────────────────────────────────
+// Four sentences, and the seller reads whichever matches the page he is on.
+// They are the only English the server puts on a Hebrew screen, so they are
+// keyed by language and picked from the run's own lang.
+//
+// The Hebrew side is empty until file 30 lands (session C fills it). An empty
+// string falls back to English, which is the right failure: a man reads a
+// sentence he may not want rather than a blank screen.
+type RunLang = "en" | "he";
+
+const SERVER_MESSAGES: Record<
+  "cooldown" | "overCap" | "notConfigured" | "busy",
+  Record<RunLang, string>
+> = {
+  // He pressed the button twice inside a minute.
+  cooldown: {
+    en: "You have already generated a Brief in the last minute. Wait a moment and try again, or book a call with Ofir and we will pull the Brief together by hand.",
+    he: "", // DRAFT, from file 30 in session C
+  },
+  // The day's budget, or this one visitor's share of it, is gone. No dead end,
+  // a way to reach a human.
+  overCap: {
+    en: "We have hit today's limit on free Briefs. Book a call with Ofir and we will pull the Brief together by hand.",
+    he: "", // DRAFT, from file 30 in session C
+  },
+  notConfigured: {
+    en: "Our Brief engine is not configured yet. Book a call with Ofir and we will pull the Brief together by hand.",
+    he: "", // DRAFT, from file 30 in session C
+  },
+  busy: {
+    en: "Our Brief engine is busy. Try again in a minute, or book a call with Ofir and we will pull the Brief together by hand.",
+    he: "", // DRAFT, from file 30 in session C
+  },
+};
+
+function serverMessage(
+  key: keyof typeof SERVER_MESSAGES,
+  lang: RunLang,
+): string {
+  return SERVER_MESSAGES[key][lang] || SERVER_MESSAGES[key].en;
+}
+
+/** Only "he" or "en". Anything else, including nothing, is English. */
+function readLang(raw: unknown): RunLang {
+  return raw === "he" ? "he" : "en";
+}
 
 // ─── In-memory stores ───────────────────────────────────────────────────────
 // briefId -> the seller brief markdown (v7 is seller-only, no trace)
@@ -218,6 +260,13 @@ function sourcePageFromReferer(req: Request): string | undefined {
   }
 }
 
+// Which language a contact form was filled in, read off the page it sat on.
+// Every Hebrew page lives under /he, so the path is the whole answer and no
+// form has to send a new field.
+function langFromSourcePage(sourcePage?: string): RunLang {
+  return sourcePage === "/he" || sourcePage?.startsWith("/he/") ? "he" : "en";
+}
+
 function domainFromUrl(url: string): string | undefined {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -251,6 +300,8 @@ function valuationBlockHtml(v?: {
   profit?: string;
   ownerSalary?: string;
   timeToSell?: string;
+  /** "en" or "he". Which page he ran the tool on. */
+  lang?: string;
 }): string {
   if (!v || !v.site) return "";
   const row = (label: string, value?: string) =>
@@ -268,6 +319,7 @@ function valuationBlockHtml(v?: {
         ${row("Pre-tax profit", v.profit)}
         ${row("Owner salary", v.ownerSalary)}
         ${row("Wants to sell", v.timeToSell)}
+        ${row("Language", v.lang)}
         ${row("Brief ID", v.briefId)}
       </table>
     </div>
@@ -398,11 +450,12 @@ async function handleExitBrief(req: Request, res: Response) {
   const now = Date.now();
   const last = rateLimitStore.get(ip) ?? 0;
 
+  // Read before the gates, because a refusal has to come back in the language
+  // of the page he is standing on.
+  const lang = readLang((req.body as { lang?: unknown } | undefined)?.lang);
+
   if (now - last < IP_COOLDOWN_MS) {
-    res.status(429).json({
-      error:
-        "You have already generated a Brief in the last minute. Wait a moment and try again, or book a call with Ofir and we will pull the Brief together by hand.",
-    });
+    res.status(429).json({ error: serverMessage("cooldown", lang) });
     return;
   }
 
@@ -410,13 +463,13 @@ async function handleExitBrief(req: Request, res: Response) {
 
   if (briefsToday >= dailyCap()) {
     console.warn(`[exit-brief] Daily cap of ${dailyCap()} reached for ${usageDay}.`);
-    res.status(429).json({ error: OVER_CAP_MESSAGE });
+    res.status(429).json({ error: serverMessage("overCap", lang) });
     return;
   }
 
   if ((briefsTodayByIp.get(ip) ?? 0) >= perIpDailyLimit()) {
     console.warn(`[exit-brief] Per-IP daily limit of ${perIpDailyLimit()} reached.`);
-    res.status(429).json({ error: OVER_CAP_MESSAGE });
+    res.status(429).json({ error: serverMessage("overCap", lang) });
     return;
   }
 
@@ -427,6 +480,8 @@ async function handleExitBrief(req: Request, res: Response) {
     owner_salary?: string;
     /** "Within six months", "Just exploring". Words, already, not a code. */
     time_to_sell?: string;
+    /** "en" or "he". Which door the owner came in by. */
+    lang?: string;
     // Tolerate the old field names during the transition.
     ebitda?: string;
     sde?: string;
@@ -459,10 +514,7 @@ async function handleExitBrief(req: Request, res: Response) {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    res.status(500).json({
-      error:
-        "Our Brief engine is not configured yet. Book a call with Ofir and we will pull the Brief together by hand.",
-    });
+    res.status(500).json({ error: serverMessage("notConfigured", lang) });
     return;
   }
 
@@ -542,12 +594,19 @@ async function handleExitBrief(req: Request, res: Response) {
       ...(WANTS_ADAPTIVE_THINKING ? {} : { temperature: 0 }),
       // v7: cache the ~10k-token bundle so it is billed once, not re-sent every run.
       // The seller URL + intake stay the dynamic part in the user message.
+      // The Hebrew block rides after the bundle, as its own uncached piece, so
+      // the bundle's cache entry is the same object on an English run and a
+      // Hebrew one. Same brain, one added instruction sheet. Nothing about
+      // language is ever written into the bundle itself.
       system: [
         {
           type: "text",
           text: EXIT_BRIEF_SYSTEM_PROMPT,
           cache_control: { type: "ephemeral" },
         },
+        ...(lang === "he" && HEBREW_ADDENDUM
+          ? [{ type: "text" as const, text: HEBREW_ADDENDUM }]
+          : []),
       ],
       messages: [{ role: "user", content: userMessage }],
       stream: true,
@@ -625,9 +684,9 @@ async function handleExitBrief(req: Request, res: Response) {
       // His own logo, lifted out of the page we already fetched. Undefined
       // means the email draws the lettered square instead.
       logoUrl: siteRead?.logoUrl,
-      // /valuation is English only today. Saved with the run so the email never
-      // has to guess, and so Hebrew is a words job later.
-      lang: "en",
+      // The language of the page he pressed the button on. Saved with the run,
+      // so the email, the PDF request and the Sheet row never have to guess.
+      lang,
     };
     briefStore.set(briefId, savedRun);
 
@@ -680,6 +739,9 @@ async function handleExitBrief(req: Request, res: Response) {
       perHead: meta.revenue_per_head === undefined ? "" : String(meta.revenue_per_head),
       margin: meta.margin === undefined ? "" : String(meta.margin),
       multiple: meta.multiple === undefined ? "" : String(meta.multiple),
+      // Which door he came in by. Ben can now count Hebrew runs against
+      // English ones in the same tab.
+      lang,
     });
 
     // Send completion with the parsed meta so the page renders clean fields,
@@ -697,10 +759,7 @@ async function handleExitBrief(req: Request, res: Response) {
     res.end();
   } catch (err) {
     console.error("[exit-brief] Anthropic error:", err);
-    res.status(500).json({
-      error:
-        "Our Brief engine is busy. Try again in a minute, or book a call with Ofir and we will pull the Brief together by hand.",
-    });
+    res.status(500).json({ error: serverMessage("busy", lang) });
   }
 }
 
@@ -741,6 +800,8 @@ async function handleContact(req: Request, res: Response) {
     return;
   }
 
+  const leadSourcePage = sourcePage ?? sourcePageFromReferer(req);
+
   // Start the Sheet write now and settle it at the end. It runs alongside the
   // email instead of in front of it, so a slow or broken Sheet never holds the
   // email up. appendLeadRow never rejects, so this promise is safe to hold.
@@ -764,7 +825,8 @@ async function handleContact(req: Request, res: Response) {
     valuationTimeToSell: valuation?.timeToSell,
     // The page the form sat on. Falls back to the referring URL when the form
     // does not send one.
-    sourcePage: sourcePage ?? sourcePageFromReferer(req),
+    sourcePage: leadSourcePage,
+    lang: langFromSourcePage(leadSourcePage),
   });
 
   const resendKey = process.env.RESEND_API_KEY;
@@ -948,7 +1010,7 @@ async function handlePdfRequest(req: Request, res: Response) {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 20px;">
         <h2 style="color: #1B3A5C; margin-bottom: 8px;">New Valuation Snapshot lead</h2>
         <p style="color: #666; font-size: 14px; margin: 0 0 24px;">His copy of the Brief has already been sent to him. Nothing is owed.</p>
-        ${valuationBlockHtml({ ...shown, briefId })}
+        ${valuationBlockHtml({ ...shown, briefId, lang: run.lang })}
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 100px;">Name</td>

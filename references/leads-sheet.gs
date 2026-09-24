@@ -52,7 +52,10 @@ var TABS = {
     // His own site, off the contact form. Added Sep 17. It goes on the end
     // rather than beside Company, because a column inserted in the middle
     // would put every row already in the sheet out of step with its headers.
-    'Website'
+    'Website',
+    // "en" or "he". Which language the page he wrote in was showing, read off
+    // the page path on the server. Added Sep 22 with the Hebrew tool.
+    'Language'
   ],
   Valuations: [
     'Date',
@@ -79,7 +82,11 @@ var TABS = {
     'Headcount used',
     'Revenue per head',
     'Margin',
-    'Multiple'
+    'Multiple',
+    // "en" or "he". Which door he came in by: /valuation or /he/valuation.
+    // Added Sep 22 with the Hebrew tool. Add this header cell to the live tab
+    // by hand before redeploying, same as the four above.
+    'Language'
   ]
 };
 
@@ -100,7 +107,8 @@ var FIELDS = {
     'valuationOwnerSalary',
     'valuationBriefId',
     'valuationTimeToSell',
-    'website'
+    'website',
+    'lang'
   ],
   Valuations: [
     'site',
@@ -123,7 +131,8 @@ var FIELDS = {
     'headcount',
     'perHead',
     'margin',
-    'multiple'
+    'multiple',
+    'lang'
   ]
 };
 
