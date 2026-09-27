@@ -260,7 +260,22 @@ export function shouldSendEmail(run: SnapshotRun): boolean {
 
 export function snapshotSubject(run: SnapshotRun): string {
   const c = copyFor(run.lang);
-  return c.subject(run.companyName?.trim() || "business");
+  return c.subject(isolateCompany(run.companyName?.trim() || "business", run.lang));
+}
+
+// A Latin company name inside a Hebrew line can flip ("Geosoft Systems Ltd."
+// came out as ".Geosoft Systems Ltd"). In HTML the name sits in a <bdi>. A
+// subject line and a <title> are plain text, so there the same job is done by
+// the Unicode isolate marks FSI (U+2068) and PDI (U+2069), which is what <bdi>
+// does under the hood. Hebrew only, so the English lines stay byte for byte.
+function isolateCompany(company: string, lang?: string): string {
+  return lang === "he" ? `\u2068${company}\u2069` : company;
+}
+
+// The letter's visible title, with the company in a <bdi> of its own.
+function titleHtml(c: { title: (company: string) => string }, company: string): string {
+  const [before, after = ""] = c.title("\u0000").split("\u0000");
+  return `${escapeHtml(before)}<bdi>${escapeHtml(company)}</bdi>${escapeHtml(after)}`;
 }
 
 // ─── The letter ──────────────────────────────────────────────────────────────
@@ -388,7 +403,7 @@ export function snapshotLetterTable(run: SnapshotRun, to: SnapshotRecipient): st
         ${companyMark(run, company)}
         <td style="width:16px;">&nbsp;</td>
         <td valign="middle">
-          <div style="font-family:${FONT_SERIF};font-size:27px;line-height:1.15;color:${NAVY};">${escapeHtml(c.title(company))}</div>
+          <div style="font-family:${FONT_SERIF};font-size:27px;line-height:1.15;color:${NAVY};">${titleHtml(c, company)}</div>
           ${run.companyOneliner?.trim() ? `<div style="margin-top:4px;">${small(run.companyOneliner.trim())}</div>` : ""}
         </td>
       </tr></table>
@@ -429,7 +444,7 @@ export function buildSnapshotEmailHtml(run: SnapshotRun, to: SnapshotRecipient):
   return `<!doctype html>
 <html dir="${c.dir}" lang="${run.lang ?? "en"}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(c.title(company))}</title></head>
+<title>${escapeHtml(c.title(isolateCompany(company, run.lang)))}</title></head>
 <body style="margin:0;padding:0;background:#f4efe5;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4efe5;">
 <tr><td align="center" style="padding:24px 12px;">
@@ -444,7 +459,7 @@ export function buildSnapshotEmailText(run: SnapshotRun, to: SnapshotRecipient):
   const c = copyFor(run.lang);
   const company = run.companyName?.trim() || "business";
   const block = rangeBlockFor(run, run.lang);
-  const lines: string[] = [c.title(company), ""];
+  const lines: string[] = [c.title(isolateCompany(company, run.lang)), ""];
   if (run.companyOneliner?.trim()) lines.push(run.companyOneliner.trim(), "");
   lines.push(c.greeting(firstName(to.name)), "");
   lines.push(block.label.toUpperCase(), block.big, block.warn, "");

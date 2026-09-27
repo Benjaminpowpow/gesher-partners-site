@@ -1218,7 +1218,7 @@ function ResultState({ ctx, go }: StateProps) {
         <header className="v-result-header">
           <CompanyLogo domain={company.domain} name={company.name} className="v-result-logo" />
           <div className="v-result-titlewrap">
-            <h1 className="v-result-title">{C.result.title(company.name)}</h1>
+            <h1 className="v-result-title">{titleWithBdi(C.result.title, company.name)}</h1>
             <p className="v-result-disclaimer">{C.result.privateLine}</p>
           </div>
         </header>
@@ -1534,6 +1534,20 @@ function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
           </form>
         </div>
       </div>
+    </>
+  );
+}
+
+// A Latin company name inside a Hebrew title can flip ("Geosoft Systems Ltd."
+// showed as ".Geosoft Systems Ltd"). The name goes in a <bdi> of its own so its
+// direction never leaks into the words around it.
+function titleWithBdi(title: (company: string) => string, company: string) {
+  const [before, after = ""] = title("\u0000").split("\u0000");
+  return (
+    <>
+      {before}
+      <bdi>{company}</bdi>
+      {after}
     </>
   );
 }

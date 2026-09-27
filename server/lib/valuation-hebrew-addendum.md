@@ -121,6 +121,9 @@ same word every time.
 | customers | לקוחות | [site] |
 | synergistic buyer | קונה סינרגטי | file 30 |
 | talk to us | לשיחת ייעוץ | [site] |
+| founder-run / owner-run business | עסק בניהול הבעלים (plural: עסקים בניהול הבעלים) | file 30, third pass |
+| founder-dependent | תלות בבעל העסק | file 30, third pass |
+| customer loyalty / repeat-customer loyalty | נאמנות לקוחות (never זיקה לקונים) | file 30, third pass |
 
 ## 5. The fixed sentences
 
@@ -132,13 +135,14 @@ and give them Hebrew twins in the page's table.
 | English | Hebrew | Source |
 | --- | --- | --- |
 | There are real buyers for a business like yours: [types] | יש קונים אמיתיים לעסק כמו שלך: [types] | file 30, result.buyerLine |
-| We work only for you, the seller. Most of our fee comes only when you sell. | אנחנו עובדים רק בשבילך, מצד המוכר. בעיקר דמי הצלחה כשאתה מוכר, ודמי רצינות קטנים בהתחלה. | file 30, result.trust |
+| We work only for you, the seller. Most of our fee comes only when you sell. | אנחנו עובדים רק בשבילך, המוכר. בעיקר דמי הצלחה, שמשולמים כשהעסקה נסגרת. דמי רצינות קטנים בהתחלה. | file 30, taglines.0 and result.trust (Sep 27 pass) |
 | Talk to us. | לשיחת ייעוץ. | file 30, talk.title |
 
 ## 6. Grammar
 
 Ben's rules with Joanne, Sep 27, after two real runs. From
-`site/30-hebrew-valuation-copy-ben-picks.md`, "Sep 27 pass".
+`site/30-hebrew-valuation-copy-ben-picks.md`, "Sep 27 pass" (rules 1 to 7)
+and "Sep 27 third pass" (rules 8 to 13).
 
 1. Construct state: `קבלני חשמל גדולים` / `קבלני בנייה`, not `קבלנים חשמל`.
 2. No passive with `על ידי`: `עסקים שהבעלים מנהל`, not `מנוהלים על ידי בעלים`.
@@ -147,3 +151,9 @@ Ben's rules with Joanne, Sep 27, after two real runs. From
 5. Company names and URLs stay exact. Do not translate or "fix".
 6. No calque for "no mention of": `לא ראינו חוזים חוזרים`, not `אין ציון של…`.
 7. Every card field in Hebrew on a Hebrew run; use the locked finance words (אומדן, רווח תפעולי, קונה פיננסי / אסטרטגי / סינרגטי, and the list above).
+8. Never write the owner's personal name. Say בעל העסק. Wrong: העסק בנוי סביב אריה פולק. Right: העסק בנוי סביב בעל העסק.
+9. Owner-leaves risk: אחרי המכירה or כשבעל העסק יפרוש. Never כשהוא לא יהיה בתמונה.
+10. Representation rights: זכויות הייצוג. Never הזכויות הייצוגיות.
+11. Agreement in gender and number: with קבוצות use יכולתן, not יכולתם.
+12. Verb gender matches the subject: דפוס רולתג מייצר, not מייצרת, when the subject is masculine.
+13. Construct and word order for "global software group": קבוצת תוכנה גלובלית, not קבוצה גלובלית של תוכנה.
