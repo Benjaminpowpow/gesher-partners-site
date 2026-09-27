@@ -198,7 +198,7 @@ const COPY_V = {
     headingBlocked: "Not right now.",
     headingUnreadable: "We could not read that site.",
     subUnreadable:
-      "Sometimes a site is too quiet, or in Hebrew only. That is no problem.",
+      "Sometimes there is not enough on the site for us to read. That is fine.",
     talkBtn: "Talk to us instead",
     retryBtn: "Try a different URL",
   },
@@ -234,7 +234,8 @@ export type VCopy = typeof COPY_V;
 /**
  * The Hebrew twin. Every line is copied verbatim, by ID, from
  * site/30-hebrew-valuation-copy-ben-picks.md (Ben's picks with Joanne, Sep 24,
- * and the seven lines of the Sep 27 pass, which replace the earlier rows).
+ * the seven lines of the Sep 27 pass, and the Sep 27 third pass, which replace
+ * the earlier rows).
  * Hebrew never changes here first: fix file 30, then bring the line across.
  */
 const COPY_V_HE: VCopy = {
@@ -345,16 +346,18 @@ const COPY_V_HE: VCopy = {
     subWithCompany: (company: string) =>
       `ניתוח השווי הראשוני של ${company} יגיע תוך כמה דקות.`,
     subPlain: "ניתוח השווי הראשוני יגיע תוך כמה דקות.",
-    notThere: "לא הגיע? כדאי לבדוק בספאם, או לכתוב ל",
+    // Sep 27 third pass: no prefix ל and no trailing period, so the Latin
+    // address does not pull them to the wrong side (bidi).
+    notThere: "לא הגיע? כדאי לבדוק בספאם, או לכתוב לנו: ",
     mail: "office@gesherpartners.com",
-    notThereEnd: ".",
+    notThereEnd: "",
   },
 
   error: {
     headingBlocked: "לא עכשיו.",
     headingUnreadable: "לא הצלחנו לקרוא את האתר הזה.",
     subUnreadable:
-      "לפעמים האתר שקט מדי, או בעברית בלבד. זה בסדר גמור.",
+      "לפעמים אין באתר מספיק מידע בשבילנו. זה בסדר גמור.",
     talkBtn: "לשיחת ייעוץ",
     retryBtn: "לנסות כתובת אחרת",
   },

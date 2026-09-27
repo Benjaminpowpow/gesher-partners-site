@@ -362,17 +362,20 @@ function valuationBlockHtml(v?: {
   lang?: string;
 }): string {
   if (!v || !v.site) return "";
-  const row = (label: string, value?: string) =>
+  const row = (label: string, value?: string, dir?: "rtl") =>
     value
-      ? `<tr><td style="padding: 6px 8px; font-weight: bold; width: 130px;">${esc(label)}</td><td style="padding: 6px 8px;">${esc(value)}</td></tr>`
+      ? `<tr><td style="padding: 6px 8px; font-weight: bold; width: 130px;">${esc(label)}</td><td style="padding: 6px 8px;">${dir ? `<span dir="${dir}">${esc(value)}</span>` : esc(value)}</td></tr>`
       : "";
+  // This email is English, so a Hebrew range ("8 עד 16 מיליון ש״ח") flips to
+  // "עד 16 מיליון ש״ח 8" unless it sits in its own right-to-left span.
+  const rangeDir = v.lang === "he" ? "rtl" : undefined;
   return `
     <div style="background: #F8F4ED; border-left: 4px solid #1B3A5C; padding: 16px 12px; margin-bottom: 24px;">
       <p style="margin: 0 0 8px; font-weight: bold; color: #1B3A5C;">This lead ran a Valuation Snapshot first.</p>
       <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
         ${row("Company", v.company)}
         ${row("Website", v.site)}
-        ${row("Range shown", v.range)}
+        ${row("Range shown", v.range, rangeDir)}
         ${row("Revenue", v.revenue)}
         ${row("Pre-tax profit", v.profit)}
         ${row("Owner salary", v.ownerSalary)}
@@ -861,6 +864,12 @@ async function handleExitBrief(req: Request, res: Response) {
     // types, then Market and Value. Everything about the number happens here.
     const meta = parsed.meta;
     let resultMd = parsed.resultMd;
+    // "Geosoft Systems Ltd." showed as ".Geosoft Systems Ltd" in a Hebrew
+    // title: a trailing period after Latin letters jumps to the wrong side.
+    // Drop it here, before the name is saved, cached, emailed or logged.
+    if (meta.company_name) {
+      meta.company_name = meta.company_name.trim().replace(/\.+$/, "").trim();
+    }
 
     const row = VERTICALS.get(meta.vertical_matched ?? "");
     const buyers = (meta.buyer_types ?? "").trim() || row?.buyers || "the buyers we see for a business like yours";
@@ -1035,6 +1044,7 @@ async function handleContact(req: Request, res: Response) {
   }
 
   const leadSourcePage = sourcePage ?? sourcePageFromReferer(req);
+  const leadLang = langFromSourcePage(leadSourcePage);
 
   // Start the Sheet write now and settle it at the end. It runs alongside the
   // email instead of in front of it, so a slow or broken Sheet never holds the
@@ -1060,7 +1070,7 @@ async function handleContact(req: Request, res: Response) {
     // The page the form sat on. Falls back to the referring URL when the form
     // does not send one.
     sourcePage: leadSourcePage,
-    lang: langFromSourcePage(leadSourcePage),
+    lang: leadLang,
   });
 
   const resendKey = process.env.RESEND_API_KEY;
@@ -1093,7 +1103,7 @@ async function handleContact(req: Request, res: Response) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 20px;">
           <h2 style="color: #1B3A5C;">New Contact Form Submission</h2>
-          ${valuationBlockHtml(valuation)}
+          ${valuationBlockHtml(valuation && { ...valuation, lang: leadLang })}
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 100px;">Name</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(name)}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Website</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(website ?? "(none)")}</td></tr>
@@ -1103,6 +1113,7 @@ async function handleContact(req: Request, res: Response) {
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Company</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(company ?? "(none)")}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Revenue</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(revenue ?? "(none)")}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Stage</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(stage ?? "(none)")}</td></tr>
+            ${valuation?.site ? "" : `<tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Language</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${esc(leadLang)}</td></tr>`}
           </table>
           <h3 style="color: #1B3A5C;">Message</h3>
           <p style="background: #f5f5f5; padding: 16px; border-radius: 4px; white-space: pre-wrap;">${esc(message)}</p>
