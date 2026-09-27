@@ -85,6 +85,17 @@ services:
       - key: LEADS_SHEET_WEBHOOK
         sync: false
 
+      # Analytics. GA4 Measurement ID (starts with G-) and the Meta Pixel ID
+      # (a number). Blank means off, no tag loads. Unlike every other var here
+      # these two are baked into the page at build time, because the browser
+      # reads them. So after changing one, hit Manual Deploy, a restart alone
+      # keeps the old value. Neither is a secret, anyone can read them in the
+      # page source. They live here only so they never sit in the code.
+      - key: VITE_GA4_MEASUREMENT_ID
+        sync: false
+      - key: VITE_META_PIXEL_ID
+        sync: false
+
       # Optional. Pings a Slack channel when a lead comes in.
       - key: SLACK_WEBHOOK_URL
         sync: false

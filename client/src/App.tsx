@@ -1,7 +1,9 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Redirect, Route, Switch } from "wouter";
+import { useEffect } from "react";
+import { Redirect, Route, Switch, useLocation } from "wouter";
+import { trackPageView } from "./lib/analytics";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -12,6 +14,13 @@ import Terms from "./pages/Terms";
 import TestRender from "./pages/TestRender";
 
 function Router() {
+  // Meta needs a PageView on each client-side route change. GA4 counts these
+  // itself. See lib/analytics.ts.
+  const [location] = useLocation();
+  useEffect(() => {
+    trackPageView(location);
+  }, [location]);
+
   return (
     <Switch>
       {/* Two languages, two URLs (decided 2026-09-16). English at the root,
