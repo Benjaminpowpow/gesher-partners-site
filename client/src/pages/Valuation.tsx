@@ -42,6 +42,12 @@ import {
   type VLang,
 } from "./valuationCopy";
 import "./valuation.css";
+import {
+  trackContactSubmit,
+  trackTalkClick,
+  trackValuationDone,
+  trackValuationStart,
+} from "@/lib/analytics";
 
 // Every "talk to us" on this page opens a small form right here. It used to be
 // a link to /#contact, which dropped the owner at the top of the home page with
@@ -52,11 +58,12 @@ import "./valuation.css";
 // there the form is already on the page.
 //
 // The buttons live in five different child components, so the page listens for
-// one event rather than threading a setter through all of them.
+// one event rather than threading a setter through all of them. placement says
+// which button it was, for GA4 and Meta (lib/analytics.ts).
 const TALK_EVENT = "gesher:talk";
 
-function openTalk(): void {
-  window.dispatchEvent(new CustomEvent(TALK_EVENT));
+function openTalk(placement: string): void {
+  window.dispatchEvent(new CustomEvent(TALK_EVENT, { detail: { placement } }));
 }
 
 type ScreenId =
@@ -844,6 +851,8 @@ function WorkingState({ ctx, go }: StateProps) {
   useEffect(() => {
     if (lastFiredUrl === ctx.url) return; // already running/ran for this URL
     lastFiredUrl = ctx.url;
+    // Counted here, behind the same guard, so one run is one start.
+    trackValuationStart({ lang });
 
     const controller = new AbortController();
     let active = true;
@@ -1032,6 +1041,7 @@ function WorkingState({ ctx, go }: StateProps) {
         // does today, with the ring stopped where it stands. Only a finished run
         // with a range earns the run to 100%. Nothing runs to 100% on a dead end.
         if (patch.rangeVariant === "by-hand") {
+          trackValuationDone({ lang, range_variant: "by-hand" });
           go("result", patch);
           return;
         }
@@ -1040,7 +1050,9 @@ function WorkingState({ ctx, go }: StateProps) {
         peakRef.current = 1;
         setProgress(1);
         handoverRef.current = setTimeout(() => {
-          if (active) go("result", patch);
+          if (!active) return;
+          trackValuationDone({ lang, range_variant: "number" });
+          go("result", patch);
         }, RING_SNAP_MS + RING_HANDOVER_MS);
       } catch (err) {
         if (active) go("error", { errorMessage: undefined });
@@ -1251,7 +1263,7 @@ function ResultState({ ctx, go }: StateProps) {
                   <button
                     type="button"
                     className="v-btn v-btn-primary v-btn-block"
-                    onClick={openTalk}
+                    onClick={() => openTalk("result")}
                   >
                     {C.result.talkBtn}
                   </button>
@@ -1276,7 +1288,7 @@ function ResultState({ ctx, go }: StateProps) {
                   <button
                     type="button"
                     className="v-btn v-btn-primary v-btn-block"
-                    onClick={openTalk}
+                    onClick={() => openTalk("result_by_hand")}
                   >
                     {C.result.byHandBtn}
                   </button>
@@ -1570,7 +1582,7 @@ function ErrorState({ ctx, go }: StateProps) {
           <button
             type="button"
             className="v-btn v-btn-primary v-error-btn"
-            onClick={openTalk}
+            onClick={() => openTalk("error")}
           >
             {C.error.talkBtn}
           </button>
@@ -1675,6 +1687,8 @@ function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
         }),
       });
       setStatus(res.ok ? "sent" : "failed");
+      // Counted only when the lead really went through.
+      if (res.ok) trackContactSubmit({ form: "valuation", lang });
     } catch {
       setStatus("failed");
     }
@@ -1843,12 +1857,14 @@ export default function Valuation({ lang = "en" }: { lang?: VLang }) {
 
   // Every "talk to us" button on this page, wherever it sits, lands here.
   useEffect(() => {
-    function onTalk() {
+    function onTalk(e: Event) {
+      const placement = (e as CustomEvent<{ placement?: string }>).detail?.placement ?? "unknown";
+      trackTalkClick({ placement, lang });
       setTalkOpen(true);
     }
     window.addEventListener(TALK_EVENT, onTalk);
     return () => window.removeEventListener(TALK_EVENT, onTalk);
-  }, []);
+  }, [lang]);
 
   // The server sets <html lang dir> on first load (server/_core/vite.ts).
   // This keeps it right after a client-side hop, and puts it back to English
@@ -1885,7 +1901,7 @@ export default function Valuation({ lang = "en" }: { lang?: VLang }) {
                 and on the working screen it killed the run (Sep 27). After
                 the run it would drop his result. Both languages. */}
             {(state === "front-door" || state === "error") && <VLangSwitch />}
-            <button type="button" className="talk" onClick={openTalk}>
+            <button type="button" className="talk" onClick={() => openTalk("nav")}>
               {copy.nav.talkToUs}
             </button>
           </div>

@@ -4,6 +4,7 @@ import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import BriefMarkdown from "@/components/BriefMarkdown";
 import PdfModal from "@/components/PdfModal";
+import { trackTalkClick } from "@/lib/analytics";
 import HiddenRiskTeaser from "@/components/HiddenRiskTeaser";
 import ResultPageRenderer from "@/components/ResultPageRenderer";
 
@@ -733,6 +734,7 @@ export default function ExitBrief() {
                       contact form on the home page. */}
                   <a
                     href="/#contact"
+                    onClick={() => trackTalkClick({ placement: "exit_brief", lang: "en" })}
                     style={{
                       display: "inline-block",
                       background: "white",

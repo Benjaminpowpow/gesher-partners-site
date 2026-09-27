@@ -29,6 +29,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { useLocation } from "wouter";
 import { FAQ_ITEMS, FAQ_ITEMS_HE } from "@shared/faq";
 import { Lockup as BrandLockup } from "@/components/Lockup";
+import { trackContactSubmit, trackTalkClick } from "@/lib/analytics";
 import "./home.css";
 
 /* ─── Copy ────────────────────────────────────────────────────────────────── */
@@ -1414,7 +1415,7 @@ function Band({ onTalk }: { onTalk: () => void }) {
 /* ─── Contact ─────────────────────────────────────────────────────────────── */
 
 function Contact() {
-  const { copy: C } = useCopy();
+  const { copy: C, lang } = useCopy();
   // The form used to flip to the thank-you card the instant the button was
   // pressed and throw the server's answer away. A lead that never sent looked
   // exactly like a lead that did, and the owner had no reason to try again.
@@ -1462,6 +1463,8 @@ function Contact() {
       // Only a 2xx means the mail actually left. Anything else, including the
       // missing-key error, is a failure the owner needs to see.
       setStatus(res.ok ? "sent" : "failed");
+      // Counted only when the lead really went through.
+      if (res.ok) trackContactSubmit({ form: "home", lang });
     } catch {
       // Offline, DNS, the server down. Same story for the owner.
       setStatus("failed");
@@ -1640,14 +1643,19 @@ export default function Home({ lang = "en" }: { lang?: Lang }) {
     if (el) window.scrollTo({ top: el.offsetTop - 24, behavior: "smooth" });
   }
 
-  const talk = () => scrollTo("contact");
+  // Every "talk to us" on the home page scrolls to the form. placement tells
+  // GA4 and Meta which button it was.
+  const talk = (placement: string) => {
+    trackTalkClick({ placement, lang });
+    scrollTo("contact");
+  };
 
   return (
     <CopyContext.Provider value={{ copy, lang }}>
       <div className={lang === "he" ? "gesher gesher-rtl" : "gesher"} lang={lang} dir={dir}>
         <header className="site-header">
           <div className="container">
-            <Nav onTalk={talk} />
+            <Nav onTalk={() => talk("nav")} />
           </div>
         </header>
         <Hero
@@ -1665,7 +1673,7 @@ export default function Home({ lang = "en" }: { lang?: Lang }) {
         <Team />
         <Sectors />
         <Faq />
-        <Band onTalk={talk} />
+        <Band onTalk={() => talk("band")} />
         <Contact />
         <Footer />
       </div>

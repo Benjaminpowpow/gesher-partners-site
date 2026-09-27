@@ -6,7 +6,11 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { getLoginUrl } from "./const";
+import { initAnalytics } from "./lib/analytics";
 import "./index.css";
+
+// GA4 and the Meta Pixel. Both stay off unless their VITE_ id is set.
+initAnalytics();
 
 const queryClient = new QueryClient();
 
