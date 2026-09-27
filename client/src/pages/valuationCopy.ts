@@ -233,7 +233,8 @@ export type VCopy = typeof COPY_V;
 
 /**
  * The Hebrew twin. Every line is copied verbatim, by ID, from
- * site/30-hebrew-valuation-copy-ben-picks.md (Ben's picks with Joanne, Sep 24).
+ * site/30-hebrew-valuation-copy-ben-picks.md (Ben's picks with Joanne, Sep 24,
+ * and the seven lines of the Sep 27 pass, which replace the earlier rows).
  * Hebrew never changes here first: fix file 30, then bring the line across.
  */
 const COPY_V_HE: VCopy = {
@@ -294,14 +295,15 @@ const COPY_V_HE: VCopy = {
   },
 
   taglines: [
-    "אנחנו עובדים רק בשבילך, מצד המוכר.",
+    "אנחנו עובדים רק בשבילך, המוכר.",
     "אנחנו מנהלים תהליך תחרותי אמיתי, עם קונים בארץ ובחו״ל.",
     "אנחנו אומרים את האמת, גם כשהאמת היא לחכות שנה.",
   ],
 
   result: {
-    // Ben's pick is the bare word, with no company name in it (file 30).
-    title: (_company: string) => "הניתוח",
+    // Product name plus the company (file 30, Sep 27 pass). {company} may
+    // arrive in Latin or Hebrew letters; both read right.
+    title: (company: string) => `ניתוח שווי ראשוני של ${company}`,
     privateLine:
       "חסוי לחלוטין. נבנה ממקורות ציבוריים. לא הצעה ולא הערכת שווי.",
     cardMarket: "שוק",
@@ -310,7 +312,7 @@ const COPY_V_HE: VCopy = {
     buyerLine: (types: string) =>
       `יש קונים אמיתיים לעסק כמו שלך: ${types}`,
     trust:
-      "אנחנו עובדים רק בשבילך, מצד המוכר. בעיקר דמי הצלחה כשאתה מוכר, ודמי רצינות קטנים בהתחלה.",
+      "אנחנו עובדים רק בשבילך, המוכר. בעיקר דמי הצלחה, שמשולמים כשהעסקה נסגרת. דמי רצינות קטנים בהתחלה.",
     talkBtn: "לשיחת ייעוץ",
     briefBtn: "לקבלת הניתוח בעמוד אחד",
     byHandLead: "עסק ייחודי שדורש מבט נוסף",
@@ -353,7 +355,7 @@ const COPY_V_HE: VCopy = {
     headingUnreadable: "לא הצלחנו לקרוא את האתר הזה.",
     subUnreadable:
       "לפעמים האתר שקט מדי, או בעברית בלבד. זה בסדר גמור.",
-    talkBtn: "במקום זה, לשיחת ייעוץ",
+    talkBtn: "לשיחת ייעוץ",
     retryBtn: "לנסות כתובת אחרת",
   },
 
@@ -366,7 +368,7 @@ const COPY_V_HE: VCopy = {
     title: "לשיחת ייעוץ.",
     subWithRun: "נעבור על הטווח שלך בשיחה.",
     subNoRun:
-      "ספר לנו על העסק. נגיד לך, מנקודת מבט של קונה, מה השוק כנראה יראה.",
+      "ספר לנו איפה אתה עומד. נגיד לך בכנות אם נוכל לעזור.",
     nameLabel: "השם שלך",
     reachLabel: "טלפון או מייל",
     messageLabel: "מה חשוב לך שנדע (לא חובה)",

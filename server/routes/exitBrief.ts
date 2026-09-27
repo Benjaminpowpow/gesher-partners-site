@@ -67,8 +67,45 @@ const BRIEF_MODEL = process.env.EXIT_BRIEF_MODEL || "claude-haiku-4-5";
 // and on those models thinking is spent out of max_tokens, so the ceiling has
 // to be bigger when it is on. Keyed off the model name so flipping the env var
 // above does the right thing by itself.
-const WANTS_ADAPTIVE_THINKING = !BRIEF_MODEL.includes("haiku");
-const BRIEF_MAX_TOKENS = WANTS_ADAPTIVE_THINKING ? 16_000 : 8_000;
+//
+// A function of the model, not a constant, because a Hebrew run can fall back
+// to Sonnet for one attempt (see the Hebrew guard below) while the default
+// stays Haiku.
+function modelSettings(model: string): { adaptiveThinking: boolean; maxTokens: number } {
+  const adaptiveThinking = !model.includes("haiku");
+  return { adaptiveThinking, maxTokens: adaptiveThinking ? 16_000 : 8_000 };
+}
+
+// ─── The Hebrew guard ───────────────────────────────────────────────────────
+// Two real Hebrew runs on Sep 27 got one Hebrew brief and one English brief
+// from the same code (site/31). Haiku does not obey the addendum every time.
+// Ben's call: keep Haiku and make it obey. Three layers:
+//   1. The user message opens with HEBREW_LINE on a Hebrew run.
+//   2. If the cards still hold fewer than MIN_HEBREW_LETTERS Hebrew letters,
+//      the run is thrown away and run once more on the same model.
+//   3. If that fails too, one last run on HEBREW_FALLBACK_MODEL.
+// Every retry logs "[exit-brief] hebrew-retry", so Ben can count them in the
+// Render log. A run that failed the check is never cached and never emailed.
+const HEBREW_LINE =
+  "כתוב את כל הכרטיסים ואת כל שדות הטקסט ב-JSON בעברית. / Write every card and every JSON text field in Hebrew.";
+const MIN_HEBREW_LETTERS = 40;
+const HEBREW_FALLBACK_MODEL = "claude-sonnet-5";
+
+/** How many Hebrew letters a piece of text holds. */
+export function hebrewLetterCount(text: string): number {
+  return (text.match(/[\u0590-\u05FF]/g) ?? []).length;
+}
+
+/**
+ * True when a Hebrew run came back in English. Only the cards the model wrote
+ * count (Market and Value); the Range card is the server's own. A site the
+ * model could not read has no cards, so it is never a failure here.
+ */
+export function failsHebrewCheck(parsed: { meta: { readable?: boolean }; resultMd: string }): boolean {
+  if (parsed.meta.readable === false) return false;
+  const cards = parsed.resultMd.replace(/\n*## Range and call[\s\S]*$/, "");
+  return hebrewLetterCount(cards) < MIN_HEBREW_LETTERS;
+}
 
 // The v7 engine takes a light live look at the seller's site. Six searches cost
 // 6 cents before a single token is billed. Four is enough to read a small
@@ -94,14 +131,28 @@ const MODEL_RATES: Record<
 // Web search is billed on its own, the same on every model.
 const WEB_SEARCH_COST = 0.01;
 
-function runCostUsd(u: {
+type RunUsage = {
   inputTokens: number;
   outputTokens: number;
   cachedInputTokens: number;
   webSearches: number;
-}): string {
-  const rate = MODEL_RATES[BRIEF_MODEL];
-  if (!rate) return "";
+};
+
+// A Hebrew run can take up to three attempts, maybe on two models. Each one is
+// billed, so the cost column adds them all up. One unknown model blanks it.
+function runCostUsd(attempts: { model: string; usage: RunUsage }[]): string {
+  let dollars = 0;
+  for (const { model, usage } of attempts) {
+    const one = attemptCostUsd(usage, model);
+    if (one === null) return "";
+    dollars += one;
+  }
+  return dollars.toFixed(4);
+}
+
+function attemptCostUsd(u: RunUsage, model: string): number | null {
+  const rate = MODEL_RATES[model];
+  if (!rate) return null;
   // input_tokens from the API excludes what was read from cache, so the two do
   // not double count. Cache writes are not broken out on this path, so a first
   // run of the day reads a little cheap here. It is a floor, not a guess.
@@ -110,7 +161,7 @@ function runCostUsd(u: {
     (u.outputTokens / 1e6) * rate.output +
     (u.cachedInputTokens / 1e6) * rate.cacheRead +
     u.webSearches * WEB_SEARCH_COST;
-  return dollars.toFixed(4);
+  return dollars;
 }
 
 // ─── Spend guards on POST /api/exit-brief ───────────────────────────────────
@@ -604,8 +655,10 @@ async function handleExitBrief(req: Request, res: Response) {
   briefsToday += 1;
   briefsTodayByIp.set(ip, (briefsTodayByIp.get(ip) ?? 0) + 1);
 
-  // Build user message
-  let userMessage = `URL: ${normalizedUrl}`;
+  // Build user message. A Hebrew run opens with one line, Hebrew then English,
+  // telling the model to write in Hebrew (the Hebrew guard, layer 1). The
+  // addendum in the system block says the same at length.
+  let userMessage = (lang === "he" ? `${HEBREW_LINE}\n\n` : "") + `URL: ${normalizedUrl}`;
   if (revenue || pretaxProfit || ownerSalary || timeToSell) {
     const parts: string[] = [];
     if (revenue) parts.push(`revenue NIS ${revenue}`);
@@ -665,33 +718,45 @@ async function handleExitBrief(req: Request, res: Response) {
 
   const anthropic = new Anthropic({ apiKey });
   const briefId = nanoid(12);
-  let fullMarkdown = "";
   const startedAt = Date.now();
-  // Token usage, read off the stream for the leads row (cost per valuation).
-  const usage = {
-    inputTokens: 0,
-    outputTokens: 0,
-    cachedInputTokens: 0,
-    webSearches: 0,
-  };
+  // Token usage per attempt, read off the stream for the leads row (cost per
+  // valuation). One attempt on an English run; up to three on a Hebrew one.
+  const attempts: { model: string; usage: RunUsage }[] = [];
+  // Tell the page when the model starts its web search, so the working screen can
+  // show a real "Learning your size and your story" stage, not a fake timer.
+  let sentSearching = false;
 
-  try {
+  // One model run. Returns the markdown it wrote. Only the first attempt
+  // streams to the page: by the time a Hebrew retry runs, the page's
+  // checkpoints have already moved on the first attempt's chunks, so a retry
+  // runs quietly and the page only hears its "done". The ring keeps creeping.
+  const runModel = async (model: string, toPage: boolean): Promise<string> => {
+    const { adaptiveThinking, maxTokens } = modelSettings(model);
+    const usage: RunUsage = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedInputTokens: 0,
+      webSearches: 0,
+    };
+    attempts.push({ model, usage });
+    let text = "";
+
     const stream = await anthropic.messages.create({
-      model: BRIEF_MODEL,
+      model,
       // v7: three short cards. The ceiling moves with the model, because a
       // thinking model spends part of it before it writes a word. See
-      // BRIEF_MAX_TOKENS above.
-      max_tokens: BRIEF_MAX_TOKENS,
+      // modelSettings above.
+      max_tokens: maxTokens,
       // Only on a model that accepts it. Haiku 4.5 does not, and sending it
       // there is a 400, not a shrug.
-      ...(WANTS_ADAPTIVE_THINKING
+      ...(adaptiveThinking
         ? { thinking: { type: "adaptive" as const } }
         : {}),
       // v8: no randomness. The recipe is four multiplications, and the same
       // site with the same input must print the same range every run. A
       // thinking model refuses any temperature but the default, so it is only
       // set when thinking is off.
-      ...(WANTS_ADAPTIVE_THINKING ? {} : { temperature: 0 }),
+      ...(adaptiveThinking ? {} : { temperature: 0 }),
       // v7: cache the ~10k-token bundle so it is billed once, not re-sent every run.
       // The seller URL + intake stay the dynamic part in the user message.
       // The Hebrew block rides after the bundle, as its own uncached piece, so
@@ -723,11 +788,7 @@ async function handleExitBrief(req: Request, res: Response) {
     });
 
     // Stream markdown to client in real time (newline-delimited JSON)
-    res.setHeader("Content-Type", "application/x-ndjson");
-
-    // Tell the page when the model starts its web search, so the working screen can
-    // show a real "Learning your size and your story" stage, not a fake timer.
-    let sentSearching = false;
+    if (toPage) res.setHeader("Content-Type", "application/x-ndjson");
 
     for await (const event of stream) {
       if (event.type === "message_start") {
@@ -736,6 +797,7 @@ async function handleExitBrief(req: Request, res: Response) {
         usage.cachedInputTokens = u.cache_read_input_tokens ?? 0;
       } else if (
         event.type === "content_block_start" &&
+        toPage &&
         !sentSearching &&
         ((event as { content_block?: { type?: string } }).content_block?.type ===
           "server_tool_use" ||
@@ -749,9 +811,9 @@ async function handleExitBrief(req: Request, res: Response) {
         event.delta.type === "text_delta"
       ) {
         const chunk = event.delta.text;
-        fullMarkdown += chunk;
+        text += chunk;
         // Send chunk to client as newline-delimited JSON
-        res.write(JSON.stringify({ type: "chunk", data: chunk }) + "\n");
+        if (toPage) res.write(JSON.stringify({ type: "chunk", data: chunk }) + "\n");
       } else if (event.type === "message_delta") {
         usage.outputTokens = event.usage.output_tokens ?? usage.outputTokens;
         // How many searches actually ran. Billed separately from tokens, so the
@@ -762,10 +824,41 @@ async function handleExitBrief(req: Request, res: Response) {
         if (typeof served === "number") usage.webSearches = served;
       }
     }
+    return text;
+  };
+
+  try {
+    let fullMarkdown = await runModel(BRIEF_MODEL, true);
+    let parsed = parseMetaAndBody(fullMarkdown);
+
+    // The Hebrew guard, layers 2 and 3. Runs before anything is saved, cached,
+    // emailed or sent as "done", so a run that came back in English never
+    // leaves this block.
+    if (lang === "he") {
+      const retryModels = [BRIEF_MODEL, HEBREW_FALLBACK_MODEL];
+      for (let n = 1; n <= retryModels.length && failsHebrewCheck(parsed); n++) {
+        const model = retryModels[n - 1];
+        console.warn(`[exit-brief] hebrew-retry n=${n} model=${model} briefId=${briefId}`);
+        try {
+          fullMarkdown = await runModel(model, false);
+          parsed = parseMetaAndBody(fullMarkdown);
+        } catch (err) {
+          // A retry that errors counts as one more failed attempt.
+          console.error(`[exit-brief] hebrew-retry n=${n} model=${model} briefId=${briefId} error:`, err);
+        }
+      }
+      if (failsHebrewCheck(parsed)) {
+        // Three attempts, still English. Show him the calm error screen rather
+        // than an English brief on a Hebrew page. Nothing is saved or cached,
+        // so nothing can be emailed.
+        console.error(`[exit-brief] hebrew-retry gave up briefId=${briefId}`);
+        res.end();
+        return;
+      }
+    }
 
     // v2: the model handed back the company, the vertical and three buyer
     // types, then Market and Value. Everything about the number happens here.
-    const parsed = parseMetaAndBody(fullMarkdown);
     const meta = parsed.meta;
     let resultMd = parsed.resultMd;
 
@@ -851,9 +944,9 @@ async function handleExitBrief(req: Request, res: Response) {
       verticalMatched: meta.vertical_matched ?? null,
       pathUsed: meta.path_used ?? null,
       resultMd,
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
-      cachedInputTokens: usage.cachedInputTokens,
+      inputTokens: attempts.reduce((t, a) => t + a.usage.inputTokens, 0),
+      outputTokens: attempts.reduce((t, a) => t + a.usage.outputTokens, 0),
+      cachedInputTokens: attempts.reduce((t, a) => t + a.usage.cachedInputTokens, 0),
       generationMs: Date.now() - startedAt,
       source: (req.headers["referer"] as string | undefined) ?? null,
       ipHash: hashIp(ip),
@@ -870,7 +963,7 @@ async function handleExitBrief(req: Request, res: Response) {
       vertical: meta.vertical_matched,
       path: meta.path_used,
       seconds: ((Date.now() - startedAt) / 1000).toFixed(1),
-      cost: runCostUsd(usage),
+      cost: runCostUsd(attempts),
       askedForBrief: "no",
       briefId,
       brief: resultMd,
@@ -896,7 +989,11 @@ async function handleExitBrief(req: Request, res: Response) {
     res.end();
   } catch (err) {
     console.error("[exit-brief] Anthropic error:", err);
-    res.status(500).json({ error: serverMessage("busy", lang) });
+    // Once the stream has started the page is already reading NDJSON, so a
+    // JSON error cannot be sent. Ending with no "done" lands it on the calm
+    // error screen.
+    if (res.headersSent) res.end();
+    else res.status(500).json({ error: serverMessage("busy", lang) });
   }
 }
 

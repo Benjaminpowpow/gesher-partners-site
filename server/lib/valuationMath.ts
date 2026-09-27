@@ -216,19 +216,22 @@ export function formatMoney(value: number): string {
   return Number.isInteger(m) ? `₪${m}M` : `₪${m.toFixed(1)}M`;
 }
 
+/** "3.8", "5". Millions, one decimal only when there is one. */
+function millions(value: number): string {
+  const m = value / M;
+  return Number.isInteger(m) ? String(m) : m.toFixed(1);
+}
+
 /**
- * "₪3.8M to ₪4.8M", or on a Hebrew run "₪3.8M עד ₪4.8M", the shape Ben picked
- * for the Hebrew tool (site/28, site/30). The page prints it inside a
- * right-to-left line on Hebrew runs, with each figure isolated (see below).
+ * "₪3.8M to ₪4.8M", or on a Hebrew run "3.8 עד 4.8 מיליון ש״ח" (site/30, Sep 27
+ * pass). The Hebrew shape is pure Hebrew and digits, so it needs no direction
+ * marks. The old "₪3.8M עד ₪4.8M" with isolates came out as "5M₪ עד 8M₪" in
+ * Gmail, which strips them (Sep 27 run on man-ltd.co.il).
  */
 export function rangeText(r: RangeResult, lang: "en" | "he" = "en"): string {
   if (r.outcome !== "number") return "";
   if (lang === "he") {
-    // Each figure is wrapped in a left-to-right isolate (U+2066 ... U+2069) and
-    // the line itself is read right to left. Without the isolates the browser
-    // mixes "M", "₪" and "עד" into one run and prints "₪4M ₪8 עדM" (Sep 24
-    // test). With them a Hebrew reader sees the low figure first, on the right.
-    return `\u2066${formatMoney(r.low)}\u2069 עד \u2066${formatMoney(r.high)}\u2069`;
+    return `${millions(r.low)} עד ${millions(r.high)} מיליון ש״ח`;
   }
   return `${formatMoney(r.low)} to ${formatMoney(r.high)}`;
 }
