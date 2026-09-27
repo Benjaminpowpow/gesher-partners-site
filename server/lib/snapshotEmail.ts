@@ -111,7 +111,7 @@ const COPY = {
       "המספר הזה יכול להיות רחוק מהמציאות. בנינו אותו תוך כמה דקות מהמידע ששיתפת וממידע ציבורי. לא ראינו את הדוחות שלך.",
     warnRough:
       "המספר הזה יכול להיות רחוק מהמציאות. לא שיתפת מספרים, אז בנינו אותו תוך כמה דקות מהאתר וממידע ציבורי. לא ראינו את הדוחות שלך.",
-    byHandLine: "לתחום שלך אנחנו בונים הערכת שווי ראשונית",
+    byHandLine: "אנחנו מכינים לך ניתוח שווי ראשוני",
     warnByHand:
       "העסק שלך לא מקרה סטנדרטי, ולכן לא נזרוק מספר שאי אפשר לעמוד מאחוריו.",
     whoWouldBuyLead: "מי יקנה.",
@@ -355,8 +355,9 @@ export function snapshotLetterTable(run: SnapshotRun, to: SnapshotRecipient): st
       : `font-family:${FONT_SERIF};font-size:26px;line-height:1.2;color:${NAVY};`;
 
   // English: the figure is one left-to-right run. Hebrew: the line reads right
-  // to left and each figure already carries its own isolate (rangeText in
-  // valuationMath.ts), so the low figure lands on the right.
+  // to left and the figure is pure Hebrew and digits ("3.8 עד 4.8 מיליון ש״ח",
+  // rangeText in valuationMath.ts), so the low figure lands on the right with
+  // no direction marks for Gmail to strip.
   const bigInner = `<span dir="${dir === "rtl" && block.kind === "number" ? "rtl" : "ltr"}">${escapeHtml(block.big)}</span>`;
 
   const driverHtml = drivers

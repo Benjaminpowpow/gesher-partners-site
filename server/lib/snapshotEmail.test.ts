@@ -202,7 +202,7 @@ describe("the plain-text part", () => {
 });
 
 describe("the Hebrew letter", () => {
-  const HE: SnapshotRun = { ...RUN, lang: "he", rangeText: "₪11.6M עד ₪12.2M", pathUsed: "T3" };
+  const HE: SnapshotRun = { ...RUN, lang: "he", rangeText: "11.6 עד 12.2 מיליון ש״ח", pathUsed: "T3" };
   it("uses Ben's picks from file 30, not the English", () => {
     expect(snapshotSubject(HE)).toBe("ניתוח שווי ראשוני של Optima");
     const html = buildSnapshotEmailHtml(HE, { name: "חיים כהן" });
@@ -210,7 +210,7 @@ describe("the Hebrew letter", () => {
     expect(html).toContain("שלום חיים, הניתוח שהרצת מוכן.");
     expect(html).toContain("הטווח שלך · אומדן ראשוני");
     expect(html).toContain("אומדן, לא הערכת שווי. לא הצעה, ולא המלצה לקנות או למכור.");
-    expect(html).toContain("₪11.6M עד ₪12.2M");
+    expect(html).toContain("11.6 עד 12.2 מיליון ש״ח");
     expect(html).not.toContain("Valuation Snapshot");
     expect(html).not.toContain("תמצית");
   });

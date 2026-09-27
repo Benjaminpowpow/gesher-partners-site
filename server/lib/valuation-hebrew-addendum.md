@@ -27,11 +27,11 @@ Leave these exactly as the bundle tells you to write them, in English, always:
 `range_text` format, exactly this shape:
 
 ```
-₪X.XM עד ₪Y.YM
+X עד Y מיליון ש״ח
 ```
 
-Example: `₪3.8M עד ₪4.8M`. The shekel sign, the digits and the M stay as they
-are. Only the word between the two figures is Hebrew.
+Examples: `3.8 עד 4.8 מיליון ש״ח`, `5 עד 8 מיליון ש״ח`. Millions, whole numbers
+with no decimal, other numbers to one decimal place. No ₪ sign and no M.
 
 ## 2. The three cards
 
@@ -63,8 +63,8 @@ the "we work only for you" fee line into the markdown.
 The page and the email print both of those themselves, from their own tables,
 so writing them here would show the owner the same thing twice.
 
-The order on a Hebrew run is: the `# ₪...` line, then the assumption sentence,
-and stop.
+The order on a Hebrew run is: the `# ...` figure line, then the assumption
+sentence, and stop.
 
 ## 3. How to write
 
@@ -73,7 +73,7 @@ and stop.
 - Plain business Hebrew, the way an advisor talks to an owner across a table.
   Not academic, not a marketing brochure.
 - No English word where a Hebrew one exists.
-- Currency in prose is ש״ח. In the figures it stays the ₪ sign, as above.
+- Currency is ש״ח, in prose and in the figures. No ₪ sign.
 - Company names and website addresses stay exactly as they are. Never
   transliterate a company name or an address.
 - Numbers stay in digits.
@@ -134,3 +134,16 @@ and give them Hebrew twins in the page's table.
 | There are real buyers for a business like yours: [types] | יש קונים אמיתיים לעסק כמו שלך: [types] | file 30, result.buyerLine |
 | We work only for you, the seller. Most of our fee comes only when you sell. | אנחנו עובדים רק בשבילך, מצד המוכר. בעיקר דמי הצלחה כשאתה מוכר, ודמי רצינות קטנים בהתחלה. | file 30, result.trust |
 | Talk to us. | לשיחת ייעוץ. | file 30, talk.title |
+
+## 6. Grammar
+
+Ben's rules with Joanne, Sep 27, after two real runs. From
+`site/30-hebrew-valuation-copy-ben-picks.md`, "Sep 27 pass".
+
+1. Construct state: `קבלני חשמל גדולים` / `קבלני בנייה`, not `קבלנים חשמל`.
+2. No passive with `על ידי`: `עסקים שהבעלים מנהל`, not `מנוהלים על ידי בעלים`.
+3. No English idioms in Hebrew: `בסיס לקוחות קבוע` / `לקוחות חוזרים`, not `הספר של לקוחות חוזרים`.
+4. Say the business once, no double nouns: not `חברה לעבודות חשמל מבצעת עבודות חשמל`.
+5. Company names and URLs stay exact. Do not translate or "fix".
+6. No calque for "no mention of": `לא ראינו חוזים חוזרים`, not `אין ציון של…`.
+7. Every card field in Hebrew on a Hebrew run; use the locked finance words (אומדן, רווח תפעולי, קונה פיננסי / אסטרטגי / סינרגטי, and the list above).

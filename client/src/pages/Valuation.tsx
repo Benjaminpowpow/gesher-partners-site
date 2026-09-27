@@ -203,10 +203,23 @@ function parseAmount(raw: string): number | undefined {
 }
 
 // What we show back to him under the box, so he can see we read it the way he
-// meant it before he presses the button. The prefix is a word, so it comes from
-// the copy table; the default is the English one, because the same function
-// also builds the "NIS 12M" that rides to Ben's lead email on every run.
-function formatAmount(n: number, prefix: string = COPY_V.money.prefix): string {
+// meant it before he presses the button. The default is English, because the
+// same function also builds the "NIS 12M" that rides to Ben's lead email and
+// the Sheet on every run, whichever door he came in by.
+//
+// Hebrew reads "12 מיליון ש״ח", "1.5 מיליון ש״ח", "800 אלף ש״ח" (file 30, Sep 27
+// pass). Pure Hebrew and digits, so the line needs no direction marks.
+function formatAmount(n: number, lang: VLang = "en"): string {
+  if (lang === "he") {
+    const shekel = VALUATION_COPY.he.money.prefix;
+    if (n >= 1_000_000) {
+      const m = n / 1_000_000;
+      return `${m % 1 === 0 ? m : m.toFixed(1)} מיליון ${shekel}`;
+    }
+    if (n >= 1_000) return `${Math.round(n / 1_000)} אלף ${shekel}`;
+    return `${n} ${shekel}`;
+  }
+  const prefix = COPY_V.money.prefix;
   if (n >= 1_000_000) {
     const m = n / 1_000_000;
     return `${prefix} ${m % 1 === 0 ? m : m.toFixed(1)}M`;
@@ -559,7 +572,7 @@ function AmountField({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const { copy: C } = useVCopy();
+  const { copy: C, lang } = useVCopy();
   const parsed = parseAmount(value);
   return (
     <div className="v-field">
@@ -583,7 +596,7 @@ function AmountField({
           line printed the same sentence under both boxes, which was noise. */}
       {parsed && (
         <p className="v-field-echo">
-          {C.front.echo(formatAmount(parsed, C.money.prefix))}
+          {C.front.echo(formatAmount(parsed, lang))}
         </p>
       )}
     </div>
@@ -1220,13 +1233,12 @@ function ResultState({ ctx, go }: StateProps) {
 
             {variant === "number" ? (
               <>
-                {/* "₪3.8M to ₪4.8M" is a figure. It reads the same way round
-                    on both pages, inside a card that may be right to left. */}
+                {/* "₪3.8M to ₪4.8M" in English, "3.8 עד 4.8 מיליון ש״ח" in
+                    Hebrew (rangeText in server/lib/valuationMath.ts). */}
                 {ctx.rangeText && (
                   <p className="v-range">
                     {/* English: one left-to-right figure. Hebrew: a right-to-left
-                        line whose two figures carry their own isolates (see
-                        rangeText in server/lib/valuationMath.ts). */}
+                        line of Hebrew and digits, which needs no direction marks. */}
                     <span dir={lang === "he" ? "rtl" : "ltr"}>{ctx.rangeText}</span>
                   </p>
                 )}
@@ -1869,7 +1881,10 @@ export default function Valuation({ lang = "en" }: { lang?: VLang }) {
             <Lockup markHeight={24} />
           </a>
           <div className="v-topbar-right">
-            <VLangSwitch />
+            {/* Only where no run is live. Switching language is a page load,
+                and on the working screen it killed the run (Sep 27). After
+                the run it would drop his result. Both languages. */}
+            {(state === "front-door" || state === "error") && <VLangSwitch />}
             <button type="button" className="talk" onClick={openTalk}>
               {copy.nav.talkToUs}
             </button>

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { dailyCap, todayKey } from "./exitBrief";
+import { dailyCap, failsHebrewCheck, hebrewLetterCount, todayKey } from "./exitBrief";
+import { rangeText, type RangeResult } from "../lib/valuationMath";
 
 describe("API Routes", () => {
   // The daily cap is the only thing standing between a bored visitor and the
@@ -174,5 +175,61 @@ Your customer base is a strong positive.`;
       const headers = {};
       expect(getClientIp(headers)).toBe("unknown");
     });
+  });
+});
+
+// The Hebrew guard (site/31, Sep 27). A Hebrew run whose cards came back in
+// English is thrown away and run again.
+describe("the Hebrew guard", () => {
+  const hebrewCards =
+    "## Market\nא.ש מבצעת עבודות חשמל בניין ותעשייה, תאורה ומערכות מתח גבוה מאז 1973.\n\n## Value\nצוות מקצועי יציב.";
+  const englishCards =
+    "## Market\nImports, markets and services industrial cleaning machines since 1995.\n\n## Value\nRecurring service and parts revenue.";
+
+  it("counts Hebrew letters only", () => {
+    expect(hebrewLetterCount("abc 123")).toBe(0);
+    expect(hebrewLetterCount("שוק abc")).toBe(3);
+  });
+
+  it("passes Hebrew cards and fails English ones", () => {
+    expect(failsHebrewCheck({ meta: {}, resultMd: hebrewCards })).toBe(false);
+    expect(failsHebrewCheck({ meta: {}, resultMd: englishCards })).toBe(true);
+  });
+
+  it("does not count the server's Hebrew Range card", () => {
+    const md = englishCards + "\n\n## Range and call\n\n# 5 עד 8 מיליון ש״ח\n\nלפי מה שקונים משלמים על עסקים כמו שלך. עם מידע נוסף נוכל לתת לך הערכה מדויקת יותר.";
+    expect(failsHebrewCheck({ meta: {}, resultMd: md })).toBe(true);
+  });
+
+  it("never fails a site the model could not read", () => {
+    expect(failsHebrewCheck({ meta: { readable: false }, resultMd: "" })).toBe(false);
+  });
+});
+
+describe("the Hebrew range figure", () => {
+  const base: RangeResult = {
+    tier: 1,
+    low: 5_000_000,
+    high: 8_000_000,
+    outcome: "number",
+    headcountUsed: 20,
+    headcountSource: "default",
+    perHead: 0,
+    margin: 0,
+    multiple: 0,
+  };
+
+  it("prints whole millions with no decimal", () => {
+    expect(rangeText(base, "he")).toBe("5 עד 8 מיליון ש״ח");
+  });
+
+  it("prints other millions to one place, with no direction marks", () => {
+    const text = rangeText({ ...base, low: 3_800_000, high: 4_800_000 }, "he");
+    expect(text).toBe("3.8 עד 4.8 מיליון ש״ח");
+    expect(/[\u2066-\u2069]/.test(text)).toBe(false);
+  });
+
+  it("leaves English as it was", () => {
+    expect(rangeText({ ...base, low: 3_800_000, high: 4_800_000 })).toBe("₪3.8M to ₪4.8M");
   });
 });
