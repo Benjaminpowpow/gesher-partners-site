@@ -630,8 +630,13 @@ const SECTOR_ICONS: Record<string, React.ReactNode> = {
 
 /* ─── Nav ─────────────────────────────────────────────────────────────────── */
 
-function Nav({ onTalk }: { onTalk: () => void }) {
+// linkBase is "" on the home page, so the links are plain "#how" jumps. On any
+// other page that wears this nav (the legal pages, through SiteShell below) it
+// is "/", so the same links become "/#how" and load the home page at that
+// section.
+function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string }) {
   const { copy: C } = useCopy();
+  const homeHref = linkBase || "#top";
   const [open, setOpen] = useState(false);
 
   // Lock body scroll while the mobile menu is open. Esc closes it.
@@ -660,14 +665,14 @@ function Nav({ onTalk }: { onTalk: () => void }) {
 
   return (
     <nav className="nav" aria-label={C.nav.primaryAriaLabel}>
-      <a href="#top" aria-label={C.nav.homeAriaLabel} className="nav-lockup">
+      <a href={homeHref} aria-label={C.nav.homeAriaLabel} className="nav-lockup">
         <Lockup />
       </a>
 
       {/* Desktop links, hidden on mobile via CSS */}
       <div className="nav-links">
         {C.nav.links.map((l) => (
-          <a key={l.id} href={`#${l.id}`}>
+          <a key={l.id} href={`${linkBase}#${l.id}`}>
             {l.label}
           </a>
         ))}
@@ -695,7 +700,7 @@ function Nav({ onTalk }: { onTalk: () => void }) {
       {open && (
         <div id="nav-menu" className="nav-menu" role="dialog" aria-modal="true" aria-label={C.nav.menuAriaLabel}>
           <div className="nav-menu-bar">
-            <a href="#top" aria-label={C.nav.homeAriaLabel} onClick={close} className="nav-lockup">
+            <a href={homeHref} aria-label={C.nav.homeAriaLabel} onClick={close} className="nav-lockup">
               <Lockup />
             </a>
             <button type="button" className="nav-toggle" aria-label={C.nav.closeAriaLabel} onClick={close}>
@@ -709,8 +714,10 @@ function Nav({ onTalk }: { onTalk: () => void }) {
             {C.nav.links.map((l) => (
               <li key={l.id}>
                 <a
-                  href={`#${l.id}`}
+                  href={`${linkBase}#${l.id}`}
                   onClick={(e) => {
+                    // Off the home page the link has to leave, so let it.
+                    if (linkBase) return close();
                     e.preventDefault();
                     go(l.id);
                   }}
@@ -1580,7 +1587,7 @@ function Contact() {
 
 /* ─── Footer ──────────────────────────────────────────────────────────────── */
 
-function Footer() {
+function Footer({ linkBase = "" }: { linkBase?: string }) {
   const { copy: C } = useCopy();
   const [, navigate] = useLocation();
   return (
@@ -1593,7 +1600,7 @@ function Footer() {
           <div className="footer-links" aria-label={C.footer.ariaLabel}>
             {C.footer.links.map((l) =>
               l.kind === "anchor" ? (
-                <a key={l.label} href={`#${l.id}`}>
+                <a key={l.label} href={`${linkBase}#${l.id}`}>
                   {l.label}
                 </a>
               ) : (
@@ -1615,6 +1622,46 @@ function Footer() {
         <div className="footer-bottom">{C.footer.disclaimer}</div>
       </div>
     </footer>
+  );
+}
+
+/* ─── Shell for other pages ───────────────────────────────────────────────── */
+
+/**
+ * The home page's own nav and footer around another page's content. The
+ * privacy and terms pages use it, so every page the footer links to wears the
+ * same header and footer as the home page. Before this they wore the old
+ * Manus-era Nav and Footer from components/, with no logo and "Address pending".
+ *
+ * English only: the legal pages have no Hebrew yet. The section links point
+ * back at the home page ("/#how"), and "Talk to us" goes to the home page form.
+ */
+export function SiteShell({ children }: { children: React.ReactNode }) {
+  // A footer link is a client-side hop, so the new page would open wherever
+  // the old one was scrolled to, which is the footer. Start at the top, in one
+  // jump: the site sets smooth scrolling, and a new page should not slide.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, []);
+
+  return (
+    <CopyContext.Provider value={{ copy: COPY, lang: "en" }}>
+      <div className="gesher" lang="en" dir="ltr">
+        <header className="site-header">
+          <div className="container">
+            <Nav
+              linkBase="/"
+              onTalk={() => {
+                trackTalkClick({ placement: "legal-nav", lang: "en" });
+                window.location.assign("/#contact");
+              }}
+            />
+          </div>
+        </header>
+        {children}
+        <Footer linkBase="/" />
+      </div>
+    </CopyContext.Provider>
   );
 }
 
@@ -1643,6 +1690,23 @@ export default function Home({ lang = "en" }: { lang?: Lang }) {
     if (el) window.scrollTo({ top: el.offsetTop - 24, behavior: "smooth" });
   }
 
+  // Arriving at "/#how" from another page (the legal pages' nav and footer link
+  // back this way). The browser tries that jump before React has drawn the
+  // section, so it lands at the top. Jump once the page is up, and again when
+  // images have loaded and moved things down.
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!id) return;
+    const jump = () => {
+      const el = document.getElementById(id);
+      if (el) window.scrollTo({ top: el.offsetTop - 24, behavior: "instant" as ScrollBehavior });
+    };
+    // The section is in the DOM by the time an effect runs, so jump now.
+    jump();
+    if (document.readyState !== "complete") window.addEventListener("load", jump, { once: true });
+    return () => window.removeEventListener("load", jump);
+  }, []);
+
   // Every "talk to us" on the home page scrolls to the form. placement tells
   // GA4 and Meta which button it was.
   const talk = (placement: string) => {
@@ -1662,7 +1726,11 @@ export default function Home({ lang = "en" }: { lang?: Lang }) {
           onOpenValuation={(site) => {
             // A man on /he/ stays in Hebrew: the hero sends him to the Hebrew tool.
             const tool = lang === "he" ? "/he/valuation" : "/valuation";
-            navigate(site ? `${tool}?site=${encodeURIComponent(site)}` : tool);
+            // The website rides in history state, not in the address. It used to
+            // go as ?site=, and GA4 and the Meta Pixel both record the full
+            // address, so the owner's company reached Google and Meta. The page
+            // says "Strictly private". Valuation.tsx reads it back out.
+            navigate(tool, site ? { state: { site } } : undefined);
           }}
         />
         <ProofStrip />

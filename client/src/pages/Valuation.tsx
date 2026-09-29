@@ -309,12 +309,37 @@ function amountLabel(raw?: string): string | undefined {
 function readSiteParam(): string {
   if (typeof window === "undefined") return "";
   try {
-    const raw = new URLSearchParams(window.location.search).get("site") ?? "";
+    // The home page hands the website over in history state, so it never sits
+    // in the address where GA4 and the Meta Pixel would record it. An old
+    // ?site= link still works; stripSiteParam below cleans the address.
+    const fromState = (window.history.state as { site?: unknown } | null)?.site;
+    const raw =
+      typeof fromState === "string"
+        ? fromState
+        : new URLSearchParams(window.location.search).get("site") ?? "";
     const oneLine = raw.replace(/[\r\n\t]+/g, " ").trim();
     if (!oneLine || oneLine.length > 200) return "";
     return oneLine.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
   } catch {
     return "";
+  }
+}
+
+// Takes ?site= out of the address bar after readSiteParam has used it, so a
+// reload, a copied link or any later event does not carry the company along.
+function stripSiteParam(): void {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("site")) return;
+    params.delete("site");
+    const rest = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash
+    );
+  } catch {
+    // never break the page over the address bar
   }
 }
 
@@ -1855,14 +1880,18 @@ export default function Valuation({ lang = "en" }: { lang?: VLang }) {
   const [state, setState] = useState<ScreenId>("front-door");
   const [talkOpen, setTalkOpen] = useState(false);
   const [ctx, setCtx] = useState<Ctx>({
-    // The home page hero asks for the website and sends it here in ?site=, so
-    // the box on this page is already filled when he arrives and he does not
-    // have to type it twice. Read once, on mount.
+    // The home page hero asks for the website and hands it over in history
+    // state, so the box on this page is already filled when he arrives and he
+    // does not have to type it twice. Read once, on mount.
     url: readSiteParam(),
     revenue: "",
     profit: "",
     timeToSell: "",
   });
+
+  useEffect(() => {
+    stripSiteParam();
+  }, []);
 
   const go: Go = (next, patch) => {
     if (patch) setCtx((c) => ({ ...c, ...patch }));
