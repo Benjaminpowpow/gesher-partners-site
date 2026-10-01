@@ -89,7 +89,24 @@ var TABS = {
     // "en" or "he". Which door he came in by: /valuation or /he/valuation.
     // Added Sep 22 with the Hebrew tool. Add this header cell to the live tab
     // by hand before redeploying, same as the four above.
-    'Language'
+    'Language',
+    // The valuation estimate (Oct 1, site/35 "The sheet"). Twelve columns on
+    // the end, so the rows already here stay in step. The header cells write
+    // themselves (getOrCreateTab below). A new estimate row leaves the old
+    // middle columns (Revenue band, Profit band, Time to sell, Name, Email,
+    // Phone, Asked for the brief?) blank and fills these instead.
+    'Timeline',
+    'Seriousness',
+    'Revenue last year',
+    'Profit before tax last year',
+    'Employees',
+    'Note',
+    'Contact name',
+    'Contact phone',
+    'Contact email',
+    'Gave details',
+    'Asked to speak',
+    'Revenue check'
   ]
 };
 
@@ -136,11 +153,32 @@ var FIELDS = {
     'margin',
     'multiple',
     'runsOnDomain',
-    'lang'
+    'lang',
+    'timeline',
+    'seriousness',
+    'revenueBand',
+    'profitBand',
+    'employees',
+    'note',
+    'contactName',
+    'contactPhone',
+    'contactEmail',
+    'gaveDetails',
+    'askedToSpeak',
+    'revenueCheck'
   ]
 };
 
 function doPost(e) {
+  // One write at a time. The estimate writes its row, then fills it in two or
+  // three more times within a minute; without the lock an update can arrive
+  // while the row it is looking for is still being written.
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000);
+  } catch (busy) {
+    return json({ ok: false, error: 'busy' });
+  }
   try {
     var payload = JSON.parse(e.postData.contents);
     var tabName = TABS[payload.tab] ? payload.tab : 'Leads';
@@ -175,6 +213,8 @@ function doPost(e) {
     // script.google.com -> your project -> Executions.
     console.error('Row write failed: ' + err);
     return json({ ok: false, error: String(err) });
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -182,6 +222,9 @@ function doPost(e) {
 // the bottom, because the row we want is almost always one of the newest.
 // Returns false when there is no such row, and the caller just moves on: a lead
 // is never lost over a bookkeeping miss.
+//
+// Any field on the tab's FIELDS list can be filled this way (Oct 1). It used to
+// be four fixed ones; the estimate fills its row in stages.
 function updateByBriefId(sheet, headers, payload) {
   var idCol = headers.indexOf('Brief ID') + 1;
   if (idCol === 0 || sheet.getLastRow() < 2) return false;
@@ -197,17 +240,13 @@ function updateByBriefId(sheet, headers, payload) {
   if (!rowNumber) return false;
 
   // Only the columns this payload actually carries. Everything else is left
-  // exactly as it was.
-  var map = {
-    askedForBrief: 'Asked for the brief?',
-    name: 'Name',
-    email: 'Email',
-    phone: 'Phone'
-  };
-  for (var key in map) {
+  // exactly as it was. FIELDS[i] sits under headers[i + 1]; Date is column 1.
+  var fields = FIELDS.Valuations;
+  for (var i = 0; i < fields.length; i++) {
+    var key = fields[i];
+    if (key === 'briefId') continue;
     if (payload[key] === undefined || payload[key] === null) continue;
-    var col = headers.indexOf(map[key]) + 1;
-    if (col > 0) sheet.getRange(rowNumber, col).setValue(payload[key]);
+    sheet.getRange(rowNumber, i + 2).setValue(payload[key]);
   }
   return true;
 }

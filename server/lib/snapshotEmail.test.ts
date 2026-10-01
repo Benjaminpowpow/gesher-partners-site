@@ -204,7 +204,9 @@ describe("the plain-text part", () => {
 describe("the Hebrew letter", () => {
   const HE: SnapshotRun = { ...RUN, lang: "he", rangeText: "11.6 עד 12.2 מיליון ש״ח", pathUsed: "T3" };
   it("uses Ben's picks from file 30, not the English", () => {
-    expect(snapshotSubject(HE)).toBe("ניתוח שווי ראשוני של Optima");
+    // The company sits between isolate marks (U+2068, U+2069) so a Latin
+    // name cannot flip the Hebrew line (PR #35). The words are unchanged.
+    expect(snapshotSubject(HE)).toBe("ניתוח שווי ראשוני של \u2068Optima\u2069");
     const html = buildSnapshotEmailHtml(HE, { name: "חיים כהן" });
     expect(html).toContain('dir="rtl"');
     expect(html).toContain("שלום חיים, הניתוח שהרצת מוכן.");

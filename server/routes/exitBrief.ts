@@ -1,7 +1,6 @@
 import type { Express, Request, Response } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
-import { createHash } from "node:crypto";
 import { EXIT_BRIEF_SYSTEM_PROMPT, HEBREW_ADDENDUM } from "../lib/exitBriefSkill";
 import {
   appendLeadRow,
@@ -27,235 +26,36 @@ import {
 } from "../lib/snapshotEmail";
 import { insertValuationLead, markValuationLeadPdfRequested } from "../db";
 import { nanoid } from "nanoid";
+import {
+  BRIEF_MODEL,
+  HEBREW_FALLBACK_MODEL,
+  HEBREW_LINE,
+  MAX_WEB_SEARCHES,
+  domainFromUrl,
+  failsHebrewCheck,
+  modelSettings,
+  parseMetaAndBody,
+  readLang,
+  runCostUsd,
+  serverMessage,
+  type BriefMeta,
+  type RunLang,
+  type RunUsage,
+} from "../lib/engine";
+import {
+  countDomainRun,
+  countRun,
+  gateRefusal,
+  getClientIp,
+  hashIp,
+} from "../lib/runGates";
+import { NOTIFY_EMAIL, esc, sender } from "../lib/mail";
 
-// ─── Email addresses ────────────────────────────────────────────────────────
-// Resend will only send from a domain we have verified in the Resend dashboard.
-// The firm's domain is gesherpartners.com (no hyphen). An earlier version of
-// this file sent from gesher-partners.com, which we do not own, so every send
-// would have been rejected. MAIL_FROM lets us change this without a code push.
-// "||" not "??" on purpose. A host that creates the variable but leaves it
-// blank hands us "", which "??" would happily accept and we would send from
-// "Gesher <>". Empty means unset here.
-const MAIL_FROM = process.env.MAIL_FROM || "office@gesherpartners.com";
-
-// Where new leads and contact-form submissions land.
-const NOTIFY_EMAIL = process.env.LEAD_NOTIFICATION_EMAIL || MAIL_FROM;
-
-// Resend wants "Display Name <address@domain>".
-function sender(displayName: string): string {
-  return `${displayName} <${MAIL_FROM}>`;
-}
-
-// ─── The Brief engine ───────────────────────────────────────────────────────
-// Haiku 4.5, the cheapest current model. Every token rate on it is half of
-// Sonnet 5's, which was itself 2.5x cheaper than the Opus model this file
-// started on.
-//
-// It is an env var, not a constant, on purpose. This model writes the thing an
-// owner reads after a bank stage. If the Briefs come back thin, Ben sets
-// EXIT_BRIEF_MODEL to claude-sonnet-5 in Render and the next run is better, no
-// code change and no deploy wait. That is the escape hatch; use it before
-// arguing about pennies.
-//
-// Worth knowing before changing it: the model is no longer the big line on the
-// bill. Web search is billed on its own at $10 per 1,000 searches and is the
-// same whatever model runs, so it is about 40% of a Brief now. MAX_WEB_SEARCHES
-// below is the other real dial.
-const BRIEF_MODEL = process.env.EXIT_BRIEF_MODEL || "claude-haiku-4-5";
-
-// Haiku 4.5 does not take the "adaptive" thinking setting. Sonnet and Opus do,
-// and on those models thinking is spent out of max_tokens, so the ceiling has
-// to be bigger when it is on. Keyed off the model name so flipping the env var
-// above does the right thing by itself.
-//
-// A function of the model, not a constant, because a Hebrew run can fall back
-// to Sonnet for one attempt (see the Hebrew guard below) while the default
-// stays Haiku.
-function modelSettings(model: string): { adaptiveThinking: boolean; maxTokens: number } {
-  const adaptiveThinking = !model.includes("haiku");
-  return { adaptiveThinking, maxTokens: adaptiveThinking ? 16_000 : 8_000 };
-}
-
-// ─── The Hebrew guard ───────────────────────────────────────────────────────
-// Two real Hebrew runs on Sep 27 got one Hebrew brief and one English brief
-// from the same code (site/31). Haiku does not obey the addendum every time.
-// Ben's call: keep Haiku and make it obey. Three layers:
-//   1. The user message opens with HEBREW_LINE on a Hebrew run.
-//   2. If the cards still hold fewer than MIN_HEBREW_LETTERS Hebrew letters,
-//      the run is thrown away and run once more on the same model.
-//   3. If that fails too, one last run on HEBREW_FALLBACK_MODEL.
-// Every retry logs "[exit-brief] hebrew-retry", so Ben can count them in the
-// Render log. A run that failed the check is never cached and never emailed.
-const HEBREW_LINE =
-  "כתוב את כל הכרטיסים ואת כל שדות הטקסט ב-JSON בעברית. / Write every card and every JSON text field in Hebrew.";
-const MIN_HEBREW_LETTERS = 40;
-const HEBREW_FALLBACK_MODEL = "claude-sonnet-5";
-
-/** How many Hebrew letters a piece of text holds. */
-export function hebrewLetterCount(text: string): number {
-  return (text.match(/[\u0590-\u05FF]/g) ?? []).length;
-}
-
-/**
- * True when a Hebrew run came back in English. Only the cards the model wrote
- * count (Market and Value); the Range card is the server's own. A site the
- * model could not read has no cards, so it is never a failure here.
- */
-export function failsHebrewCheck(parsed: { meta: { readable?: boolean }; resultMd: string }): boolean {
-  if (parsed.meta.readable === false) return false;
-  const cards = parsed.resultMd.replace(/\n*## Range and call[\s\S]*$/, "");
-  return hebrewLetterCount(cards) < MIN_HEBREW_LETTERS;
-}
-
-// The v7 engine takes a light live look at the seller's site. Six searches cost
-// 6 cents before a single token is billed. Four is enough to read a small
-// Israeli company and saves 2 cents a Brief, which is real money next to what
-// the model itself costs now.
-const MAX_WEB_SEARCHES = 2;
-
-// What a run costs, so the Sheet can show it per Brief instead of Ben guessing
-// from the Anthropic console at the end of the month.
-//
-// Dollars per million tokens, straight off the Anthropic pricing page. If you
-// put a model in EXIT_BRIEF_MODEL that is not listed here, the cost column goes
-// blank rather than lying. Add the row when you add the model.
-const MODEL_RATES: Record<
-  string,
-  { input: number; output: number; cacheRead: number; cacheWrite: number }
-> = {
-  "claude-haiku-4-5": { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
-  "claude-sonnet-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
-  "claude-opus-5": { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
-};
-
-// Web search is billed on its own, the same on every model.
-const WEB_SEARCH_COST = 0.01;
-
-type RunUsage = {
-  inputTokens: number;
-  outputTokens: number;
-  cachedInputTokens: number;
-  webSearches: number;
-};
-
-// A Hebrew run can take up to three attempts, maybe on two models. Each one is
-// billed, so the cost column adds them all up. One unknown model blanks it.
-function runCostUsd(attempts: { model: string; usage: RunUsage }[]): string {
-  let dollars = 0;
-  for (const { model, usage } of attempts) {
-    const one = attemptCostUsd(usage, model);
-    if (one === null) return "";
-    dollars += one;
-  }
-  return dollars.toFixed(4);
-}
-
-function attemptCostUsd(u: RunUsage, model: string): number | null {
-  const rate = MODEL_RATES[model];
-  if (!rate) return null;
-  // input_tokens from the API excludes what was read from cache, so the two do
-  // not double count. Cache writes are not broken out on this path, so a first
-  // run of the day reads a little cheap here. It is a floor, not a guess.
-  const dollars =
-    (u.inputTokens / 1e6) * rate.input +
-    (u.outputTokens / 1e6) * rate.output +
-    (u.cachedInputTokens / 1e6) * rate.cacheRead +
-    u.webSearches * WEB_SEARCH_COST;
-  return dollars;
-}
-
-// ─── Spend guards on POST /api/exit-brief ───────────────────────────────────
-// Two gates, because they stop two different things.
-//
-// The per-IP gate stops one person hammering the button. The site-wide daily
-// cap is the one that bounds the money: whatever happens, the site cannot run
-// more than this many Briefs in a day. Ben changes the number in Render with
-// EXIT_BRIEF_DAILY_CAP and nothing else moves.
-//
-// Both counts live in memory, so a restart clears them. That is fine. Render
-// restarts on deploy, not on a schedule, and the Anthropic console spend cap is
-// the hard backstop underneath all of this.
-const IP_COOLDOWN_MS = 60_000;
-
-// One visitor cannot eat the whole day. Three Briefs is more than an honest
-// owner needs and far less than the day's budget.
-//
-// It is a Render field because of who hits it first: Ben, testing his own tool.
-// He ran six valuations in an afternoon on Sep 17 and the fourth one came back
-// as "we have hit today's limit", which reads to him like the tool is broken.
-// Set EXIT_BRIEF_PER_IP_DAILY to something roomy while testing and put it back
-// after. The site-wide cap below is the one that actually bounds the money, and
-// it stays where it is.
-export function perIpDailyLimit(): number {
-  const raw = Number(process.env.EXIT_BRIEF_PER_IP_DAILY);
-  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 3;
-}
-
-// Exported for the tests. A typo in the Render dashboard must not turn the cap
-// off, so anything that is not a positive number falls back to 10.
-export function dailyCap(): number {
-  const raw = Number(process.env.EXIT_BRIEF_DAILY_CAP);
-  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 10;
-}
-
-// The day the seller is living in, not the day the server is living in. Render
-// runs on UTC, which rolls over at 3am Israel time. Keyed to Jerusalem so "10 a
-// day" means one Israeli calendar day.
-export function todayKey(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Jerusalem",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-}
-
-// ─── What the server says when it refuses ───────────────────────────────────
-// Four sentences, and the seller reads whichever matches the page he is on.
-// They are the only English the server puts on a Hebrew screen, so they are
-// keyed by language and picked from the run's own lang.
-//
-// The Hebrew side is copied verbatim from site/30-hebrew-valuation-copy-ben-picks.md.
-// An empty string would fall back to English, which is the right failure: a
-// man reads a sentence he may not want rather than a blank screen.
-type RunLang = "en" | "he";
-
-const SERVER_MESSAGES: Record<
-  "cooldown" | "overCap" | "notConfigured" | "busy",
-  Record<RunLang, string>
-> = {
-  // He pressed the button twice inside a minute.
-  cooldown: {
-    en: "You have already generated a Brief in the last minute. Wait a moment and try again, or talk to us and we will pull the Brief together by hand.",
-    he: "כבר הרצת ניתוח בדקה האחרונה. חכה רגע ונסה שוב, או קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
-  },
-  // The day's budget, or this one visitor's share of it, is gone. No dead end,
-  // a way to reach a human.
-  overCap: {
-    en: "We have hit today's limit on free Briefs. Talk to us and we will pull the Brief together by hand.",
-    he: "הגענו למכסת הניתוחים החינמיים להיום. קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
-  },
-  notConfigured: {
-    en: "Our Brief engine is not configured yet. Talk to us and we will pull the Brief together by hand.",
-    he: "מנוע הניתוח עדיין לא מוגדר. קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
-  },
-  busy: {
-    en: "Our Brief engine is busy. Try again in a minute, or talk to us and we will pull the Brief together by hand.",
-    he: "מנוע הניתוח עמוס כרגע. נסה שוב בעוד דקה, או קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
-  },
-};
-
-function serverMessage(
-  key: keyof typeof SERVER_MESSAGES,
-  lang: RunLang,
-): string {
-  return SERVER_MESSAGES[key][lang] || SERVER_MESSAGES[key].en;
-}
-
-/** Only "he" or "en". Anything else, including nothing, is English. */
-function readLang(raw: unknown): RunLang {
-  return raw === "he" ? "he" : "en";
-}
+// Moved to server/lib on Oct 1, 2026 (engine.ts, runGates.ts, mail.ts) so the
+// valuation estimate shares them. Re-exported here for the tests that import
+// them from this file.
+export { dailyCap, perIpDailyLimit, todayKey } from "../lib/runGates";
+export { failsHebrewCheck, hebrewLetterCount } from "../lib/engine";
 
 // ─── In-memory stores ───────────────────────────────────────────────────────
 // briefId -> the seller brief markdown (v7 is seller-only, no trace)
@@ -264,24 +64,6 @@ function readLang(raw: unknown): RunLang {
 // path_used and no company name, so it rendered the model's own prose instead of
 // the fields the page renders. The email is a second view of this object now.
 const briefStore = new Map<string, SnapshotRun>();
-
-// IP -> last request timestamp (ms)
-const rateLimitStore = new Map<string, number>();
-
-// Today's counts. Both are wiped the moment the date key changes, so these maps
-// never grow past one day of traffic.
-let usageDay = todayKey();
-let briefsToday = 0;
-const briefsTodayByIp = new Map<string, number>();
-
-function rollDayIfNeeded(): void {
-  const today = todayKey();
-  if (today !== usageDay) {
-    usageDay = today;
-    briefsToday = 0;
-    briefsTodayByIp.clear();
-  }
-}
 
 // Lead requests
 interface LeadRequest {
@@ -292,19 +74,6 @@ interface LeadRequest {
   requestedAt: Date;
 }
 const leadStore = new Map<string, LeadRequest>();
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-function getClientIp(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
-  return req.socket.remoteAddress ?? "unknown";
-}
-
-// Store the IP hashed, abuse only. We never keep the raw IP. Matches the firm's
-// "we never share your numbers" promise.
-function hashIp(ip: string): string {
-  return createHash("sha256").update(ip).digest("hex").slice(0, 64);
-}
 
 // Which page the lead came off, for the Sheet's last column. We only keep the
 // path, never the query string, so nothing personal can ride along in a URL.
@@ -325,27 +94,9 @@ function langFromSourcePage(sourcePage?: string): RunLang {
   return sourcePage === "/he" || sourcePage?.startsWith("/he/") ? "he" : "en";
 }
 
-function domainFromUrl(url: string): string | undefined {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return undefined;
-  }
-}
-
 // The snapshot email carries no link and no button. Its call to action is the
 // reply, which is why reply-to has to be a live mailbox. See server/lib/
 // snapshotEmail.ts.
-
-// Anyone can POST to /api/contact, so anything that came off the wire gets
-// escaped before it lands in an email we are going to open and read.
-function esc(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 // The "he just ran a valuation" block at the top of the lead email. Nothing at
 // all when he did not, so a plain contact form email looks exactly as it did.
@@ -387,28 +138,6 @@ function valuationBlockHtml(v?: {
   `;
 }
 
-// The meta block the model returns first. v2: the model names the company,
-// the vertical and three buyer types. It returns no number. The fields the
-// page and the sheet read (range_variant, range_text, path_used, the four
-// recipe numbers, tier) are filled in here, by the server, after the math.
-interface BriefMeta {
-  company_name?: string;
-  company_oneliner?: string;
-  vertical_matched?: string; // a vertical id, a backup-* id, or wild-card
-  buyer_types?: string; // "a, b, or c", three generic types
-  readable?: boolean;
-  // Filled by the server:
-  range_variant?: string; // "number" | "by_hand" | "unreadable"
-  range_text?: string;
-  path_used?: string; // "T1" | "T2" | "T3" | wild_card | too_big | too_small | unreadable
-  tier?: number;
-  headcount_used?: number;
-  headcount_source?: string;
-  revenue_per_head?: number;
-  margin?: number;
-  multiple?: number;
-}
-
 // ─── The cache ──────────────────────────────────────────────────────────────
 // One brief per (domain, inputs). The second run of the same site with the
 // same numbers gets the first run's words and number back, instantly and for
@@ -430,9 +159,6 @@ function cacheKey(domain: string, revenue?: string, profit?: string, lang: strin
   // English brief from the cache, or the other way round.
   return `${lang}|${domain}|${(revenue ?? "").replace(/\D/g, "")}|${(profit ?? "").replace(/\D/g, "")}`;
 }
-// How many times each domain has been run. Three or more is an owner who
-// keeps coming back, which Ben wants flagged in the sheet.
-const runsByDomain = new Map<string, number>();
 
 /** "7,200,000" or "7.2M" or "7200000" to a number of NIS, or undefined. */
 function parseNis(raw?: string): number | undefined {
@@ -442,90 +168,6 @@ function parseNis(raw?: string): number | undefined {
   if (!m) return undefined;
   const n = Number(m[1]) * (m[2]?.toLowerCase() === "m" ? 1e6 : m[2]?.toLowerCase() === "k" ? 1e3 : 1);
   return Number.isFinite(n) && n > 0 ? n : undefined;
-}
-
-/**
- * Walk a JSON object from its opening brace to its matching close.
- *
- * The old code used a non-greedy `\{[\s\S]*?\}`, which stops at the FIRST
- * closing brace. Any nested object in the meta ended that match early, the parse
- * failed, and the whole block stayed in the seller-facing markdown.
- */
-function balancedObject(text: string, from: number): string | null {
-  if (text[from] !== "{") return null;
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let i = from; i < text.length; i++) {
-    const ch = text[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === "\\") escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') inString = true;
-    else if (ch === "{") depth++;
-    else if (ch === "}") {
-      depth--;
-      if (depth === 0) return text.slice(from, i + 1);
-    }
-  }
-  return null;
-}
-
-/**
- * Split the meta block off the seller-facing cards.
- *
- * This is the only place the JSON is removed, and it runs once, at generation.
- * What it returns is what gets stored, shown on the page and sent in the email,
- * so a miss here reaches the owner three ways. It missed on Sep 17: raw JSON and
- * a stray "---" went out in a real email, and the page had the same text.
- *
- * Three shapes are handled now, in order of how much we trust them:
- *   1. A fenced ```json block, which is what the bundle asks for.
- *   2. A --- fenced block, which is what the model actually produced that day.
- *   3. A bare object before the first heading.
- *
- * Every path scans matching braces rather than guessing at the first "}", and
- * whatever is left is cleared of leading rules and blank lines.
- */
-function parseMetaAndBody(fullMarkdown: string): { meta: BriefMeta; resultMd: string } {
-  const text = fullMarkdown ?? "";
-
-  const finish = (metaRaw: string, rest: string): { meta: BriefMeta; resultMd: string } => {
-    let meta: BriefMeta = {};
-    try {
-      meta = JSON.parse(metaRaw.trim()) as BriefMeta;
-    } catch {
-      meta = {};
-    }
-    return { meta, resultMd: stripLeadingRules(rest) };
-  };
-
-  // 1. Fenced ```json ... ```
-  const fenced = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
-  if (fenced && typeof fenced.index === "number") {
-    return finish(fenced[1], text.slice(fenced.index + fenced[0].length));
-  }
-
-  // 2. The first { anywhere in the opening stretch of the document, whether or
-  //    not a --- or a blank line sits in front of it. Only the opening stretch:
-  //    a brace deep in the prose is the model's words, not a meta block.
-  const head = text.slice(0, 4000);
-  const brace = head.indexOf("{");
-  if (brace !== -1 && !/[A-Za-z]{3}/.test(head.slice(0, brace).replace(/[-\s`json]/gi, ""))) {
-    const obj = balancedObject(text, brace);
-    if (obj) return finish(obj, text.slice(brace + obj.length));
-  }
-
-  // No meta found. Hand back the markdown untouched so the page still renders.
-  return { meta: {}, resultMd: stripLeadingRules(text) };
-}
-
-/** Drop the --- rules and blank lines a fenced block leaves behind. */
-function stripLeadingRules(s: string): string {
-  return s.replace(/^(?:\s*(?:-{3,}|_{3,}|\*{3,})\s*)+/g, "").trim();
 }
 
 // ─── Route: POST /api/exit-brief ────────────────────────────────────────────
@@ -577,8 +219,7 @@ async function handleExitBrief(req: Request, res: Response) {
   const revenueNis = parseNis(revenue);
   const profitNis = parseNis(pretaxProfit);
   const key = cacheKey(domain ?? normalizedUrl, revenue, pretaxProfit, lang);
-  const runsThisDomain = (runsByDomain.get(domain ?? normalizedUrl) ?? 0) + 1;
-  runsByDomain.set(domain ?? normalizedUrl, runsThisDomain);
+  const runsThisDomain = countDomainRun(domain ?? normalizedUrl);
 
   // A run we already did. Same site, same inputs, same brief, no model call,
   // no cooldown, nothing billed. Streams the saved run in the same shape so
@@ -624,25 +265,11 @@ async function handleExitBrief(req: Request, res: Response) {
   }
 
   const ip = getClientIp(req);
-  const now = Date.now();
-  const last = rateLimitStore.get(ip) ?? 0;
-
-  if (now - last < IP_COOLDOWN_MS) {
-    res.status(429).json({ error: serverMessage("cooldown", lang) });
-    return;
-  }
-
-  rollDayIfNeeded();
-
-  if (briefsToday >= dailyCap()) {
-    console.warn(`[exit-brief] Daily cap of ${dailyCap()} reached for ${usageDay}.`);
-    res.status(429).json({ error: serverMessage("overCap", lang) });
-    return;
-  }
-
-  if ((briefsTodayByIp.get(ip) ?? 0) >= perIpDailyLimit()) {
-    console.warn(`[exit-brief] Per-IP daily limit of ${perIpDailyLimit()} reached.`);
-    res.status(429).json({ error: serverMessage("overCap", lang) });
+  // The minute cooldown, the site-wide daily cap and this visitor's share of
+  // it, in that order (server/lib/runGates.ts, shared with the estimate).
+  const refusal = gateRefusal(ip);
+  if (refusal) {
+    res.status(429).json({ error: serverMessage(refusal, lang) });
     return;
   }
 
@@ -654,9 +281,7 @@ async function handleExitBrief(req: Request, res: Response) {
 
   // Count it here, not at the end. A run that starts has already cost money,
   // whether or not it finishes.
-  rateLimitStore.set(ip, now);
-  briefsToday += 1;
-  briefsTodayByIp.set(ip, (briefsTodayByIp.get(ip) ?? 0) + 1);
+  countRun(ip);
 
   // Build user message. A Hebrew run opens with one line, Hebrew then English,
   // telling the model to write in Hebrew (the Hebrew guard, layer 1). The

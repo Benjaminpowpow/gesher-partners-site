@@ -1,1434 +1,381 @@
-/* Valuation page styles. Ported from the Claude design:
-   colors_and_type.css :root tokens + valuation/styles.css.
-   Tokens and the page shell are scoped to .v-page so nothing bleeds into
-   other routes. Do not hand-tune the token values; they mirror the brand file. */
+/* The valuation estimate at /valuation. Ported from the locked mockup,
+   site/36-valuation-estimate-mock.html in the vault (Ben, Oct 1 2026). Do not
+   redesign it here: change the mockup with Ben first.
 
-.v-page {
-  /* ===========================================
-     COLOR TOKENS
-     =========================================== */
+   Layout: one 560px form column on the front door with a thin progress line
+   pinned to the top. On the result, a main column plus a company card on the
+   right (stacked first on phones).
 
-  /* Surfaces */
-  --cream: #F5F0E6;        /* Page background. The default surface. */
-  --warm-white: #FBF8F1;   /* Cards, raised surfaces */
-  --hairline: #DCD4C4;     /* Thin dividers, borders (use at 0.5–1px) */
+   Everything is scoped to .ve, so nothing here reaches the home page or the
+   old Hebrew tool (valuationLegacy.css, scoped to .v-page). Light only, on
+   purpose: the live site is light only.
 
-  /* Ink */
-  --navy: #16243B;         /* Headings, logo, buttons */
-  --near-black: #23201A;   /* Body text */
-  --taupe: #6F6757;        /* Muted text, captions */
+   Built to flip. Spacing is logical (inline-start and inline-end, never left
+   and right), the dropdown arrow is an element placed at the inline end, and
+   the slider and its numbers follow dir="rtl" by themselves, 1 on the right.
+   The few rules that need a Hebrew twin sit at the bottom under [dir="rtl"]. */
 
-  /* Rare accent. Use sparingly: one key number or one small mark per screen. */
+.ve {
+  --cream: #F5F0E6;
+  --warm-white: #FBF8F1;
+  --hairline: #DCD4C4;
+  --navy: #16243B;
+  --near-black: #23201A;
+  --taupe: #6F6757;
   --burgundy: #6E2B2B;
-
-  /* ----- Semantic aliases (use these in components) ----- */
-  --bg: var(--cream);
-  --bg-raised: var(--warm-white);
-  --fg: var(--near-black);
-  --fg-strong: var(--navy);
-  --fg-muted: var(--taupe);
-  --fg-accent: var(--burgundy);
-  --border: var(--hairline);
-  --border-strong: var(--navy);
-
-  /* On-navy surfaces (dark sections) */
-  --bg-navy: var(--navy);
-  --fg-on-navy: var(--cream);
-  --fg-on-navy-muted: #B9B0A0;
-  --border-on-navy: rgba(245, 240, 230, 0.18);
-
-  /* ===========================================
-     TYPOGRAPHY
-     ===========================================
-     Two families only.
-     - Display / headings: Newsreader, weight 500 (never bold).
-     - Body / UI: Inter, weight 400 (500 for emphasis).
-     Wordmark is lowercase. Everything else is normal sentence case.
-     =========================================== */
-
+  --navy-ink: #F5F0E6;
+  --navy-muted: #B9B0A0;
+  --ok: #3F5B3A;
   --font-serif: "Newsreader", "Source Serif Pro", Georgia, "Times New Roman", serif;
-  --font-sans:  "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-hebrew-serif: "Frank Ruhl Libre", "Newsreader", Georgia, serif;
-  --font-hebrew-sans:  "Heebo", "Inter", sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --fs-h1: clamp(34px, 5vw, 52px);
+  --fs-h2: clamp(26px, 3vw, 34px);
+  --radius: 2px;
+  --radius-btn: 4px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ls-label: .14em;
 
-  /* Type scale (px). H1 fluid 42→60. */
-  --fs-h1: clamp(42px, 5vw, 60px);
-  --fs-h2: clamp(30px, 3.2vw, 40px);
-  --fs-h3: 22px;
-  --fs-body: 18px;
-  --fs-small: 14px;
-  --fs-eyebrow: 12px;
-
-  /* Line heights — generous, calm. */
-  --lh-display: 1.15;
-  --lh-h2: 1.2;
-  --lh-h3: 1.3;
-  --lh-body: 1.65;
-  --lh-tight: 1.4;
-
-  /* Letter spacing */
-  --ls-eyebrow: 0.14em;   /* uppercase eyebrow labels */
-  --ls-display: -0.005em; /* slight optical tightening on big serifs */
-  --ls-tight: -0.01em;
-
-  /* ===========================================
-     SHAPE, SPACE, ELEVATION
-     ===========================================
-     Heritage, not app-like. Corners nearly sharp.
-     No drop shadows. Hairline borders do the work.
-     =========================================== */
-
-  --radius-sharp: 0px;
-  --radius: 2px;          /* Default. Cards, inputs, badges. */
-  --radius-btn: 4px;      /* Buttons only — a notch softer than cards. */
-  --radius-lg: 4px;       /* Largest we go elsewhere. */
-
-  --border-hairline: 0.5px solid var(--hairline);
-  --border-thin: 1px solid var(--hairline);
-
-  /* Elevation = a hairline border + warm-white surface. Not shadows. */
-  --elev-card: var(--border-thin);
-
-  /* Spacing (8px base, with a 4px micro) */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --space-8: 64px;
-  --space-9: 96px;
-  --space-10: 128px;
-
-  /* Layout */
-  --maxw-prose: 64ch;
-  --maxw-content: 1120px;
-  --maxw-narrow: 720px;
-
-  /* Motion — quiet fades only. */
-  --ease-quiet: cubic-bezier(0.4, 0, 0.2, 1);
-  --dur-quick: 140ms;
-  --dur-fade: 220ms;
-}
-
-/* Valuation page — local styles. Tokens come from the .v-page block above.
-   The original design set these on html/body. We scope them to .v-page so the
-   cream background and serif tokens never leak into other routes. */
-
-.v-page, .v-page * { box-sizing: border-box; }
-
-/* ---------- Hebrew ----------
-   Same pattern as home.css. Valuation.tsx marks the page root with
-   lang="he" dir="rtl" and the .v-rtl class. Swapping the two font tokens here
-   moves every rule below that reads var(--font-serif) or var(--font-sans) to
-   Frank Ruhl Libre and Heebo in one go, so no rule needs a Hebrew twin. Both
-   faces are loaded in client/index.html.
-
-   Layout follows dir="rtl" by itself: the spacing here is logical, and the
-   working screen is a grid, so column 1 becomes the right-hand column and the
-   stage checks move to the right of their labels. The handful of rules that
-   name a physical side are flipped at the bottom of this file under .v-rtl. */
-.v-page[lang="he"] {
-  --font-serif: var(--font-hebrew-serif);
-  --font-sans: var(--font-hebrew-sans);
-  /* Eyebrows and buttons are tracked wide for English capitals. Hebrew has no
-     capitals, and spaced-out Hebrew letters read as broken words. */
-  --ls-eyebrow: 0;
-}
-/* The tagline under the logo stays in English, in the English face. */
-.v-page[lang="he"] .lockup-tag {
-  font-family: "Newsreader", "Source Serif Pro", Georgia, "Times New Roman", serif;
-}
-/* Neither Hebrew face has an italic. The browser would slant it by force. */
-.v-page[lang="he"] .v-tagline-line { font-style: normal; }
-/* Wide tracking is an uppercase Latin habit. Hebrew has no uppercase. */
-.v-page[lang="he"] .v-front-h1,
-.v-page[lang="he"] .v-working-h2,
-.v-page[lang="he"] .v-result-title,
-.v-page[lang="he"] .v-range,
-.v-page[lang="he"] .v-ring-num { letter-spacing: 0; }
-
-/* ---------- Page shell ---------- */
-.v-page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
-  margin: 0;
-  padding: 0;
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--cream);
+  color: var(--near-black);
   font-family: var(--font-sans);
-  font-size: var(--fs-body);
-  line-height: var(--lh-body);
+  font-size: 17px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+  color-scheme: light;
+}
+.ve *, .ve *::before, .ve *::after { box-sizing: border-box; }
+/* The site's base styles (index.css) set every button to small tracked
+   capitals, every input to a bottom line, and every heading to the display
+   face. Undo all of it here, at the lowest weight (:where), so each rule
+   below wins on order alone, the way it did in the mockup. */
+.ve :where(button, select, input, textarea) {
+  font: inherit; letter-spacing: normal; text-transform: none; transition: none;
+  border-radius: 0; color: inherit;
+}
+.ve :where(h1, h2, h3) { letter-spacing: normal; font-weight: 500; }
+.ve :where(a):hover { opacity: 1; }
+.ve :focus-visible { outline: 2px solid var(--navy); outline-offset: 3px; }
+.ve [hidden] { display: none !important; }
+
+/* Hebrew faces. The page root carries lang="he" on a Hebrew page, and every
+   rule reads these two tokens, so nothing else needs a Hebrew twin. */
+.ve[lang="he"] {
+  --font-serif: "Frank Ruhl Libre", "Newsreader", Georgia, serif;
+  --font-sans: "Heebo", "Inter", sans-serif;
+  /* Spaced-out Hebrew letters read as broken words. */
+  --ls-label: 0;
 }
 
-.v-container {
-  width: 100%;
-  max-width: var(--maxw-content);
-  margin: 0 auto;
-  padding: 0 24px;
+/* ─── Page shell ─────────────────────────────────────────────────────────── */
+.ve-topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  /* The mockup's 18px, less the room the 44px tap targets now take. */
+  padding: 13px 16px; border-bottom: .5px solid var(--hairline);
+  max-width: 1120px; margin: 0 auto;
+}
+.ve-topbar .brand { display: inline-flex; text-decoration: none; min-height: 44px; align-items: center; }
+.ve-topbar .lockup { display: inline-grid; gap: 2px; justify-items: start; }
+.ve-topbar .lockup-row { display: flex; align-items: center; gap: 10px; }
+.ve-topbar .brand-mark, .ve-topbar .wordmark { display: block; flex-shrink: 0; }
+.ve-topbar .lockup-tag {
+  font-family: "Newsreader", Georgia, serif; font-size: 12px; color: var(--taupe);
+  line-height: 1; padding-inline-start: 2px;
+}
+.ve-topbar-end { display: flex; align-items: center; gap: 18px; }
+.ve-talk {
+  font-size: 15px; color: var(--near-black); background: none; border: 0; cursor: pointer;
+  padding: 0; min-height: 44px; display: inline-flex; align-items: center;
+}
+.ve-talk span { border-bottom: 1px solid var(--hairline); padding-bottom: 2px; }
+.ve-talk:hover span { border-color: var(--navy); }
+.ve-lang { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--taupe); }
+.ve-lang a {
+  color: var(--taupe); text-decoration: none; min-height: 44px; min-width: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ve-lang a:hover { color: var(--navy); }
+.ve-lang a[aria-current="true"] { color: var(--navy); font-weight: 600; }
+.ve-lang .sep { color: var(--hairline); }
+
+.ve-main { padding-inline: 16px; padding-block: 0; display: block; }
+
+/* Progress line: fills as the required answers come in. Full = ready. */
+.ve-progress {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; height: 4px;
+  background: var(--hairline); margin-inline: -16px;
+}
+.ve-progress-fill { height: 100%; width: 0; background: var(--navy); transition: width 320ms var(--ease); }
+
+/* ─── Screen 1. Front door ───────────────────────────────────────────────── */
+.ve-front { max-width: 560px; margin: 0 auto; padding-block: 56px 88px; }
+.ve-front h1 {
+  font-family: var(--font-serif); font-weight: 500; font-size: var(--fs-h1); line-height: 1.12;
+  color: var(--navy); margin: 0 0 40px; text-align: center; text-wrap: balance; letter-spacing: -.005em;
+}
+.ve-form { display: flex; flex-direction: column; gap: 26px; }
+.ve-q { display: flex; flex-direction: column; gap: 8px; min-width: 0; border: 0; margin: 0; padding: 0; scroll-margin-block: 24px; }
+.ve-q-label {
+  font-family: var(--font-serif); font-size: 20px; line-height: 1.3; color: var(--navy);
+  font-weight: 500; padding: 0;
+}
+.ve .ve-input, .ve .ve-select {
+  width: 100%; min-width: 0; background: var(--warm-white); border: 1px solid var(--hairline);
+  border-radius: var(--radius); padding-block: 0; padding-inline: 16px; font-size: 16px;
+  color: var(--near-black); min-height: 54px; transition: border-color 140ms var(--ease);
+}
+.ve .ve-input:focus, .ve .ve-select:focus { border-color: var(--navy); outline: none; box-shadow: 0 0 0 1px var(--navy); }
+.ve .ve-input::placeholder { color: #8C8475; }
+.ve-select-wrap { position: relative; }
+.ve .ve-select {
+  appearance: none; -webkit-appearance: none; padding-inline-end: 44px; cursor: pointer;
+  background-image: none;
+}
+.ve .ve-select:invalid, .ve .ve-select.is-empty { color: var(--taupe); }
+.ve .ve-select option { color: var(--near-black); }
+/* The arrow sits at the inline end, so it moves to the left in Hebrew. */
+.ve-chev {
+  position: absolute; inset-inline-end: 16px; top: 50%; width: 12px; height: 8px;
+  margin-top: -4px; pointer-events: none; color: var(--navy);
+}
+.ve textarea.ve-input { min-height: 84px; padding-block: 12px; resize: vertical; line-height: 1.5; }
+.ve-q-err { font-size: 14px; color: var(--burgundy); margin: 0; }
+.ve-q.is-err .ve-input, .ve-q.is-err .ve-select { border-color: var(--burgundy); }
+
+/* The 1 to 10 slider. No answer until he touches it: the thumb is hollow and
+   the number reads a dash. */
+.ve-serious-row { display: flex; align-items: center; gap: 16px; }
+.ve-serious-val {
+  font-family: var(--font-serif); font-size: 34px; color: var(--navy); width: 2.2ch; text-align: center;
+  font-variant-numeric: tabular-nums; flex: 0 0 auto; line-height: 1;
+}
+.ve-slider-wrap { flex: 1 1 auto; min-width: 0; }
+.ve .ve-slider {
+  width: 100%; margin: 0; padding: 0; border: 0; height: 44px; background: transparent;
+  -webkit-appearance: none; appearance: none; cursor: pointer; display: block;
+}
+.ve-slider:focus { outline: none; }
+.ve-slider:focus-visible { outline: 2px solid var(--navy); outline-offset: 3px; }
+.ve-slider::-webkit-slider-runnable-track { height: 4px; background: var(--hairline); border-radius: 2px; }
+.ve-slider::-moz-range-track { height: 4px; background: var(--hairline); border-radius: 2px; }
+.ve-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--navy); border: 2px solid var(--navy); margin-top: -12px;
+}
+.ve-slider::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--navy); border: 2px solid var(--navy); }
+.ve-slider.untouched::-webkit-slider-thumb { background: var(--warm-white); }
+.ve-slider.untouched::-moz-range-thumb { background: var(--warm-white); }
+.ve-q.is-err .ve-slider::-webkit-slider-runnable-track { background: var(--burgundy); }
+.ve-q.is-err .ve-slider::-moz-range-track { background: var(--burgundy); }
+.ve-ticks {
+  display: flex; justify-content: space-between; font-size: 13px; color: var(--taupe);
+  margin-top: -4px; padding-inline: 6px; font-variant-numeric: tabular-nums;
+}
+.ve-ticks button {
+  background: none; border: 0; padding: 4px 2px; color: inherit; cursor: pointer; min-width: 20px;
+  line-height: 1.4;
+}
+.ve-ends { display: flex; justify-content: space-between; font-size: 13px; color: var(--taupe); }
+
+.ve-submit-zone { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.ve .ve-btn {
+  background: var(--navy); color: var(--navy-ink); border: 0; border-radius: var(--radius-btn);
+  min-height: 54px; padding-block: 0; padding-inline: 28px; font-size: 16px; font-weight: 500;
+  cursor: pointer; transition: background 140ms var(--ease);
+}
+.ve .ve-btn:hover { background: #0F1A2C; }
+.ve .ve-btn[disabled] { cursor: progress; opacity: .85; }
+.ve .ve-btn.block { width: 100%; }
+.ve .ve-btn-outline { background: transparent; color: var(--navy); border: 1px solid var(--navy); }
+.ve .ve-btn-outline:hover { background: var(--warm-white); }
+.ve-contact-note { font-size: 14px; color: var(--taupe); margin: 0; text-align: center; }
+.ve-confidential {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 14px; color: var(--taupe); margin: 0;
+}
+.ve-confidential svg { width: 13px; height: 13px; flex: 0 0 auto; }
+.ve-disclaimer {
+  font-size: 13px; color: var(--taupe); line-height: 1.55; margin: 28px 0 0;
+  padding-top: 20px; border-top: .5px solid var(--hairline);
 }
 
-/* ---------- Top bar ---------- */
-.v-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: var(--border-hairline);
-  background: var(--bg);
-}
-.v-topbar .brand {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-}
-/* The shared Lockup component (components/Lockup.tsx) draws the mark, the
-   wordmark and the tagline. home.css styles the same class names inside its
-   .gesher scope, which does not reach this page, so the rules are repeated
-   here at this page's smaller size. Heights come from the component itself. */
-.v-topbar .brand .lockup { display: inline-grid; gap: 2px; justify-items: start; }
-.v-topbar .brand .lockup-row { display: flex; align-items: center; gap: 10px; }
-.v-topbar .brand .brand-mark,
-.v-topbar .brand .wordmark { display: block; flex-shrink: 0; }
-.v-topbar .brand .lockup-tag {
-  font-family: var(--font-serif);
-  font-size: 12px;
-  color: var(--taupe);
-  letter-spacing: 0.01em;
-  line-height: 1;
-  padding-inline-start: 2px;
-}
-/* This was an <a> until Sep 17. It opens the talk popup now, so it is a
-   <button>, and a button arrives with a grey box and a border of its own. */
-.v-topbar .talk {
-  font-family: var(--font-sans);
-  font-size: 15px;
-  color: var(--near-black);
-  text-decoration: none;
-  background: none;
-  border: 0;
-  border-bottom: 1px solid var(--hairline);
-  padding: 0 0 2px;
-  cursor: pointer;
-  transition: border-color var(--dur-quick) var(--ease-quiet);
-}
-.v-topbar .talk:hover { border-color: var(--navy); }
-/* The right-hand end of the bar: the language switch, then "Talk to us". With
-   the switch hidden this is a box around one button and changes nothing. */
-.v-topbar-right {
-  display: inline-flex;
-  align-items: center;
-  gap: 18px;
-}
-
-/* ---------- Language switch ----------
-   The same look as the home page's, repeated here because home.css is scoped
-   under .gesher and does not reach this route. */
-.v-lang-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1;
-  /* Always "EN / עב" in that order, on both pages. */
-  direction: ltr;
-  padding-inline-end: 18px;
-  border-inline-end: 0.5px solid var(--hairline);
-}
-.v-lang-switch a {
-  color: var(--taupe);
-  text-decoration: none;
-  transition: color var(--dur-quick) var(--ease-quiet);
-}
-.v-lang-switch a:hover { color: var(--navy); }
-.v-lang-switch a.lang-on { color: var(--navy); font-weight: 600; }
-.v-lang-switch .lang-sep { color: var(--hairline); }
-
-/* ---------- Main slot ---------- */
-.v-main {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ---------- State placeholder (until each state is built) ---------- */
-.v-placeholder {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 96px 24px;
-  text-align: center;
-  gap: 16px;
-}
-.v-placeholder .eyebrow {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--fs-eyebrow);
-  letter-spacing: var(--ls-eyebrow);
-  text-transform: uppercase;
-  color: var(--fg-muted);
-}
-.v-placeholder h1 {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: var(--fs-h2);
-  line-height: var(--lh-h2);
-  letter-spacing: var(--ls-display);
-  color: var(--fg-strong);
-  margin: 0;
-}
-.v-placeholder .note {
-  font-size: var(--fs-small);
-  color: var(--fg-muted);
-  max-width: 36ch;
-  margin: 0;
-}
-
-/* ---------- Visually hidden (a11y label) ---------- */
-.v-visually-hidden {
-  position: absolute;
-  width: 1px; height: 1px;
-  padding: 0; margin: -1px;
+/* Company logo, on the working screen and the company card. His own when the
+   page gave a good one, his initials otherwise. Never a broken image. */
+.ve-logo {
+  width: 56px; height: 56px; border-radius: 6px; background: var(--navy); color: var(--navy-ink);
+  display: grid; place-items: center; font-family: var(--font-serif); font-size: 22px; flex: 0 0 auto;
   overflow: hidden;
-  clip: rect(0,0,0,0);
-  white-space: nowrap;
-  border: 0;
+}
+.ve-logo.has-img { background: #FFFFFF; border: .5px solid var(--hairline); padding: 6px; }
+.ve-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* ─── Screen 2. Working ──────────────────────────────────────────────────── */
+.ve-working { max-width: 560px; margin: 0 auto; padding-block: 56px 104px; }
+.ve-co-head { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; min-width: 0; }
+.ve-co-head .nm { font-family: var(--font-serif); font-size: 24px; color: var(--navy); line-height: 1.2; }
+.ve-co-head .url { font-size: 14px; color: var(--taupe); overflow-wrap: anywhere; }
+.ve-working h1 {
+  font-family: var(--font-serif); font-weight: 500; font-size: var(--fs-h2); color: var(--navy);
+  margin: 0 0 4px; line-height: 1.2;
+}
+.ve-working .sub { color: var(--taupe); margin: 0 0 28px; }
+.ve-ring-row { display: flex; align-items: center; gap: 28px; }
+.ve-ring { position: relative; width: 104px; height: 104px; flex: 0 0 auto; }
+.ve-ring svg { width: 104px; height: 104px; transform: rotate(-90deg); }
+.ve-ring .track { fill: none; stroke: var(--hairline); stroke-width: 3; }
+.ve-ring .fill { fill: none; stroke: var(--navy); stroke-width: 3; transition: stroke-dashoffset 400ms var(--ease); }
+.ve-ring-pct {
+  position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-serif);
+  font-size: 24px; color: var(--navy); font-variant-numeric: tabular-nums;
+}
+.ve-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ve-steps li { display: flex; align-items: center; gap: 12px; color: var(--taupe); font-size: 16px; }
+.ve-steps .dot {
+  width: 18px; height: 18px; border: 1px solid var(--hairline); border-radius: 50%; flex: 0 0 auto;
+  display: grid; place-items: center;
+}
+.ve-steps li.done { color: var(--near-black); }
+.ve-steps li.done .dot { background: var(--navy); border-color: var(--navy); }
+.ve-steps li.done .dot::after {
+  content: ""; width: 7px; height: 4px; border: solid var(--navy-ink); border-width: 0 0 1.5px 1.5px;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+.ve-steps li.now { color: var(--navy); font-weight: 500; }
+.ve-steps li.now .dot { border-color: var(--navy); }
+.ve-long-step { font-size: 14px; color: var(--taupe); margin: 16px 0 0; }
+.ve-tagline { font-family: var(--font-serif); font-style: italic; color: var(--taupe); margin: 36px 0 0; font-size: 18px; }
+
+/* ─── Screen 3. Result ───────────────────────────────────────────────────── */
+.ve-result { max-width: 1120px; margin: 0 auto; padding-block: 40px 96px; }
+.ve-r-title {
+  font-family: var(--font-serif); font-weight: 500; font-size: var(--fs-h2); color: var(--navy);
+  margin: 0 0 6px; text-wrap: balance; line-height: 1.2;
+}
+.ve-r-private { font-size: 14px; color: var(--taupe); margin: 0 0 28px; }
+.ve-r-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start; }
+.ve-r-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.ve-card { background: var(--warm-white); border: .5px solid var(--hairline); border-radius: var(--radius); padding: 28px; min-width: 0; }
+.ve-card h2 {
+  font-size: 12px; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--taupe);
+  font-weight: 500; margin: 0 0 14px; font-family: var(--font-sans); line-height: 1.6;
+}
+.ve-card p { margin: 0 0 10px; }
+.ve-card p:last-child { margin: 0; }
+.ve-value-item strong { font-weight: 600; color: var(--navy); }
+
+/* The lock. The blurred cards and the popup share one grid cell, so the zone
+   is as tall as whichever is taller and the popup can never spill out over
+   the disclaimer. The blur is only the look: the range is not in the page. */
+.ve-locked-zone { display: grid; }
+.ve-locked-zone > .ve-blurrable, .ve-locked-zone > .ve-gate { grid-area: 1 / 1; }
+.ve-blurrable { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.ve-locked-zone.is-locked .ve-blurrable { filter: blur(7px); user-select: none; pointer-events: none; }
+.ve-range-fig {
+  font-family: var(--font-serif); font-weight: 500; font-size: clamp(40px, 6vw, 64px); line-height: 1.05;
+  color: var(--burgundy); margin: 0 0 12px; font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+}
+.ve-range-line { color: var(--taupe); margin: 0; }
+.ve-byhand-lead { font-family: var(--font-serif); font-size: clamp(28px, 4vw, 38px); color: var(--navy); line-height: 1.15; margin: 0 0 12px; }
+.ve-cta { border-top: .5px solid var(--hairline); margin-top: 24px; padding-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+.ve-cta-lead { font-family: var(--font-serif); font-size: 24px; color: var(--navy); margin: 0; line-height: 1.25; }
+.ve-cta-body { margin: 0 0 6px; }
+.ve-cta-act { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.ve-scarcity { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 500; color: var(--burgundy); }
+.ve-scarcity svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.ve-call-done { font-family: var(--font-serif); font-size: 20px; color: var(--ok); margin: 0; }
+.ve-cta-err { font-size: 14px; color: var(--burgundy); margin: 0; }
+.ve-inline-form { display: flex; flex-direction: column; gap: 12px; }
+.ve-lbl { display: block; font-size: 13px; color: var(--taupe); margin: 0 0 4px; }
+.ve-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ve-inline-err { font-size: 14px; color: var(--burgundy); margin: 0; }
+.ve-inline-form .ve-confidential { justify-content: flex-start; }
+
+/* The popup on the blur */
+.ve-gate { display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; z-index: 2; }
+.ve-gate-card {
+  background: var(--navy); color: var(--navy-ink); border-radius: 6px; width: min(100%, 500px); padding: 32px;
+  box-shadow: 0 18px 50px rgba(22, 36, 59, .28); display: flex; flex-direction: column; gap: 14px;
+}
+.ve-eyebrow { font-size: 12px; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--navy-muted); margin: 0; }
+.ve-gate-card h2 {
+  font-family: var(--font-serif); font-weight: 500; font-size: clamp(28px, 3.4vw, 34px); line-height: 1.15;
+  margin: 0; text-wrap: balance; color: var(--navy-ink);
+}
+.ve-gate-card .gsub { margin: 0 0 4px; color: #E6DFD0; }
+.ve-gate-card .ve-input { background: #FBF8F1; border-color: transparent; }
+.ve-gate-card .ve-input:focus { box-shadow: 0 0 0 2px var(--navy-ink); border-color: var(--navy-ink); }
+.ve-gate-card .ve-lbl { color: var(--navy-muted); }
+.ve-gate-err { font-size: 14px; color: #F2B8B0; margin: 0; }
+.ve .ve-gate-card .ve-btn { background: var(--cream); color: var(--navy); }
+.ve .ve-gate-card .ve-btn:hover { background: #FFFFFF; }
+.ve .ve-gate-card :focus-visible { outline-color: var(--navy-ink); }
+.ve-gate-card .ve-confidential { color: var(--navy-muted); justify-content: flex-start; }
+
+/* Company card */
+.ve-co-card { position: sticky; top: 24px; }
+.ve-co-card .ve-logo { margin-bottom: 14px; }
+.ve-co-name { font-family: var(--font-serif); font-weight: 500; font-size: 28px; line-height: 1.15; color: var(--navy); margin: 0 0 10px; }
+.ve-co-desc { margin: 0 0 14px; font-size: 15px; line-height: 1.55; }
+.ve-co-url { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--taupe); overflow-wrap: anywhere; margin: 0 0 18px; }
+.ve-co-url svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.ve-co-bands { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: .5px solid var(--hairline); padding-top: 16px; margin: 0; }
+.ve-co-bands dt { font-size: 13px; color: var(--taupe); }
+.ve-co-bands dd { margin: 2px 0 0; font-family: var(--font-serif); font-size: 20px; color: var(--navy); font-variant-numeric: tabular-nums; }
+
+/* ─── When it cannot run ─────────────────────────────────────────────────── */
+.ve-error { max-width: 560px; margin: 0 auto; padding-block: 72px 104px; }
+.ve-error h1 { font-family: var(--font-serif); font-weight: 500; font-size: var(--fs-h2); color: var(--navy); margin: 0 0 12px; line-height: 1.2; }
+.ve-error p { color: var(--near-black); margin: 0 0 28px; }
+.ve-error-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+/* ─── The talk popup ─────────────────────────────────────────────────────── */
+.ve-modal-backdrop {
+  position: fixed; inset: 0; background: rgba(22, 36, 59, .45); z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.ve-modal {
+  position: relative; background: var(--cream); border-radius: 6px; width: min(100%, 460px);
+  max-height: calc(100vh - 32px); overflow: auto; padding: 32px;
+  box-shadow: 0 18px 50px rgba(22, 36, 59, .28); display: flex; flex-direction: column; gap: 14px;
+}
+.ve-modal h2 { font-family: var(--font-serif); font-weight: 500; font-size: 28px; color: var(--navy); margin: 0; line-height: 1.2; }
+.ve-modal-sub { margin: 0; color: var(--near-black); }
+.ve-modal-close {
+  position: absolute; inset-block-start: 8px; inset-inline-end: 8px; width: 44px; height: 44px;
+  display: grid; place-items: center; background: none; border: 0; color: var(--navy); cursor: pointer;
+}
+.ve-modal-close svg { width: 16px; height: 16px; }
+.ve-modal-err { font-size: 14px; color: var(--burgundy); margin: 0; }
+
+/* ─── Phones and tablets ─────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .ve-r-grid { grid-template-columns: minmax(0, 1fr); }
+  .ve-co-card { position: static; order: -1; }
+}
+@media (max-width: 520px) {
+  .ve-front { padding-block: 36px 72px; }
+  .ve-front h1 { margin-bottom: 32px; }
+  .ve-card { padding: 22px; }
+  .ve-gate-card { padding: 24px; }
+  .ve-pair { grid-template-columns: 1fr; }
+  .ve-cta-act .ve-btn { width: 100%; }
+  .ve-topbar .lockup-tag { display: none; }
+  .ve-ring-row { gap: 20px; }
+  .ve-ring, .ve-ring svg { width: 84px; height: 84px; }
+  .ve-ring-pct { font-size: 20px; }
+  .ve-modal { padding: 28px 22px 24px; }
+  /* A thumb needs 44px to land on a number. The numbers stay where they were:
+     the taller boxes reach up into the slider's empty lower edge. */
+  .ve-ticks { margin-top: -14px; margin-bottom: -10px; }
+  .ve-ticks button { min-height: 44px; min-width: 24px; padding: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ve *, .ve *::before, .ve *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
 
-/* ============================================================
-   STATE: Front door
-   ============================================================ */
-.v-front {
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 96px 24px 128px;
-}
-.v-front-inner {
-  width: 100%;
-  max-width: 640px;
-  text-align: center;
-}
-.v-front-h1 {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: var(--fs-h1);
-  line-height: var(--lh-display);
-  letter-spacing: var(--ls-display);
-  color: var(--navy);
-  margin: 0 0 var(--space-4);
-  text-wrap: balance;
-}
-.v-front-lede {
-  font-family: var(--font-sans);
-  font-size: 18px;
-  line-height: 1.55;
-  color: var(--near-black);
-  margin: 0 auto var(--space-7);
-  max-width: 44ch;
-}
-
-/* One column of fields, all the same width, then the button. This replaced a
-   wide URL box with the submit glued to its right and three dropdowns crammed
-   underneath in a 3-up grid. Ben's words on Sep 17: the things aren't even. */
-.v-front-form {
-  margin: 0 0 var(--space-5);
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.v-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  background: var(--warm-white);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: 0 16px;
-  font-family: var(--font-sans);
-  font-size: 16px;
-  color: var(--near-black);
-  min-height: 52px;
-  line-height: 1.4;
-  transition: border-color var(--dur-quick) var(--ease-quiet);
-  caret-color: var(--navy);
-}
-.v-input::placeholder {
-  color: var(--fg-muted);
-  opacity: 1;
-}
-/* The talk popup's message box borrows .v-input. A textarea needs padding at
-   the top and bottom, which a one-line input does not. */
-textarea.v-input {
-  padding: 14px 16px;
-  resize: vertical;
-}
-.v-input:hover { border-color: #C8BFAB; }
-.v-input:focus {
-  outline: none;
-  border-color: var(--navy);
-}
-
-/* ---- Buttons (scoped, mirrors marketing-site .btn) ---- */
-.v-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: 16px;
-  padding: 14px 24px;
-  min-height: 52px;
-  border-radius: var(--radius-btn);
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: background-color var(--dur-quick) var(--ease-quiet),
-              border-color var(--dur-quick) var(--ease-quiet);
-  white-space: nowrap;
-}
-.v-btn-primary {
-  background: var(--navy);
-  color: var(--cream);
-  border-color: var(--navy);
-}
-.v-btn-primary:hover { background: #0F1A2D; border-color: #0F1A2D; }
-.v-btn-primary:active { background: #0A1322; border-color: #0A1322; }
-.v-btn:focus-visible {
-  outline: 2px solid var(--navy);
-  outline-offset: 2px;
-}
-
-/* The "add your numbers for a tighter range" disclosure link lived here, along
-   with the 3-up .v-numbers grid it opened. The numbers are on the form itself
-   now, so there is nothing left to disclose. Removed Sep 17. */
-
-.v-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-.v-field-label {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--fg-muted);
-  letter-spacing: 0.01em;
-}
-.v-select-wrap {
-  position: relative;
-}
-.v-select {
-  width: 100%;
-  appearance: none;
-  -webkit-appearance: none;
-  background: var(--warm-white);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: 0 36px 0 14px;
-  font-family: var(--font-sans);
-  font-size: 16px;
-  color: var(--near-black);
-  /* Matches .v-input. They sit in one column now and any difference reads as
-     a mistake. */
-  min-height: 52px;
-  line-height: 1.4;
-  transition: border-color var(--dur-quick) var(--ease-quiet);
-  cursor: pointer;
-}
-.v-select:hover { border-color: #C8BFAB; }
-.v-select:focus { outline: none; border-color: var(--navy); }
-.v-select:invalid,
-.v-select:has(option[value=""]:checked) { color: var(--fg-muted); }
-.v-select-chev {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 12px;
-  height: 12px;
-  color: var(--taupe);
-  pointer-events: none;
-}
-
-/* What we read his typed number as, echoed back under the box. Quiet: it is
-   reassurance, not an instruction. */
-.v-field-echo {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--fg-muted);
-  margin: 0;
-  line-height: 1.4;
-}
-.v-field-error {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--burgundy);
-  margin: 0;
-  line-height: 1.4;
-}
-
-/* The padlock line. Sits right above the button, where a man hesitates. */
-.v-front-confidential {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-sans);
-  font-size: var(--fs-small);
-  color: var(--fg-muted);
-  margin: 0;
-}
-.v-lock {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-  color: var(--taupe);
-}
-
-/* "This is an estimate, not a valuation." Under the form, and again under the
-   range on the result screen. Small, readable, never hidden. */
-.v-disclaimer {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--fg-muted);
-  margin: var(--space-5) 0 0;
-  text-align: left;
-  max-width: 62ch;
-}
-
-@media (max-width: 640px) {
-  .v-front { padding: 64px 20px 96px; }
-  .v-front-h1 { font-size: clamp(34px, 9vw, 44px); }
-  .v-front-lede { font-size: 17px; margin-bottom: var(--space-6); }
-}
-
-/* ============================================================
-   STATE: Working
-   ============================================================ */
-/* Desktop: headline and steps left, ring and company card right, tagline under
-   the steps. The rows are placed by hand so the right column can stand beside
-   both the headline and the steps, and so the tagline still sits under the
-   steps and not under the card. Row gap is 0 on purpose: the spacing between
-   the rows comes from the margins on the blocks themselves. */
-.v-working {
-  flex: 1 1 auto;
-  width: 100%;
-  max-width: var(--maxw-content);
-  margin: 0 auto;
-  padding: 80px 24px 128px;
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  column-gap: 64px;
-  row-gap: 0;
-  align-items: start;
-}
-.v-working-head,
-.v-working-left,
-.v-working-right,
-.v-tagline-slot { min-width: 0; }
-.v-working-head { grid-column: 1; grid-row: 1; }
-.v-working-left { grid-column: 1; grid-row: 2; }
-.v-working-right { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
-.v-tagline-slot { grid-column: 1; grid-row: 3; }
-
-.v-working-h2 {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: var(--fs-h2);
-  line-height: var(--lh-h2);
-  letter-spacing: var(--ls-display);
-  color: var(--navy);
-  margin: 0 0 6px;
-}
-.v-working-sub {
-  font-family: var(--font-sans);
-  font-size: var(--fs-small);
-  color: var(--fg-muted);
-  margin: 0 0 var(--space-7);
-}
-
-/* ---- Checklist ---- */
-.v-checklist {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 var(--space-7);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.v-check-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  font-family: var(--font-sans);
-  font-size: 17px;
-  line-height: 1.5;
-  color: var(--near-black);
-  animation: vFadeIn var(--dur-fade) var(--ease-quiet) both;
-}
-.v-check-box {
-  flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  margin-top: 4px;
-  position: relative;
-  background: transparent;
-  transition: border-color var(--dur-fade) var(--ease-quiet);
-}
-.v-check-box svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  color: var(--navy);
-  opacity: 0;
-  transition: opacity var(--dur-fade) var(--ease-quiet);
-}
-.v-check-row.is-done .v-check-box { border-color: var(--navy); }
-.v-check-row.is-done .v-check-box svg { opacity: 1; }
-.v-check-text { padding-top: 0; }
-
-/* ---- The ring ----
-   Thin navy circle, hairline track, the percentage in the middle. It fills once
-   and never spins, because a spinning wheel says "waiting" and this screen is
-   meant to say "working". Geometry matches the two circles in the SVG: r=60 in
-   a 132 box, so the stroke sits inside the edge. */
-.v-ring-wrap {
-  display: flex;
-  align-items: center;
-  margin: 0 0 28px;
-}
-.v-ring {
-  flex: 0 0 auto;
-  position: relative;
-  width: 132px;
-  height: 132px;
-}
-.v-ring svg {
-  width: 132px;
-  height: 132px;
-  transform: rotate(-90deg); /* start at twelve o'clock */
-  display: block;
-}
-.v-ring .track { fill: none; stroke: var(--hairline); stroke-width: 3; }
-.v-ring .fill {
-  fill: none;
-  stroke: var(--navy);
-  stroke-width: 3;
-  stroke-linecap: butt;
-  transition: stroke-dashoffset 400ms linear;
-}
-/* The run to 100% once the engine says done. */
-.v-ring.is-finishing .fill { transition: stroke-dashoffset 220ms var(--ease-quiet); }
-.v-ring-num {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 32px;
-  color: var(--navy);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: var(--ls-display);
-}
-/* The ring gets smaller at 880 and again at 480, where it shares the top row
-   with the company card. Those two rules live with the working-screen layout
-   further down, because the size and the place it sits are one decision. */
-
-/* ---- Rotating italic tag line ----
-   Stacked with grid, not absolute positioning, so the box is as tall as the
-   longest line and nothing can land on top of anything else. */
-.v-tagline {
-  display: grid;
-  min-height: 1.7em;
-  margin: 0;
-}
-.v-tagline-line {
-  grid-area: 1 / 1;
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 400;
-  font-size: 17px;
-  line-height: 1.5;
-  color: var(--fg-muted);
-  opacity: 0;
-  transition: opacity 700ms var(--ease-quiet);
-  pointer-events: none;
-}
-.v-tagline-line.is-visible { opacity: 1; }
-
-/* ---- Company card ---- */
-.v-company-card {
-  background: var(--warm-white);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: 28px;
-  min-height: 116px;
-  display: flex;
-  align-items: stretch;
-}
-.v-company-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 18px;
-  width: 100%;
-}
-.v-company-logo {
-  flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
-  background: var(--navy);
-  color: var(--cream);
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 26px;
-  line-height: 1;
-}
-.v-company-body { flex: 1 1 auto; min-width: 0; }
-.v-company-name {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 22px;
-  line-height: 1.3;
-  color: var(--navy);
-  margin: 0 0 6px;
-  letter-spacing: var(--ls-display);
-}
-.v-company-tagline {
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--near-black);
-  margin: 0;
-}
-
-/* Skeleton — flat hairline shapes, no shimmer. */
-.v-skeleton .v-skel-logo {
-  flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
-  background: var(--hairline);
-  border-radius: var(--radius);
-  opacity: 0.7;
-}
-.v-skel-lines {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: 8px;
-  min-width: 0;
-}
-.v-skel-line {
-  height: 12px;
-  background: var(--hairline);
-  border-radius: 2px;
-  opacity: 0.7;
-}
-.v-skel-short { width: 42%; }
-.v-skel-long { width: 88%; }
-
-/* ---- Mobile: headline, company card, steps, ring, tagline ----
-   The card comes second on a phone because seeing his own business named is the
-   proof the tool read him, and on a small screen he should get that before he
-   scrolls past a list. display:contents drops the right column out of the way so
-   its two children can be ordered in among the left ones. */
-@media (max-width: 880px) {
-  .v-working {
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
-    padding: 48px 20px 72px;
-  }
-  /* One row at the top: his company, and the ring beside it. The ring used to
-     sit below the checklist, which on a phone put the one moving thing on the
-     screen underneath the fold. Now the two things that say "we are working on
-     your business" are in the same glance, and the whole screen fits without
-     scrolling. */
-  .v-working-right {
-    order: 2;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 14px;
-  }
-  .v-working-head { order: 1; }
-  .v-company-card { order: 1; flex: 1 1 auto; min-width: 0; }
-  .v-ring-wrap { order: 2; flex: 0 0 auto; margin: 0; }
-  .v-working-left { order: 3; }
-  .v-tagline-slot { order: 4; }
-  .v-stages { margin-bottom: 0; }
-  .v-reassure { margin-bottom: 0; }
-  .v-check-row { font-size: 16px; }
-  /* Smaller, because it is now sharing the row. */
-  .v-ring, .v-ring svg { width: 84px; height: 84px; }
-  .v-ring-num { font-size: 22px; }
-}
-@media (max-width: 480px) {
-  .v-working { padding: 32px 20px 48px; gap: 22px; }
-  .v-working-sub { margin-bottom: 0; }
-  /* The card gives up padding so the name and the one-liner still have room
-     next to the ring at 375 wide. */
-  .v-company-card { padding: 16px; min-height: 0; }
-  .v-company-content { gap: 12px; }
-  .v-company-logo { width: 44px; height: 44px; font-size: 20px; }
-  .v-skeleton .v-skel-logo { width: 44px; height: 44px; }
-  .v-skel-lines { padding-top: 4px; gap: 8px; }
-  .v-working-right { gap: 12px; }
-  .v-ring, .v-ring svg { width: 68px; height: 68px; }
-  .v-ring-num { font-size: 19px; }
-  .v-stages { gap: 14px; }
-  .v-stage { font-size: 16px; }
-}
-
-/* ============================================================
-   STATE: Result
-   ============================================================ */
-.v-result {
-  flex: 1 1 auto;
-  width: 100%;
-  /* Was 180px to clear the sticky CTA. The bar went on Sep 17, and the gap
-     it left behind was 180px of nothing under the range card. */
-  padding: 56px 24px 72px;
-  display: flex;
-  justify-content: center;
-}
-.v-result-inner {
-  width: 100%;
-  max-width: 720px;
-}
-
-/* ---- Header (logo + title + disclaimer) ---- */
-.v-result-header {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  margin-bottom: var(--space-7);
-}
-.v-result-logo {
-  flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
-  background: var(--navy);
-  color: var(--cream);
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 26px;
-  line-height: 1;
-}
-.v-result-titlewrap { min-width: 0; flex: 1 1 auto; }
-.v-result-title {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: clamp(28px, 4.2vw, 42px);
-  line-height: 1.2;
-  letter-spacing: var(--ls-display);
-  color: var(--navy);
-  margin: 0 0 8px;
-  text-wrap: balance;
-}
-.v-result-disclaimer {
-  font-family: var(--font-sans);
-  font-size: var(--fs-small);
-  line-height: 1.5;
-  color: var(--fg-muted);
-  margin: 0;
-}
-
-/* ---- Cards ---- */
-.v-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.v-card {
-  background: var(--warm-white);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: 32px;
-}
-.v-card-accent { border-color: var(--navy); }
-.v-card-h {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 22px;
-  line-height: 1.3;
-  letter-spacing: var(--ls-display);
-  color: var(--navy);
-  margin: 0 0 16px;
-}
-.v-card-body p {
-  font-family: var(--font-sans);
-  font-size: 16px;
-  line-height: 1.65;
-  color: var(--near-black);
-  margin: 0 0 12px;
-  max-width: 60ch;
-}
-.v-card-body p:last-child { margin-bottom: 0; }
-
-/* The one burgundy number on the screen. */
-.v-range {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: clamp(38px, 6vw, 60px);
-  line-height: 1.1;
-  letter-spacing: var(--ls-display);
-  color: var(--burgundy);
-  margin: 0 0 18px;
-}
-.v-trust {
-  /* The hardcoded "We work only for you..." line. Kept calm, no styling change. */
-}
-
-.v-card-actions {
-  margin-top: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* ============================================================
-   STATE: Error
-   ============================================================ */
-.v-error {
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 96px 24px 128px;
-}
-.v-error-inner {
-  width: 100%;
-  max-width: 520px;
-  text-align: center;
-}
-.v-error-h1 {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: clamp(30px, 4vw, 40px);
-  line-height: 1.2;
-  letter-spacing: var(--ls-display);
-  color: var(--navy);
-  margin: 0 0 14px;
-  text-wrap: balance;
-}
-.v-error-sub {
-  font-family: var(--font-sans);
-  font-size: 17px;
-  line-height: 1.6;
-  color: var(--fg-muted);
-  margin: 0 auto var(--space-7);
-  max-width: 40ch;
-}
-.v-error-btn {
-  padding-left: 28px;
-  padding-right: 28px;
-}
-@media (max-width: 480px) {
-  .v-error { padding: 64px 20px 96px; }
-  .v-error-btn { width: 100%; }
-}
-
-/* ============================================================
-   STATE: Success
-   ============================================================ */
-.v-success {
-  flex: 1 1 auto;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  padding: 88px 24px 120px;
-}
-.v-success-inner {
-  width: 100%;
-  max-width: 760px;
-  text-align: center;
-}
-.v-success-h1 {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: clamp(32px, 4.4vw, 46px);
-  line-height: 1.2;
-  letter-spacing: var(--ls-display);
-  color: var(--navy);
-  margin: 0 0 16px;
-  text-wrap: balance;
-}
-.v-success-sub {
-  font-family: var(--font-sans);
-  font-size: 18px;
-  line-height: 1.55;
-  color: var(--near-black);
-  margin: 0 auto var(--space-4);
-  max-width: 46ch;
-}
-.v-success-next {
-  font-family: var(--font-sans);
-  font-size: var(--fs-small);
-  line-height: 1.6;
-  color: var(--fg-muted);
-  margin: 0 auto;
-  max-width: 44ch;
-}
-.v-success-mail {
-  color: var(--burgundy);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-color: var(--hairline);
-}
-.v-success-mail:hover { text-decoration-color: var(--burgundy); }
-
-/* The 4-up stat row and the closing "Talk to us" CTA lived here. The sent
-   screen dropped both on Sep 17: his one job on that screen is to go and open
-   the email, so there is nothing left to sell and nothing to click. */
-
-/* ---- Mobile ---- */
-@media (max-width: 480px) {
-  .v-success { padding: 56px 20px 88px; }
-}
-
-/* ============================================================
-   STATE: Lead capture (modal overlay)
-   ============================================================ */
-.v-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: rgba(22, 36, 59, 0.32);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 56px 20px;
-  overflow-y: auto;
-  animation: vBackdropIn 200ms var(--ease-quiet) both;
-}
-@keyframes vBackdropIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-.v-modal {
-  position: relative;
-  width: 100%;
-  max-width: 460px;
-  background: var(--bg);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: 36px 36px 32px;
-  box-shadow: 0 24px 64px -16px rgba(22, 36, 59, 0.25);
-  animation: vModalIn 240ms var(--ease-quiet) both;
-}
-@keyframes vModalIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.v-modal-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 36px;
-  height: 36px;
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius);
-  color: var(--taupe);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color var(--dur-quick) var(--ease-quiet),
-              background-color var(--dur-quick) var(--ease-quiet);
-}
-.v-modal-close svg { width: 16px; height: 16px; }
-.v-modal-close:hover { color: var(--navy); background: rgba(22, 36, 59, 0.04); }
-.v-modal-close:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
-
-.v-modal-title {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: 28px;
-  line-height: 1.25;
-  letter-spacing: var(--ls-display);
-  color: var(--navy);
-  margin: 0 0 6px;
-  padding-right: 36px; /* clear the close button */
-}
-.v-modal-sub {
-  font-family: var(--font-sans);
-  font-size: var(--fs-small);
-  color: var(--fg-muted);
-  margin: 0 0 24px;
-}
-
-.v-modal-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.v-input-sm {
-  min-height: 44px;
-  font-size: 15px;
-  padding: 0 14px;
-}
-.v-input.has-error {
-  border-color: var(--burgundy);
-}
-.v-modal-quiet {
-  font-family: var(--font-sans);
-  font-size: var(--fs-small);
-  color: var(--fg-muted);
-  line-height: 1.5;
-  margin: 8px 0 -4px;
-}
-/* Shown only when the brief could not be sent. He was promised an email, so a
-   silent failure would be a broken promise. */
-.v-modal-error {
-  font-family: var(--font-sans);
-  font-size: var(--fs-small);
-  color: var(--burgundy);
-  line-height: 1.5;
-  margin: 12px 0 0;
-}
-.v-modal-submit {
-  margin-top: 8px;
-}
-
-@media (max-width: 480px) {
-  .v-modal-backdrop {
-    padding: 0;
-    align-items: stretch;
-  }
-  .v-modal {
-    border-radius: 0;
-    border: 0;
-    padding: 28px 22px 28px;
-    min-height: 100%;
-    max-width: none;
-    box-shadow: none;
-  }
-  .v-modal-title { font-size: 24px; }
-}
-
-/* ---- By-hand variant: navy headline instead of burgundy number ---- */
-.v-byhand-lead {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  font-size: clamp(26px, 3.6vw, 34px);
-  line-height: 1.25;
-  letter-spacing: var(--ls-display);
-  color: var(--navy);
-  margin: 0 0 18px;
-  text-wrap: balance;
-}
-
-/* ---- Dev-only variant toggle (mirrors the dev switcher chrome) ---- */
-.v-variant-toggle {
-  position: fixed;
-  z-index: 1000;
-  left: 16px;
-  bottom: 16px;
-  background: var(--warm-white);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: var(--font-sans);
-}
-.v-variant-label {
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: var(--ls-eyebrow);
-  text-transform: uppercase;
-  color: var(--fg-muted);
-  padding: 0 8px 0 6px;
-}
-.v-variant-btn {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  font: inherit;
-  font-size: 12px;
-  color: var(--near-black);
-  padding: 6px 10px;
-  border-radius: 2px;
-  cursor: pointer;
-  line-height: 1;
-}
-.v-variant-btn:hover { background: rgba(22, 36, 59, 0.04); }
-.v-variant-btn.is-active {
-  background: var(--navy);
-  color: var(--cream);
-}
-@media (max-width: 480px) {
-  .v-variant-toggle {
-    left: 8px;
-    bottom: 80px; /* stay clear of the sticky CTA */
-  }
-}
-
-/* ---- Outline button (paired with .v-btn) ---- */
-.v-btn-outline {
-  background: transparent;
-  color: var(--navy);
-  border-color: var(--navy);
-}
-.v-btn-outline:hover  { background: rgba(22, 36, 59, 0.04); }
-.v-btn-outline:active { background: rgba(22, 36, 59, 0.08); }
-.v-btn-block { width: 100%; }
-a.v-btn {
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* The sticky bottom CTA lived here. It said "Talk to Ofir Ben Haim and
-   Benjamin Aronson" and sat across the bottom of the range card, a second and
-   weaker copy of the button already inside it. Cut Sep 17. */
-
-@media (max-width: 640px) {
-  .v-result { padding: 40px 20px 56px; }
-  .v-result-header { gap: 14px; margin-bottom: var(--space-6); }
-  .v-result-logo { width: 48px; height: 48px; font-size: 22px; }
-  .v-card { padding: 22px; }
-  .v-card-h { font-size: 20px; margin-bottom: 14px; }
-  .v-range { margin-bottom: 14px; }
-}
-
-/* ---------- Quiet fade between states ---------- */
-.v-fade-in {
-  animation: vFadeIn var(--dur-fade) var(--ease-quiet) both;
-}
-@keyframes vFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* ---------- Dev switcher (only visible when ?dev=1 or hash has dev) ---------- */
-.dev-switcher {
-  position: fixed;
-  z-index: 1000;
-  right: 16px;
-  bottom: 16px;
-  background: var(--warm-white);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  min-width: 180px;
-  max-width: calc(100vw - 32px);
-}
-.dev-switcher.is-collapsed {
-  min-width: 0;
-  padding: 8px 10px;
-}
-.dev-switcher .dev-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.dev-switcher .dev-label {
-  font-weight: 500;
-  letter-spacing: var(--ls-eyebrow);
-  text-transform: uppercase;
-  color: var(--fg-muted);
-  font-size: 10px;
-}
-.dev-switcher .dev-toggle {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  font: inherit;
-  color: var(--fg-muted);
-  cursor: pointer;
-  padding: 2px 4px;
-  line-height: 1;
-}
-.dev-switcher .dev-toggle:hover { color: var(--navy); }
-.dev-switcher .dev-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.dev-switcher .dev-item {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  text-align: left;
-  font: inherit;
-  font-size: 13px;
-  color: var(--near-black);
-  padding: 6px 8px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.dev-switcher .dev-item:hover { background: rgba(22, 36, 59, 0.04); }
-.dev-switcher .dev-item .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--hairline);
-  flex: 0 0 auto;
-}
-.dev-switcher .dev-item.is-active { color: var(--navy); }
-.dev-switcher .dev-item.is-active .dot { background: var(--navy); }
-.dev-switcher .dev-hint {
-  font-size: 11px;
-  color: var(--fg-muted);
-  border-top: var(--border-hairline);
-  padding-top: 6px;
-  margin-top: 2px;
-}
-
-/* ---------- Tiny screens ---------- */
-@media (max-width: 480px) {
-  .v-topbar { padding: 16px 20px; }
-  .v-container { padding: 0 20px; }
-  .v-placeholder { padding: 64px 20px; }
-}
-
-/* ---------- Working screen: five real stages ----------
-   Fixed-width mark column (28px) so all five labels line up. Every active stage
-   gets the same single pulsing dot. The middle stage used to get three bouncing
-   dots because it was the one that dragged; with five real stages there is no
-   single long one left, so the special case went. */
-.v-stages {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 var(--space-5);
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.v-stage {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-family: var(--font-sans);
-  font-size: 18px;
-  line-height: 1.4;
-  transition: color 700ms var(--ease-quiet), opacity 700ms var(--ease-quiet);
-}
-.v-stage-mark {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  position: relative;
-}
-.v-stage-label { min-width: 0; transition: color 700ms var(--ease-quiet); }
-.v-stage.is-pending { color: var(--fg-muted); opacity: 0.45; }
-.v-stage.is-done { color: var(--fg-muted); }
-/* A done step looks done. Full navy, not 75% of it. */
-.v-stage-check {
-  width: 18px;
-  height: 18px;
-  color: var(--navy, #16243B);
-  opacity: 1;
-  animation: vFadeIn var(--dur-fade) var(--ease-quiet) both;
-}
-.v-stage.is-active { color: var(--navy, #16243B); }
-.v-stage.is-active .v-stage-label { font-weight: 500; }
-.v-stage-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--navy, #16243B);
-  animation: vPulseDot 1800ms ease-in-out infinite;
-}
-@keyframes vPulseDot {
-  0%, 100% { opacity: 0.35; transform: scale(0.92); }
-  50%      { opacity: 1;    transform: scale(1); }
-}
-
-/* The long-step line. One stage past 25 seconds, and only then. */
-.v-reassure {
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--fg-muted);
-  margin: 0 0 var(--space-7);
-  max-width: 44ch;
-  opacity: 0;
-  transform: translateY(2px);
-  transition: opacity 800ms var(--ease-quiet), transform 800ms var(--ease-quiet);
-  pointer-events: none;
-}
-.v-reassure.is-visible { opacity: 1; transform: translateY(0); }
-
-/* Error screen: two actions side by side, stacked on mobile */
-.v-error-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-}
-@media (max-width: 480px) {
-  .v-error-actions { flex-direction: column; align-items: stretch; }
-}
-
-/* ---------- Value-point icons ----------
-   The brain flags each point positive or watch. Positive = navy up-arrow,
-   watch = burgundy down-arrow. Thin stroke, no fill, no circle, sits left of
-   the first line. No flag means no icon. */
-.v-card .v-point { display: flex; align-items: flex-start; gap: 8px; }
-.v-card .v-point-icon { flex: 0 0 auto; margin-top: 3px; line-height: 1; }
-.v-card .v-point.v-point-positive .v-point-icon { color: var(--navy, #16243B); }
-.v-card .v-point.v-point-watch .v-point-icon { color: var(--burgundy, #6E2B2B); }
-.v-card .v-point-text { min-width: 0; }
-
-/* ---------- Right to left ----------
-   Only the rules that name a physical side. Everything else in this file is
-   either logical (padding-inline, gap, flex) or laid out with grid, and flips
-   by itself when the root carries dir="rtl". Nothing here can touch the
-   English page: every selector starts at .v-rtl, which only the Hebrew page
-   has. */
-
-/* The dropdown arrow sits at the end of the box, which is now the left. */
-.v-rtl .v-select-chev { right: auto; left: 12px; }
-
-/* The close cross on both popups moves with the corner. */
-.v-rtl .v-modal-close { right: auto; left: 14px; }
-
-/* Two blocks are told to align left in so many words. */
-.v-rtl .v-front-form { text-align: right; }
-.v-rtl .v-disclaimer { text-align: right; }
-
-/* A box holding a web address, an email or a phone keeps its own direction
-   (dir="ltr" is set on the input itself in Valuation.tsx), so the text starts
-   at the left edge of the box even on the Hebrew page. */
-.v-rtl .v-input[dir="ltr"] { text-align: left; }
+/* ─── Right to left ──────────────────────────────────────────────────────── */
+/* Nothing else to flip. Figures, addresses and company names keep their own
+   direction inside a Hebrew line because the page wraps each one in <bdi>,
+   which reads the direction off its own letters: a shekel figure in Latin
+   letters stays left to right, a Hebrew figure stays right to left. The ring's percentage is
+   pinned left to right in the markup, so it reads 42%, never %42. */

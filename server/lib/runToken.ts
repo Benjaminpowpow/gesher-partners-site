@@ -18,7 +18,14 @@
  * without our signature is refused. The client can hold it and return it. It
  * cannot write one.
  */
-import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 import type { SnapshotRun } from "./snapshotEmail";
 
 // Long enough that a man can think it over, short enough that a leaked token is
@@ -92,6 +99,49 @@ export function readRunToken(token: unknown, briefId: string): SnapshotRun | nul
     if (typeof parsed.iat !== "number" || Date.now() - parsed.iat > MAX_AGE_MS) return null;
     const { briefId: _id, iat: _iat, ...run } = parsed;
     return run;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Sealed runs, for the valuation estimate (Oct 1, 2026) ──────────────────
+// The token above is signed, not secret: anyone holding it can read the run
+// inside, range and all. That was fine while the range was on the screen
+// anyway. The estimate keeps the range on the server until the owner leaves a
+// phone or an email (site/35), and "anywhere the browser can see" includes this
+// token. So the estimate's run is sealed: AES-256-GCM, which hides it and
+// proves it is ours in one step. Same secret, same 24 hours, same "null for
+// every failure".
+
+function sealKey(): Buffer {
+  return createHash("sha256").update(`estimate-seal:${secret()}`).digest();
+}
+
+/** Seal a run so the page can carry it and hand it back, unread. */
+export function sealRun(run: object, briefId: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", sealKey(), iv);
+  const plain = Buffer.from(JSON.stringify({ ...run, briefId, iat: Date.now() }), "utf8");
+  const body = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return [iv, body, cipher.getAuthTag()].map(b64url).join(".");
+}
+
+/** Open one, or null: a forged, expired, foreign or garbled token alike. */
+export function openRun<T extends object>(token: unknown, briefId: string): T | null {
+  if (typeof token !== "string" || token.length > 200_000) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const [iv, body, tag] = parts.map(fromB64url);
+    if (iv.length !== 12 || tag.length !== 16) return null;
+    const decipher = createDecipheriv("aes-256-gcm", sealKey(), iv);
+    decipher.setAuthTag(tag);
+    const plain = Buffer.concat([decipher.update(body), decipher.final()]).toString("utf8");
+    const parsed = JSON.parse(plain) as T & { briefId?: string; iat?: number };
+    if (parsed.briefId !== briefId) return null;
+    if (typeof parsed.iat !== "number" || Date.now() - parsed.iat > MAX_AGE_MS) return null;
+    const { briefId: _id, iat: _iat, ...run } = parsed;
+    return run as unknown as T;
   } catch {
     return null;
   }

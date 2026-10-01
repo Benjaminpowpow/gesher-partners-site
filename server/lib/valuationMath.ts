@@ -210,6 +210,69 @@ export function computeRange(input: RangeInput): RangeResult {
   };
 }
 
+// ─── The valuation estimate (Oct 1, 2026) ────────────────────────────────────
+// The bands replaced the typed numbers, and with them the three tiers. Spec:
+// site/35-valuation-lead-magnet.md, "The range math". Profit is the anchor and
+// revenue is only a check, so the range reads the profit band and the
+// industry's own band, nothing else:
+//
+//   LOW  = (band low + a quarter of the band)      x the industry floor
+//   HIGH = (band low + three quarters of the band) x the industry top
+//
+// The middle half of the profit band, so neither edge of a wide band sets the
+// price. The top is the library's own top for that industry (Ben, Oct 1),
+// which is the floor x 1.2 in most rows, held lower where Israeli deals came
+// in lower. At Roltag's 4.2x floor the library top (5.0x) and 4.2 x 1.2
+// (5.04x) print the same check table.
+//
+// Rounding: under ₪10M to the nearest ₪0.5M, ₪10M and up to the nearest ₪1M.
+// That is the rule the check table in 35 was built with (Ben approved the
+// table; "round as today" would have printed ₪6M to ₪10.5M).
+
+export interface EstimateRangeResult {
+  /** "number" prints a range. The other two print the by-hand card. */
+  outcome: "number" | "big" | "by_hand";
+  /** NIS millions, rounded. Zero when there is no number. */
+  lowM: number;
+  highM: number;
+  floor: number;
+  top: number;
+}
+
+/** Under ₪10M to the nearest half million, from ₪10M up to the nearest million. */
+export function roundEstimate(valueInMillions: number): number {
+  return valueInMillions < 10
+    ? Math.round(valueInMillions * 2) / 2
+    : Math.round(valueInMillions);
+}
+
+/**
+ * The range for one industry row and one profit band.
+ *
+ * band: the profit band in NIS millions, hi null for the open top. Over ₪10M
+ * has no number (35, round 3). An industry the library prices on revenue
+ * (dental, healthcare-services) has no profit multiple, so it is priced by
+ * hand until Ben has one (Ben, Oct 1).
+ */
+export function estimateRange(
+  row: Pick<VerticalRow, "floor" | "top" | "margin">,
+  band: { lo: number; hi: number | null },
+): EstimateRangeResult {
+  const none = (outcome: "big" | "by_hand"): EstimateRangeResult => ({
+    outcome,
+    lowM: 0,
+    highM: 0,
+    floor: row.floor,
+    top: row.top,
+  });
+  if (row.margin === undefined) return none("by_hand");
+  if (band.hi === null) return none("big");
+  const width = band.hi - band.lo;
+  const lowM = roundEstimate((band.lo + width / 4) * row.floor);
+  const highM = roundEstimate((band.lo + (3 * width) / 4) * row.top);
+  return { outcome: "number", lowM, highM, floor: row.floor, top: row.top };
+}
+
 /** "₪20M", "₪7.5M". */
 export function formatMoney(value: number): string {
   const m = value / M;

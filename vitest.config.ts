@@ -14,6 +14,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
+    // shared/ holds the rules the page and the server both run (the gate, the
+    // contact rules, the revenue check), so its tests run here too.
+    include: ["server/**/*.test.ts", "server/**/*.spec.ts", "shared/**/*.test.ts"],
   },
 });

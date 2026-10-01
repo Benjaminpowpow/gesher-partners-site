@@ -6,6 +6,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
 import { FAQ_ITEMS, FAQ_ITEMS_HE, type FaqItem } from "@shared/faq";
+import { COPY_V } from "../../client/src/pages/valuationCopy";
 
 /* ─── Homepage head, per language ─────────────────────────────────────────────
  * English lives at the root (/), Hebrew under /he/. Decided 2026-09-16: English
@@ -139,10 +140,10 @@ export function homeLang(reqPath: string): Lang | null {
  * Both pages are indexed and both sit in sitemap.xml as a pair.
  * ──────────────────────────────────────────────────────────────────────────── */
 const VALUATION_HEAD: Record<Lang, { title: string; description: string; ogLocale: string }> = {
+  // site/35, head.title and head.description, from the page's own copy table.
   en: {
-    title: "Free business valuation | Gesher Partners",
-    description:
-      "Paste your website and get an honest value range for your business in a few minutes. Private, built from public sources, from Israel's sell-side advisors.",
+    title: COPY_V.head.title,
+    description: COPY_V.head.description,
     ogLocale: "en_US",
   },
   he: {
@@ -153,6 +154,9 @@ const VALUATION_HEAD: Record<Lang, { title: string; description: string; ogLocal
     ogLocale: "he_IL",
   },
 };
+
+/** A viewport that does not stop pinch-zoom (Lighthouse's meta-viewport). */
+export const ZOOMABLE_VIEWPORT = "width=device-width, initial-scale=1.0";
 
 /** Which valuation page a request path is, if any. */
 export function valuationLang(reqPath: string): Lang | null {
@@ -187,6 +191,16 @@ function localizeValuation(template: string, lang: Lang): string {
 
   if (lang === "he") {
     html = html.replace(/<html[^>]*>/, '<html lang="he" dir="rtl">');
+  } else {
+    // The estimate lets a reader pinch to zoom: its owners are 55 and up, and
+    // index.html caps the zoom for the whole site. Every box on this page is
+    // 16px, so an iPhone does not jump in when one is tapped. The old Hebrew
+    // tool keeps the site's tag until the Hebrew pass. (Valuation.tsx does the
+    // same after a hop from the home page.)
+    html = html.replace(
+      /<meta name="viewport" content="[^"]*"\s*\/>/,
+      `<meta name="viewport" content="${ZOOMABLE_VIEWPORT}" />`,
+    );
   }
 
   const extra = [

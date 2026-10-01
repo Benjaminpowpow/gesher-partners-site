@@ -64,6 +64,29 @@ export interface ValuationRow {
    * column, same reason as the four above.
    */
   lang?: string;
+  /**
+   * The valuation estimate (Oct 1, site/35 "The sheet"). Twelve columns at the
+   * end of the tab, after Language, so every row already there stays in step.
+   * The estimate fills these and leaves the old middle columns (Revenue band,
+   * Profit band, Time to sell, Name, Email, Phone, Asked for the brief?) blank,
+   * so nothing is written twice. Answers are the words he saw on screen.
+   */
+  timeline?: string;
+  /** 1 to 10, as he set the slider. */
+  seriousness?: string;
+  revenueBand?: string;
+  profitBand?: string;
+  employees?: string;
+  note?: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  /** "yes" once he left a phone or an email. */
+  gaveDetails?: string;
+  /** "yes" once he pressed "Talk to us". The hot lead. */
+  askedToSpeak?: string;
+  /** "flag" when revenue and profit cannot both be true. Blank otherwise. */
+  revenueCheck?: string;
 }
 
 export interface LeadRow {
@@ -152,6 +175,38 @@ export async function markValuationBriefRequested(
   });
 }
 
+/**
+ * Fill some columns of a valuation row that is already there, found by its
+ * Brief ID. The estimate writes its row before the engine runs (the answers),
+ * then fills in what the run found, then his details, then "asked to speak".
+ * Only the fields passed are touched. Never throws, never rejects.
+ */
+export async function updateValuationRow(
+  briefId: string,
+  fields: Partial<ValuationRow>,
+): Promise<boolean> {
+  return writeRow("Valuations", { updateBriefId: briefId, ...fields });
+}
+
+/**
+ * Anything an owner typed is text in the Sheet, never a formula. A note that
+ * starts with "=" would otherwise run in Ben's spreadsheet, and a phone number
+ * that starts with "+" would turn into a number and lose its plus. A leading
+ * apostrophe tells Sheets "this is text" and does not show.
+ */
+export function asSheetText(
+  fields: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    out[key] =
+      typeof value === "string" && key !== "updateBriefId" && /^[=+\-@]/.test(value)
+        ? `'${value}`
+        : value;
+  }
+  return out;
+}
+
 /** The one place that actually talks to the Apps Script. */
 async function writeRow(
   tab: "Leads" | "Valuations",
@@ -178,7 +233,7 @@ async function writeRow(
         // The script stamps its own date too. We send ours so the row shows the
         // moment the row hit the server, not the moment the script ran.
         date: new Date().toISOString(),
-        ...fields,
+        ...asSheetText(fields),
       }),
       signal: AbortSignal.timeout(SHEET_TIMEOUT_MS),
     });
