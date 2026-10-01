@@ -1473,10 +1473,16 @@ export default function Valuation({ lang = "en", copy }: { lang?: VLang; copy?: 
     if (missing.length) {
       // Quiet until he presses Continue. Then each missing answer turns red,
       // and the page goes to the first one.
-      const target = document.getElementById(`ve-q-${missing[0]}`);
-      const control = document.getElementById(`ve-${missing[0]}`);
-      if (fromKeyboard) control?.focus({ preventScroll: true });
-      target?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "center" });
+      // After the red lines are on the page: they make it taller, and Safari
+      // drops a smooth scroll that the page grows under.
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          const target = document.getElementById(`ve-q-${missing[0]}`);
+          const control = document.getElementById(`ve-${missing[0]}`);
+          if (fromKeyboard) control?.focus({ preventScroll: true });
+          target?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "center" });
+        });
+      }, 0);
       return;
     }
     setRun(null);
