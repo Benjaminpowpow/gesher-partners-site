@@ -8,7 +8,7 @@ import {
   appendValuationRow,
   markValuationBriefRequested,
 } from "../lib/leadsSheet";
-import { readSite, siteReadBlock } from "../lib/readSite";
+import { noSiteBlock, readSite, siteReadBlock } from "../lib/readSite";
 import {
   VERTICALS,
   computeRange,
@@ -683,20 +683,29 @@ async function handleExitBrief(req: Request, res: Response) {
   // did work, because those were built from what the web says about a business
   // rather than what the business says about itself.
   //
-  // Never blocks and never throws. A site that will not answer comes back null
-  // and the unreadable path works exactly as it did before.
-  const siteRead = await readSite(normalizedUrl);
+  // Never throws. Three outcomes since Sep 30:
+  // - the page, full or thin (a site drawn in the browser gives only its head);
+  // - no page, but the domain exists: the engine searches the exact domain;
+  // - no such domain: unreadable, no engine call, nothing billed.
+  // Until Sep 30 every "no page" ended here, and seven of nine real runs on
+  // Sep 29 and 30 told owners we could not read sites that open fine.
+  const site = await readSite(normalizedUrl);
+  const siteRead = site.read;
   if (siteRead) {
     userMessage += `\n\n${siteReadBlock(siteRead)}`;
     console.log(
       `[exit-brief] read ${siteRead.finalUrl}: ${siteRead.text.length} chars` +
+        (siteRead.thin ? " (thin, page head only)" : "") +
         (siteRead.truncated ? " (truncated)" : ""),
     );
+  } else if (!site.noSuchHost) {
+    console.warn(`[exit-brief] could not read ${normalizedUrl}: ${site.why}. Engine will search the domain.`);
+    userMessage += `\n\n${noSiteBlock(domain ?? normalizedUrl)}`;
   } else {
-    // v2: no site, no run. The model cannot read it either (its only tool is
-    // search), so there is nothing to pay for. The page shows the
-    // "we could not read your site" screen off this meta.
-    console.warn(`[exit-brief] could not read ${normalizedUrl}`);
+    // No such domain. The model would find nothing either, so there is nothing
+    // to pay for. The page shows the "we could not read your site" screen off
+    // this meta.
+    console.warn(`[exit-brief] could not read ${normalizedUrl}: ${site.why}`);
     res.setHeader("Content-Type", "application/x-ndjson");
     res.write(
       JSON.stringify({
@@ -728,6 +737,10 @@ async function handleExitBrief(req: Request, res: Response) {
   // Tell the page when the model starts its web search, so the working screen can
   // show a real "Learning your size and your story" stage, not a fake timer.
   let sentSearching = false;
+  // Set when a run has to be told again that it has the page (see the
+  // readable guard below). Rides on every attempt after that, Hebrew retries
+  // included, so a retry can never fall back into the same refusal.
+  let correction = "";
 
   // One model run. Returns the markdown it wrote. Only the first attempt
   // streams to the page: by the time a Hebrew retry runs, the page's
@@ -776,7 +789,7 @@ async function handleExitBrief(req: Request, res: Response) {
           ? [{ type: "text" as const, text: HEBREW_ADDENDUM }]
           : []),
       ],
-      messages: [{ role: "user", content: userMessage }],
+      messages: [{ role: "user", content: userMessage + correction }],
       stream: true,
       tools: [
         {
@@ -833,6 +846,25 @@ async function handleExitBrief(req: Request, res: Response) {
   try {
     let fullMarkdown = await runModel(BRIEF_MODEL, true);
     let parsed = parseMetaAndBody(fullMarkdown);
+
+    // The readable guard. The server already knows whether it read the page,
+    // so the engine does not get to say "unreadable" about one it was handed.
+    // civileng.co.il (8,000 chars) and selabinui.co.il (5,000 chars) both
+    // came back readable:false on Sep 30, once with the company name filled
+    // in. A business that fits no vertical is a wild card, which still gets
+    // its Market and Value. One quiet retry, same model, told plainly.
+    if (parsed.meta.readable === false && siteRead && !siteRead.thin) {
+      console.warn(`[exit-brief] readable-retry: engine refused a page it had (${siteRead.text.length} chars) briefId=${briefId}`);
+      correction =
+        "\n\nSITE TEXT above is the seller's page and it was read. readable is true. " +
+        "If the business fits no vertical, use wild-card. Write the JSON, then Market and Value.";
+      try {
+        fullMarkdown = await runModel(BRIEF_MODEL, false);
+        parsed = parseMetaAndBody(fullMarkdown);
+      } catch (err) {
+        console.error(`[exit-brief] readable-retry briefId=${briefId} error:`, err);
+      }
+    }
 
     // The Hebrew guard, layers 2 and 3. Runs before anything is saved, cached,
     // emailed or sent as "done", so a run that came back in English never
@@ -970,7 +1002,11 @@ async function handleExitBrief(req: Request, res: Response) {
       ownerSalary: ownerSalary ? `NIS ${ownerSalary}` : "",
       timeToSell: timeToSell ?? "",
       vertical: meta.vertical_matched,
-      path: meta.path_used,
+      // How the site was read, when it was not the normal way, so a soft brief
+      // in the Sheet can be traced: "T1 (thin read)", "wild_card (searched)".
+      path:
+        (meta.path_used ?? "") +
+        (!siteRead ? " (searched, site did not load)" : siteRead.thin ? " (thin read)" : ""),
       seconds: ((Date.now() - startedAt) / 1000).toFixed(1),
       cost: runCostUsd(attempts),
       askedForBrief: "no",
