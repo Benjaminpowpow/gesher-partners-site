@@ -92,6 +92,79 @@ export function scrollToTop(): void {
   window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
 }
 
+// ─── The phone keyboard ─────────────────────────────────────────────────────
+// On a phone the keyboard covers the bottom of the screen without making the
+// page any shorter: only the "visual viewport" shrinks. So while he types his
+// email, the button under it can sit behind the keyboard. These keep it in
+// sight (Ben, Oct 2), without pushing the box he is typing in off the top.
+
+const KEYBOARD_SETTLE_MS = 350; // the keyboard slides up; measure after it has
+
+function visibleArea(): { top: number; bottom: number } {
+  const vv = window.visualViewport;
+  const top = vv ? vv.offsetTop : 0;
+  return { top, bottom: top + (vv ? vv.height : window.innerHeight) };
+}
+
+/** Scroll the page just enough that the button shows above the keyboard. */
+function keepInSight(button: HTMLElement, typing: Element | null): void {
+  const margin = 12;
+  const area = visibleArea();
+  const b = button.getBoundingClientRect();
+  const need = b.bottom - (area.bottom - margin);
+  if (need <= 0) return;
+  // Never so far that the box he is typing in goes above the top.
+  const room = typing ? typing.getBoundingClientRect().top - (area.top + margin) : need;
+  const by = Math.min(need, Math.max(0, room));
+  if (by > 0) window.scrollBy({ top: by, left: 0, behavior: "instant" as ScrollBehavior });
+}
+
+/** For a form in the page (the popup over the range, the inline boxes). */
+function useSubmitInSight(formRef: React.RefObject<HTMLFormElement | null>): void {
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const run = () => {
+      const active = document.activeElement;
+      const button = form.querySelector<HTMLElement>('button[type="submit"]');
+      if (button && active && form.contains(active) && active !== button) keepInSight(button, active);
+    };
+    const onFocus = () => {
+      clearTimeout(timer);
+      timer = setTimeout(run, KEYBOARD_SETTLE_MS);
+    };
+    form.addEventListener("focusin", onFocus);
+    window.visualViewport?.addEventListener("resize", run);
+    return () => {
+      clearTimeout(timer);
+      form.removeEventListener("focusin", onFocus);
+      window.visualViewport?.removeEventListener("resize", run);
+    };
+  }, [formRef]);
+}
+
+/**
+ * For the talk popup, which is pinned to the screen: it follows the visible
+ * area, so it shrinks above the keyboard and scrolls inside itself.
+ */
+function useVisibleBox(): React.CSSProperties | undefined {
+  const [box, setBox] = useState<React.CSSProperties | undefined>(undefined);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setBox({ top: vv.offsetTop, height: vv.height, bottom: "auto" });
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+  return box;
+}
+
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
@@ -1003,6 +1076,10 @@ function Result({
   const [ctaMsg, setCtaMsg] = useState<string | null>(null);
 
   const rangeHeadingRef = useRef<HTMLHeadingElement>(null);
+  const gateFormRef = useRef<HTMLFormElement>(null);
+  const inlineFormRef = useRef<HTMLFormElement>(null);
+  useSubmitInSight(gateFormRef);
+  useSubmitInSight(inlineFormRef);
 
   const token = { briefId: run.briefId, runToken: run.runToken };
 
@@ -1095,6 +1172,7 @@ function Result({
       <>
         <p className="ve-cta-lead">{C.result.specialCta}</p>
         <form
+          ref={inlineFormRef}
           className="ve-inline-form"
           noValidate
           onSubmit={(e) => {
@@ -1210,7 +1288,7 @@ function Result({
 
             {locked && (
               <div className="ve-gate" role="region" aria-labelledby="ve-h-gate">
-                <form className="ve-gate-card" noValidate onSubmit={submitGate}>
+                <form ref={gateFormRef} className="ve-gate-card" noValidate onSubmit={submitGate}>
                   <p className="ve-eyebrow">{C.gate.label}</p>
                   <h2 id="ve-h-gate">{C.gate.heading}</h2>
                   <p className="gsub">{C.gate.sub}</p>
@@ -1310,12 +1388,40 @@ function TalkModal({
   const [tried, setTried] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
   const dialogRef = useRef<HTMLDivElement>(null);
+  const box = useVisibleBox();
+
+  // The send button in sight inside the popup while he types.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onFocus = (e: FocusEvent) => {
+      if (!(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        dialog.querySelector<HTMLElement>('button[type="submit"]')?.scrollIntoView({ block: "nearest" });
+        (e.target as HTMLElement).scrollIntoView({ block: "nearest" });
+      }, KEYBOARD_SETTLE_MS);
+    };
+    dialog.addEventListener("focusin", onFocus);
+    return () => {
+      clearTimeout(timer);
+      dialog.removeEventListener("focusin", onFocus);
+    };
+  }, []);
   const opener = useRef<Element | null>(typeof document !== "undefined" ? document.activeElement : null);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const t = setTimeout(() => dialogRef.current?.querySelector<HTMLElement>("input, textarea, button")?.focus(), 30);
+    // Start on the name box, not the close button, and only if he is not
+    // already in a box: a fast tap must never have its focus pulled away
+    // (a space typed into the close button would close the popup).
+    const t = setTimeout(() => {
+      const dialog = dialogRef.current;
+      if (!dialog || dialog.contains(document.activeElement)) return;
+      dialog.querySelector<HTMLElement>("input, textarea")?.focus();
+    }, 30);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       if (e.key === "Tab" && dialogRef.current) {
@@ -1387,7 +1493,7 @@ function TalkModal({
   }
 
   return (
-    <div className="ve-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="ve-modal-backdrop" style={box} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div ref={dialogRef} className="ve-modal" role="dialog" aria-modal="true" aria-labelledby="ve-talk-title">
         <button type="button" className="ve-modal-close" aria-label={C.talk.closeAriaLabel} onClick={onClose}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
