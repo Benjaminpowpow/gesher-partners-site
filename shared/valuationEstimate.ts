@@ -49,34 +49,39 @@ export const PROFIT_BAND: Record<ProfitCode, { lo: number; hi: number | null }> 
   "over-10": { lo: 10, hi: null },
 };
 
-// The revenue check reads the bands as he picked them, edge to edge, so the
-// bottom of "Under ₪1M" is zero here, not the 0.5 the price uses.
-const PROFIT_FLOOR_AS_PICKED: Record<ProfitCode, number> = {
-  "under-1": 0,
-  "1-2.5": 1,
-  "2.5-5": 2.5,
-  "5-10": 5,
+// The revenue check reads the middle of each band as he picked it. "Under X"
+// has its middle at half of X (Under ₪1M is 0.5 here, not the 0.5 to 1 the
+// price uses). An open top has no middle, so its bottom edge stands in: the
+// smallest it can be, which never flags a pair by guessing high.
+const PROFIT_MID: Record<ProfitCode, number> = {
+  "under-1": 0.5,
+  "1-2.5": 1.75,
+  "2.5-5": 3.75,
+  "5-10": 7.5,
   "over-10": 10,
 };
-const REVENUE_TOP_AS_PICKED: Record<RevenueCode, number> = {
-  "under-5": 5,
-  "5-10": 10,
-  "10-25": 25,
-  "25-50": 50,
-  "over-50": Infinity,
+const REVENUE_MID: Record<RevenueCode, number> = {
+  "under-5": 2.5,
+  "5-10": 7.5,
+  "10-25": 17.5,
+  "25-50": 37.5,
+  "over-50": 50,
 };
+
+/** The profit margin above which the Sheet flags the row (Ben, Oct 2: 30%). */
+export const REVENUE_CHECK_MARGIN = 0.3;
 
 /**
  * The revenue check. True flags the row in the Sheet; the owner still sees his
  * range, revenue is a check, not an input.
  *
- * Ben, Oct 1: only the impossible pairs. That is a profit band that starts at
- * or above the top of the revenue band, so profit would have to be as big as
- * revenue or bigger. Today that is revenue under ₪5M with profit ₪5M or more,
- * and revenue ₪5M to 10M with profit over ₪10M.
+ * Ben, Oct 2: flag when the middle of his profit band divided by the middle
+ * of his revenue band is above 30%. Man Ltd's test (₪2.5M to 5M profit on
+ * ₪5M to 10M revenue) is 3.75 / 7.5 = 50%, a flag. The Oct 1 rule (only
+ * impossible pairs) let it through as "ok".
  */
 export function revenueCheckFails(revenue: RevenueCode, profit: ProfitCode): boolean {
-  return PROFIT_FLOOR_AS_PICKED[profit] >= REVENUE_TOP_AS_PICKED[revenue];
+  return PROFIT_MID[profit] / REVENUE_MID[revenue] > REVENUE_CHECK_MARGIN;
 }
 
 /** Everything the front door collects. Empty string or null is "not answered". */
@@ -141,7 +146,7 @@ export function looksLikeEmail(value: string): boolean {
  * then a way to reach him, then a broken email. A phone alone is enough, an
  * email alone is enough.
  */
-export type ContactProblem = "all" | "name" | "reach" | "emailBad";
+export type ContactProblem = "all" | "name" | "reach" | "phoneBad" | "emailBad";
 
 export function contactProblem(
   name: string,
@@ -154,8 +159,28 @@ export function contactProblem(
   if (!n && !p && !e) return "all";
   if (!n) return "name";
   if (!p && !e) return "reach";
+  if (p && !looksLikeIsraeliPhone(p)) return "phoneBad";
   if (e && !looksLikeEmail(e)) return "emailBad";
   return null;
+}
+
+/**
+ * An Israeli phone number, the way owners write one (Ben, Oct 2). Israeli
+ * numbers only: written with the leading 0 they have 9 digits (a landline,
+ * 03-1234567) or 10 (a mobile, 050-1234567). It may come with +972 (or 00972
+ * or 972) in place of the 0, or with the 0 left off. Spaces, dashes, dots and
+ * brackets are fine. The digit after the 0 is 2 to 9: no Israeli number
+ * starts 01, so "15678728" is turned away, and so is a foreign number.
+ */
+export function looksLikeIsraeliPhone(value: string): boolean {
+  const s = value.trim().replace(/[\s\-.()]/g, "");
+  let national: string;
+  const intl = s.match(/^(?:\+|00)?972(\d+)$/);
+  if (intl) national = intl[1];
+  else if (/^\d+$/.test(s)) national = s;
+  else return false;
+  const withZero = national.startsWith("0") ? national : `0${national}`;
+  return /^0[2-9]\d{7,8}$/.test(withZero);
 }
 
 /**

@@ -210,24 +210,26 @@ export function computeRange(input: RangeInput): RangeResult {
   };
 }
 
-// ─── The valuation estimate (Oct 1, 2026) ────────────────────────────────────
+// ─── The valuation estimate (Oct 1, 2026; band edges since Oct 2) ───────────
 // The bands replaced the typed numbers, and with them the three tiers. Spec:
 // site/35-valuation-lead-magnet.md, "The range math". Profit is the anchor and
 // revenue is only a check, so the range reads the profit band and the
 // industry's own band, nothing else:
 //
-//   LOW  = (band low + a quarter of the band)      x the industry floor
-//   HIGH = (band low + three quarters of the band) x the industry top
+//   LOW  = bottom of the profit band x the industry's low multiple, rounded DOWN
+//   HIGH = top of the profit band    x the industry's high multiple, rounded UP
 //
-// The middle half of the profit band, so neither edge of a wide band sets the
-// price. The top is the library's own top for that industry (Ben, Oct 1),
-// which is the floor x 1.2 in most rows, held lower where Israeli deals came
-// in lower. At Roltag's 4.2x floor the library top (5.0x) and 4.2 x 1.2
-// (5.04x) print the same check table.
+// Ben, Oct 2, after the live test: the edges, not the middle half. A lower low
+// and a higher high, so the range is safe, and "Want a more accurate number?"
+// is the obvious next step. Man Ltd (₪2.5M to 5M at 4.8x to 5.5x) went from
+// ₪15M to ₪24M to ₪12M to ₪28M.
 //
-// Rounding: under ₪10M to the nearest ₪0.5M, ₪10M and up to the nearest ₪1M.
-// That is the rule the check table in 35 was built with (Ben approved the
-// table; "round as today" would have printed ₪6M to ₪10.5M).
+// The low and high multiples are the library's own band for that industry
+// (Section 4 of the bundle).
+//
+// Rounding steps: ₪0.5M under ₪10M, ₪1M from ₪10M up, chosen by the figure
+// before rounding. Down for the low end, up for the high end, so rounding
+// only ever widens the range.
 
 export interface EstimateRangeResult {
   /** "number" prints a range. The other two print the by-hand card. */
@@ -239,11 +241,16 @@ export interface EstimateRangeResult {
   top: number;
 }
 
-/** Under ₪10M to the nearest half million, from ₪10M up to the nearest million. */
-export function roundEstimate(valueInMillions: number): number {
-  return valueInMillions < 10
-    ? Math.round(valueInMillions * 2) / 2
-    : Math.round(valueInMillions);
+/**
+ * Round a figure in millions, down or up: to the half million under 10, to
+ * the million from 10 up. A multiplication like 2.5 x 4.4 comes out of the
+ * computer as 11.000000000000002, which would round up to 12; the figure is
+ * cleaned to nine decimals first so it rounds as the arithmetic says.
+ */
+export function roundEstimate(valueInMillions: number, direction: "down" | "up"): number {
+  const step = valueInMillions < 10 ? 0.5 : 1;
+  const steps = Math.round((valueInMillions / step) * 1e9) / 1e9;
+  return (direction === "down" ? Math.floor(steps) : Math.ceil(steps)) * step;
 }
 
 /**
@@ -267,9 +274,8 @@ export function estimateRange(
   });
   if (row.margin === undefined) return none("by_hand");
   if (band.hi === null) return none("big");
-  const width = band.hi - band.lo;
-  const lowM = roundEstimate((band.lo + width / 4) * row.floor);
-  const highM = roundEstimate((band.lo + (3 * width) / 4) * row.top);
+  const lowM = roundEstimate(band.lo * row.floor, "down");
+  const highM = roundEstimate(band.hi * row.top, "up");
   return { outcome: "number", lowM, highM, floor: row.floor, top: row.top };
 }
 

@@ -100,12 +100,20 @@
 
 .ve-main { padding-inline: 16px; padding-block: 0; display: block; }
 
-/* Progress line: fills as the required answers come in. Full = ready. */
-.ve-progress {
-  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; height: 4px;
-  background: var(--hairline); margin-inline: -16px;
+/* Progress line: fills as the required answers come in. Full = ready. Its
+   small label sits under the inline end of the line (the right in English,
+   the left in Hebrew) and floats, so it never pushes the page down. A soft
+   cream back keeps it readable as the form scrolls under it. */
+.ve-progress-wrap {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; margin-inline: -16px;
 }
+.ve-progress { height: 4px; background: var(--hairline); }
 .ve-progress-fill { height: 100%; width: 0; background: var(--navy); transition: width 320ms var(--ease); }
+.ve-progress-label {
+  position: absolute; inset-block-start: 8px; inset-inline-end: 12px;
+  font-size: 12px; line-height: 1.4; color: var(--taupe); font-variant-numeric: tabular-nums;
+  background: rgba(245, 240, 230, .92); padding: 1px 6px; border-radius: 2px; white-space: nowrap;
+}
 
 /* ─── Screen 1. Front door ───────────────────────────────────────────────── */
 .ve-front { max-width: 560px; margin: 0 auto; padding-block: 56px 88px; }
@@ -262,6 +270,15 @@
 .ve-card p { margin: 0 0 10px; }
 .ve-card p:last-child { margin: 0; }
 .ve-value-item strong { font-weight: 600; color: var(--navy); }
+/* The icon before each Value point (Ben, Oct 2): a check in navy for a
+   strength, an alert in burgundy for the watch. It sits on the first line of
+   the text and the text wraps beside it, not under it. */
+.ve-value-item.has-icon { display: flex; align-items: flex-start; gap: 10px; }
+.ve-value-text { min-width: 0; }
+.ve-value-icon { flex: 0 0 auto; width: 18px; height: 18px; margin-top: calc((1.6em - 18px) / 2); display: grid; }
+.ve-value-icon svg { width: 18px; height: 18px; }
+.ve-value-icon.is-positive { color: var(--navy); }
+.ve-value-icon.is-watch { color: var(--burgundy); }
 
 /* The lock. The blurred cards and the popup share one grid cell, so the zone
    is as tall as whichever is taller and the popup can never spill out over

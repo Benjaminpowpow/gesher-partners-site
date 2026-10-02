@@ -42,6 +42,8 @@ import {
   TIMELINE_CODES,
   answeredCount,
   contactProblem,
+  looksLikeEmail,
+  looksLikeIsraeliPhone,
   missingRequired,
   type ContactProblem,
   type EstimateAnswers,
@@ -84,6 +86,11 @@ const EMPTY_ANSWERS: EstimateAnswers = {
   staff: "",
   note: "",
 };
+
+/** To the very top, at once. The site's base CSS makes scrolling smooth. */
+export function scrollToTop(): void {
+  window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+}
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -177,10 +184,10 @@ function withBdi(title: (company: string) => string, company: string): React.Rea
  */
 function parseCards(md: string): {
   market: string[];
-  value: { watch: boolean; label: string; body: string }[];
+  value: { watch: boolean; tagged: boolean; label: string; body: string }[];
 } {
   const market: string[] = [];
-  const value: { watch: boolean; label: string; body: string }[] = [];
+  const value: { watch: boolean; tagged: boolean; label: string; body: string }[] = [];
   let cur: "market" | "value" | null = null;
   for (const raw of (md || "").split("\n")) {
     const line = raw.trim();
@@ -198,9 +205,10 @@ function parseCards(md: string): {
     let text = line.replace(/^\s*[-*•]\s+/, "");
     const flag = text.match(/^(\*\*)?\s*(positive|watch):\s*/i);
     const watch = flag ? flag[2].toLowerCase() === "watch" : false;
+    const tagged = Boolean(flag);
     if (flag) text = (flag[1] || "") + text.slice(flag[0].length);
     const bold = text.match(/^\*\*(.+?)\*\*\s*(.*)$/);
-    value.push(bold ? { watch, label: bold[1].trim(), body: bold[2].trim() } : { watch, label: "", body: text });
+    value.push(bold ? { watch, tagged, label: bold[1].trim(), body: bold[2].trim() } : { watch, tagged, label: "", body: text });
   }
   return { market, value };
 }
@@ -343,7 +351,40 @@ function Confidential({ text }: { text: string }) {
 }
 
 function problemText(C: VCopy, p: ContactProblem): string {
-  return { all: C.gate.errAll, name: C.gate.errName, reach: C.gate.errReach, emailBad: C.gate.errEmailBad }[p];
+  return {
+    all: C.gate.errAll,
+    name: C.gate.errName,
+    reach: C.gate.errReach,
+    phoneBad: C.gate.errPhoneBad,
+    emailBad: C.gate.errEmailBad,
+  }[p];
+}
+
+const PROBLEMS = new Set<string>(["all", "name", "reach", "phoneBad", "emailBad"]);
+
+/** The server's answer to a bad form, as the line to show. */
+function serverProblem(C: VCopy, p: unknown): string {
+  return typeof p === "string" && PROBLEMS.has(p) ? problemText(C, p as ContactProblem) : C.server.busy;
+}
+
+/**
+ * The icon before each Value point (Ben, Oct 2): a check for a strength, an
+ * alert for the watch, in the brand's navy and burgundy. A point the engine
+ * did not tag gets no icon; the page never guesses.
+ */
+function ValueIcon({ watch }: { watch: boolean }) {
+  return (
+    <span className={"ve-value-icon" + (watch ? " is-watch" : " is-positive")} aria-hidden="true">
+      <svg viewBox="0 0 16 16">
+        <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.3" />
+        {watch ? (
+          <path d="M8 4.2v4.6M8 11.2v.4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        ) : (
+          <path d="M5 8.3l2 2 4-4.3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        )}
+      </svg>
+    </span>
+  );
 }
 
 /** Name, phone and email: the popup's boxes and the inline form's boxes. */
@@ -1002,7 +1043,7 @@ function Result({
       return;
     }
     const p = r.data.problem;
-    setGateMsg(typeof p === "string" && p in { all: 1, name: 1, reach: 1, emailBad: 1 } ? problemText(C, p as ContactProblem) : C.server.busy);
+    setGateMsg(serverProblem(C, p));
   }
 
   async function talk(withDetails: boolean) {
@@ -1030,7 +1071,7 @@ function Result({
       return;
     }
     const p = r.data.problem;
-    setCtaMsg(typeof p === "string" && p in { all: 1, name: 1, reach: 1, emailBad: 1 } ? problemText(C, p as ContactProblem) : C.server.busy);
+    setCtaMsg(serverProblem(C, p));
   }
 
   const done = (
@@ -1129,13 +1170,16 @@ function Result({
                 <article className="ve-card" aria-labelledby="ve-h-value">
                   <h2 id="ve-h-value">{C.result.cardValue}</h2>
                   {cards.value.map((v, i) => (
-                    <p className="ve-value-item" key={i}>
-                      {v.label && (
-                        <>
-                          <strong>{v.watch && !/^watch\b/i.test(v.label) ? C.result.watchLabel(v.label) : v.label}</strong>{" "}
-                        </>
-                      )}
-                      {renderInline(v.body)}
+                    <p className={"ve-value-item" + (v.tagged ? " has-icon" : "")} key={i}>
+                      {v.tagged && <ValueIcon watch={v.watch} />}
+                      <span className="ve-value-text">
+                        {v.label && (
+                          <>
+                            <strong>{v.watch && !/^watch\b/i.test(v.label) ? C.result.watchLabel(v.label) : v.label}</strong>{" "}
+                          </>
+                        )}
+                        {renderInline(v.body)}
+                      </span>
                     </p>
                   ))}
                 </article>
@@ -1299,20 +1343,23 @@ function TalkModal({
   }, [onClose]);
 
   const isEmail = reach.includes("@");
-  const problem = !tried
-    ? null
-    : !name.trim()
-      ? C.talk.errName
-      : !reach.trim()
-        ? C.talk.errReachMissing
-        : isEmail && contactProblem(name, "", reach) === "emailBad"
-          ? C.talk.errEmailBad
-          : null;
+  // One box for a phone or an email. An email has to look whole, and a phone
+  // has to be Israeli (Ben, Oct 2), the same rules as the popup.
+  const reachProblem = !reach.trim()
+    ? C.talk.errReachMissing
+    : isEmail
+      ? looksLikeEmail(reach)
+        ? null
+        : C.talk.errEmailBad
+      : looksLikeIsraeliPhone(reach)
+        ? null
+        : C.gate.errPhoneBad;
+  const problem = !tried ? null : !name.trim() ? C.talk.errName : reachProblem;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setTried(true);
-    if (!name.trim() || !reach.trim() || (isEmail && contactProblem(name, "", reach) === "emailBad")) return;
+    if (!name.trim() || reachProblem) return;
     if (status === "sending") return;
     setStatus("sending");
     const r = await postJson("/api/contact", {
@@ -1455,15 +1502,17 @@ export default function Valuation({ lang = "en", copy }: { lang?: VLang; copy?: 
     };
   }, [lang, dir]);
 
-  // Each screen starts at the top with its heading focused, so a screen
-  // reader hears where it is and Tab starts from there.
+  // Each screen starts at the very top (Ben, Oct 2: a phone landed in the
+  // middle of the page), at once, not with the site's smooth scroll. After
+  // the first one, its heading takes the focus too, so a screen reader hears
+  // where it is and Tab starts from there.
   const first = useRef(true);
   useEffect(() => {
+    scrollToTop();
     if (first.current) {
       first.current = false;
       return;
     }
-    window.scrollTo(0, 0);
     document.querySelector<HTMLElement>(".ve-main h1")?.focus({ preventScroll: true });
   }, [screen]);
 
@@ -1498,6 +1547,7 @@ export default function Valuation({ lang = "en", copy }: { lang?: VLang; copy?: 
   const closeTalk = useCallback(() => setTalkOpen(false), []);
 
   const done = answeredCount(answers);
+  const percent = Math.round((done / REQUIRED_FIELDS.length) * 100);
 
   return (
     <VCtx.Provider value={{ copy: C, lang }}>
@@ -1530,15 +1580,23 @@ export default function Valuation({ lang = "en", copy }: { lang?: VLang; copy?: 
         <main className="ve-main" id="main">
           {screen === "front" && (
             <>
-              <div
-                className="ve-progress"
-                role="progressbar"
-                aria-label={C.front.progressAriaLabel}
-                aria-valuemin={0}
-                aria-valuemax={REQUIRED_FIELDS.length}
-                aria-valuenow={done}
-              >
-                <div className="ve-progress-fill" style={{ width: `${(done / REQUIRED_FIELDS.length) * 100}%` }} />
+              {/* The thin line pinned to the top, and its small label at the end:
+                  one step per required answer, 0% to 100% (Ben, Oct 2). */}
+              <div className="ve-progress-wrap">
+                <div
+                  className="ve-progress"
+                  role="progressbar"
+                  aria-label={C.front.progressAriaLabel}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={percent}
+                  aria-valuetext={C.front.progress(percent)}
+                >
+                  <div className="ve-progress-fill" style={{ width: `${percent}%` }} />
+                </div>
+                <span className="ve-progress-label" aria-hidden="true">
+                  {C.front.progress(percent)}
+                </span>
               </div>
               <FrontDoor answers={answers} setAnswers={setAnswers} tried={tried} onContinue={onContinue} />
             </>

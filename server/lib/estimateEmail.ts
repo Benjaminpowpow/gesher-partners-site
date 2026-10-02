@@ -192,3 +192,46 @@ export function buildEstimateEmailText(letter: EstimateLetter, to: { name?: stri
   lines.push("", `${c.closeLead} ${c.closeBody}`, "", c.closeRead, "", c.signName, c.signFirm, "", c.fine);
   return lines.join("\n");
 }
+
+// ─── The confirmation, when he presses "Talk to us" (Ben, Oct 2) ────────────
+// One short note, only when he left an email. His words, signed by both.
+// Same masthead and type as the letter, nothing else.
+
+export function talkConfirmationSubject(lang?: VLang): string {
+  return copyFor(lang).email.talkSubject;
+}
+
+export function buildTalkConfirmationHtml(lang?: VLang): string {
+  const l = lang === "he" ? "he" : "en";
+  const dir = l === "he" ? "rtl" : "ltr";
+  const c = copyFor(l).email;
+  const start = dir === "rtl" ? "right" : "left";
+  return `<!doctype html>
+<html dir="${dir}" lang="${l}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(c.talkSubject)}</title></head>
+<body style="margin:0;padding:0;background:#f4efe5;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4efe5;">
+<tr><td align="center" style="padding:24px 12px;">
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" dir="${dir}"
+         style="width:600px;max-width:600px;background:#ffffff;border-collapse:collapse;">
+    <tr><td align="${start}" style="padding:18px 40px;border-bottom:1px solid ${LINE};">
+      <img src="${GESHER_LOGO_URL}" width="${GESHER_LOGO_W}" height="${GESHER_LOGO_H}"
+           alt="Gesher" style="display:block;border:0;width:${GESHER_LOGO_W}px;height:${GESHER_LOGO_H}px;">
+    </td></tr>
+    <tr><td style="padding:28px 40px 32px;">
+      ${para(escapeHtml(c.talkBody))}
+      <p style="margin:0;font-family:${FONT_SERIF};font-size:17px;line-height:1.4;color:${NAVY};">
+        ${escapeHtml(c.signName)}<br>${escapeHtml(c.signFirm)}
+      </p>
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body></html>`;
+}
+
+export function buildTalkConfirmationText(lang?: VLang): string {
+  const c = copyFor(lang).email;
+  return [c.talkBody, "", c.signName, c.signFirm].join("\n");
+}

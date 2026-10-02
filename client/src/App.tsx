@@ -20,12 +20,25 @@ const ValuationRtlPreview = import.meta.env.DEV
   ? lazy(() => import("./pages/ValuationRtlPreview"))
   : () => null;
 
+// Every page starts at the very top (Ben, Oct 2: on a phone, the home page's
+// menu took him to /valuation halfway down). The browser keeps the old scroll
+// on a client-side hop and puts it back on the back button, so both are
+// turned off here. A link to a section ("/#how") is left to the page, which
+// jumps to it itself.
+if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
+  window.history.scrollRestoration = "manual";
+}
+
 function Router() {
   // Meta needs a PageView on each client-side route change. GA4 counts these
   // itself. See lib/analytics.ts.
   const [location] = useLocation();
   useEffect(() => {
     trackPageView(location);
+    if (!window.location.hash) {
+      // At once: the site's base CSS makes scrolling smooth.
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    }
   }, [location]);
 
   return (

@@ -65,11 +65,15 @@ import { countDomainRun, countRun, gateRefusal, getClientIp } from "../lib/runGa
 import { appendValuationRow, updateValuationRow, type ValuationRow } from "../lib/leadsSheet";
 import { noSiteBlock, readSite, siteReadBlock } from "../lib/readSite";
 import { VERTICALS, estimateRange } from "../lib/valuationMath";
+import { briefProblems, tidyBrief, trimMarket } from "../lib/briefShape";
 import { openRun, sealRun } from "../lib/runToken";
 import {
   buildEstimateEmailHtml,
   buildEstimateEmailText,
+  buildTalkConfirmationHtml,
+  buildTalkConfirmationText,
   estimateSubject,
+  talkConfirmationSubject,
   type EstimateLetter,
 } from "../lib/estimateEmail";
 import { NOTIFY_EMAIL, esc, sender } from "../lib/mail";
@@ -141,6 +145,7 @@ export function clearEstimateStateForTests(): void {
   runStore.clear();
   briefCache.clear();
   emailed.clear();
+  confirmed.clear();
 }
 
 // ─── The Sheet, in order ────────────────────────────────────────────────────
@@ -444,7 +449,40 @@ async function handleEstimate(req: Request, res: Response) {
 
     const meta = brief.meta;
     if (meta.company_name) meta.company_name = meta.company_name.trim().replace(/\.+$/, "").trim();
-    const resultMd = marketAndValue(brief.resultMd);
+
+    // Short and honest (Ben, Oct 2). Each Value point is cut to its label and
+    // first sentence. If the cards still break the rules (Market over 40
+    // words, a point over 20, a watch that guesses), one quiet retry is told
+    // exactly what to fix. The retry's cards are kept only if they are better,
+    // and the first run's industry stays, so the price never moves on a retry.
+    // Last, Market is cut to whole sentences that fit. Log: "shape-retry".
+    let resultMd = tidyBrief(marketAndValue(brief.resultMd));
+    let problems = meta.readable === false || !hasCards(resultMd) ? [] : briefProblems(resultMd);
+    if (problems.length) {
+      console.warn(`[estimate] shape-retry briefId=${briefId}: ${problems.join(" | ")}`);
+      try {
+        const again = await runEngine({
+          anthropic,
+          model: BRIEF_MODEL,
+          lang,
+          userMessage:
+            userMessage +
+            "\n\nYour first answer broke these rules. Write the JSON and both cards again, fixing them:\n- " +
+            problems.join("\n- "),
+          attempts,
+        });
+        const retried = tidyBrief(marketAndValue(parseMetaAndBody(again).resultMd));
+        const left = briefProblems(retried);
+        if (hasCards(retried) && left.length < problems.length) {
+          resultMd = retried;
+          problems = left;
+        }
+      } catch (err) {
+        console.error(`[estimate] shape-retry briefId=${briefId} error:`, err);
+      }
+      if (problems.length) console.warn(`[estimate] shape-retry left briefId=${briefId}: ${problems.join(" | ")}`);
+    }
+    resultMd = trimMarket(resultMd);
     const cost = runCostUsd(attempts);
 
     if (meta.readable === false || !hasCards(resultMd)) {
@@ -603,6 +641,37 @@ async function sendOwnerEmail(briefId: string, run: EstimateRun, who: Contact): 
   }
 }
 
+// One confirmation per run, however many times "Talk to us" is pressed.
+const confirmed = new Set<string>();
+
+/**
+ * The short note when he presses "Talk to us" (Ben, Oct 2): "We got your
+ * request." Only when he left an email, only once per run.
+ */
+async function sendTalkConfirmation(briefId: string, run: EstimateRun, who: Contact): Promise<void> {
+  if (!who.email || confirmed.has(briefId)) return;
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    console.error(`[estimate] RESEND_API_KEY not set. No confirmation to the owner, briefId=${briefId}`);
+    return;
+  }
+  confirmed.add(briefId);
+  try {
+    await new Resend(key).emails.send({
+      from: sender("Gesher"),
+      to: who.email,
+      replyTo: NOTIFY_EMAIL,
+      subject: talkConfirmationSubject(run.lang),
+      html: buildTalkConfirmationHtml(run.lang),
+      text: buildTalkConfirmationText(run.lang),
+    });
+    console.log(`[estimate] confirmed the talk request, briefId=${briefId}`);
+  } catch (err) {
+    confirmed.delete(briefId);
+    console.error(`[estimate] confirmation failed, briefId=${briefId}:`, err);
+  }
+}
+
 /**
  * Ben's copy, to office@. Internal, English, every field on one screen. The
  * Sheet is the list; this is the tap on the shoulder.
@@ -709,6 +778,7 @@ async function handleTalk(req: Request, res: Response) {
     // email only; the Sheet has them.
     sheetThen(briefId, () => updateValuationRow(briefId, { askedToSpeak: "yes" }));
     res.json({ ok: true });
+    void sendTalkConfirmation(briefId, run, who);
     void notifyBen("talk", briefId, run, who);
     return;
   }
@@ -730,7 +800,9 @@ async function handleTalk(req: Request, res: Response) {
     }),
   );
   res.json({ ok: true });
-  void sendOwnerEmail(briefId, run, who);
+  // His estimate letter first, then the short confirmation, both only when he
+  // left an email. In that order, so the confirmation is the last word.
+  void sendOwnerEmail(briefId, run, who).then(() => sendTalkConfirmation(briefId, run, who));
   void notifyBen("talk", briefId, run, who);
 }
 

@@ -54,8 +54,10 @@ const COPY_V = {
   /* ─── Screen 1. The front door ───────────────────────────────────────── */
   front: {
     headline: "Free business value estimate",
-    // front.progress has no words on screen. This is its name for a screen
-    // reader. From the locked mockup.
+    // The small label at the end of the progress line (Ben, Oct 2): one step
+    // per required answer, 0% to 100%.
+    progress: (percent: number) => `${percent}% complete`,
+    // The progress line's name for a screen reader. From the locked mockup.
     progressAriaLabel: "Questions answered",
     urlLabel: "What is your company website?",
     urlPlaceholder: "yourcompany.co.il",
@@ -150,6 +152,8 @@ const COPY_V = {
     errAll: "Please add your name, and a phone number or an email.",
     errName: "Please add your name.",
     errReach: "Fill in a phone number or an email. One is enough.",
+    // Israeli numbers only (Ben, Oct 2).
+    errPhoneBad: "That phone number looks incomplete. Check it and try again.",
     errEmailBad: "That email looks incomplete. Check it and try again.",
     confidential: "100% confidential. We never share your details.",
     submit: "Show my range",
@@ -251,6 +255,10 @@ const COPY_V = {
       "For a more accurate number, we need your financial statements. Reply to this email and we will send you an NDA first. If you would rather talk first, just say so.",
     closeRead: "We read every reply ourselves.",
     fine: "An estimate, not a formal valuation. Not an offer, or advice to buy or sell.",
+    // The short note when he presses "Talk to us" and left an email (Ben,
+    // Oct 2). Nothing goes if he left only a phone.
+    talkSubject: "We got your request",
+    talkBody: "We got your request. Ofir or Benjamin will reach out shortly.",
     // Kept from the old letter.
     privateLabel: "Strictly private",
     signName: "Ofir and Benjamin",
