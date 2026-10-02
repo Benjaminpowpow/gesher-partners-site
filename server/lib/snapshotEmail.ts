@@ -273,7 +273,7 @@ function isolateCompany(company: string, lang?: string): string {
 }
 
 // The letter's visible title, with the company in a <bdi> of its own.
-function titleHtml(c: { title: (company: string) => string }, company: string): string {
+export function titleHtml(c: { title: (company: string) => string }, company: string): string {
   const [before, after = ""] = c.title("\u0000").split("\u0000");
   return `${escapeHtml(before)}<bdi>${escapeHtml(company)}</bdi>${escapeHtml(after)}`;
 }
@@ -283,22 +283,22 @@ function titleHtml(c: { title: (company: string) => string }, company: string): 
 // fonts: Gmail strips all four. Georgia for the letter, Arial for labels and
 // fine print, because those two are on every machine that will open this.
 
-const NAVY = "#16243b";
-const INK = "#2b2e35";
-const MUTED = "#77715f";
-const LINE = "#e2dbcb";
-const BURGUNDY = "#7b2d2d";
-const FINE = "#8d887a";
+export const NAVY = "#16243b";
+export const INK = "#2b2e35";
+export const MUTED = "#77715f";
+export const LINE = "#e2dbcb";
+export const BURGUNDY = "#7b2d2d";
+export const FINE = "#8d887a";
 
-const FONT_SERIF = "Georgia, 'Times New Roman', serif";
-const FONT_SANS = "Arial, Helvetica, sans-serif";
+export const FONT_SERIF = "Georgia, 'Times New Roman', serif";
+export const FONT_SANS = "Arial, Helvetica, sans-serif";
 
 /** Where the hosted Gesher lockup lives. Absolute, because email has no origin. */
 export const GESHER_LOGO_URL = "https://gesherpartners.com/brand/gesher-lockup-email.png";
-const GESHER_LOGO_W = 132;
-const GESHER_LOGO_H = 46;
+export const GESHER_LOGO_W = 132;
+export const GESHER_LOGO_H = 46;
 
-function label(text: string, align: string, rtl = false): string {
+export function label(text: string, align: string, rtl = false): string {
   // Wide tracking suits English capitals only. Spaced Hebrew letters look broken.
   return (
     `<span style="font-family:${FONT_SANS};font-size:11px;letter-spacing:${rtl ? "0" : ".16em"};` +
@@ -306,21 +306,21 @@ function label(text: string, align: string, rtl = false): string {
   );
 }
 
-function small(text: string): string {
+export function small(text: string): string {
   return (
     `<span style="font-family:${FONT_SANS};font-size:14px;line-height:1.55;color:${MUTED};">` +
     `${escapeHtml(text)}</span>`
   );
 }
 
-function para(html: string): string {
+export function para(html: string): string {
   return (
     `<p style="margin:0 0 18px;font-family:${FONT_SERIF};font-size:17px;` +
     `line-height:1.68;color:${INK};">${html}</p>`
   );
 }
 
-function leadIn(text: string): string {
+export function leadIn(text: string): string {
   return `<span style="font-weight:bold;color:${NAVY};">${escapeHtml(text)}</span> `;
 }
 
@@ -329,7 +329,7 @@ function leadIn(text: string): string {
  * bordered square with the first letter. The square is not a failure state. It
  * is always sharp, and it never shows a stranger a broken image.
  */
-function companyMark(run: SnapshotRun, alt: string): string {
+export function companyMark(run: Pick<SnapshotRun, "logoUrl">, alt: string): string {
   const box =
     "width:58px;height:58px;border:1px solid " + LINE + ";background:#ffffff;text-align:center;";
   if (run.logoUrl) {

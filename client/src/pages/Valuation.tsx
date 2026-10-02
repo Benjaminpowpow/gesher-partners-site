@@ -1,317 +1,104 @@
 /**
- * /valuation — the Valuation Snapshot page.
+ * /valuation: the valuation estimate, a lead magnet.
  *
- * One page, six states (front door, working, result, lead capture, success, error).
- * Ported from the Claude design (tools/exit-brief/page-design) into the repo's
- * React + TypeScript. The dev-only Tweaks panel and state switcher were dropped.
+ * Spec: site/35-valuation-lead-magnet.md. Look: site/36-valuation-estimate-
+ * mock.html, locked by Ben on Oct 1 2026 and ported here as it is.
  *
- * It is wired to the v7 engine:
- *  - Working calls POST /api/exit-brief, reads the stream, and on "done" pulls the
- *    JSON meta (company, range, buyer types) plus result_md.
- *  - Result renders Market + Value from result_md, and builds the Range card from
- *    the meta fields (range_variant, range_text, buyer_types) per 07-page-skill-bridge.
- *  - Lead capture posts to /api/exit-brief/pdf-request with the briefId.
+ * Four screens. The front door asks seven questions, five of them required,
+ * behind a quiet gate. The working screen follows the engine's real signals.
+ * The result shows his company, the Market card in clear, and the Value card
+ * and the range blurred under a popup; his name and a phone or an email open
+ * the range. Two cases have no number (the engine cannot tell what the
+ * business does, or profit is over ₪10M): no lock, and the contact boxes sit
+ * in the card. The error screen catches the rest.
  *
- * LANGUAGE. One component, two copy tables, exactly like Home.tsx. Every word
- * on this page lives in valuationCopy.ts and reaches the screen through
- * VCopyContext. English is at /valuation, Hebrew at /he/valuation, and the
- * route picks which table is handed down. The Hebrew page renders right to
- * left: lang="he" dir="rtl" plus the .v-rtl class on the page root, which
- * valuation.css keys its few visual flips off. Never write a sentence inline
- * in this file again; it makes the Hebrew twin impossible to keep in step.
+ * THE LOCK IS ON THE SERVER. This page never holds the range until
+ * /api/valuation/unlock sends it, after his details are saved. The figure
+ * under the blur is a placeholder. See server/routes/valuationEstimate.ts.
+ *
+ * WORDS. Every word on this page comes from valuationCopy.ts through the
+ * context below. Never write a sentence inline in this file. Hebrew is a copy
+ * swap: the layout is logical, figures sit in <bdi>, the slider follows dir.
+ * Until the Hebrew pass, /he/valuation runs the old tool (ValuationLegacy.tsx).
  */
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Lockup } from "@/components/Lockup";
 import {
-  COPY_V,
   HEBREW_VALUATION_LIVE,
-  TIME_TO_SELL_VALUES,
   VALUATION_COPY,
+  VALUATION_PATH,
   WORKING_STAGE_IDS,
-  otherLangHref,
-  type TimeToSellValue,
   type VCopy,
   type VLang,
 } from "./valuationCopy";
-import "./valuation.css";
 import {
-  trackContactSubmit,
-  trackTalkClick,
-  trackValuationDone,
-  trackValuationStart,
-} from "@/lib/analytics";
+  NOTE_MAX,
+  PROFIT_CODES,
+  REQUIRED_FIELDS,
+  REVENUE_CODES,
+  SERIOUS_MAX,
+  SERIOUS_MIN,
+  STAFF_CODES,
+  TIMELINE_CODES,
+  answeredCount,
+  contactProblem,
+  missingRequired,
+  type ContactProblem,
+  type EstimateAnswers,
+  type EstimateVariant,
+  type RequiredField,
+} from "@shared/valuationEstimate";
+import { trackContactSubmit, trackTalkClick, trackValuationDone, trackValuationStart } from "@/lib/analytics";
+import "./valuation.css";
 
-// Every "talk to us" on this page opens a small form right here. It used to be
-// a link to /#contact, which dropped the owner at the top of the home page with
-// no form in sight, because this is a single-page app and the browser had
-// nothing to scroll to yet. He had just been shown his range. Sending him away
-// to hunt for a form at that exact moment was the worst place on the site to
-// lose him. On the home page "talk to us" still scrolls to the form, because
-// there the form is already on the page.
-//
-// The buttons live in five different child components, so the page listens for
-// one event rather than threading a setter through all of them. placement says
-// which button it was, for GA4 and Meta (lib/analytics.ts).
-const TALK_EVENT = "gesher:talk";
+// ─── Language plumbing ──────────────────────────────────────────────────────
+const VCtx = createContext<{ copy: VCopy; lang: VLang }>({ copy: VALUATION_COPY.en, lang: "en" });
+const useV = () => useContext(VCtx);
 
-function openTalk(placement: string): void {
-  window.dispatchEvent(new CustomEvent(TALK_EVENT, { detail: { placement } }));
+type Screen = "front" | "working" | "result" | "error";
+
+/** What a finished run hands the result screen. The range is not in here. */
+interface RunResult {
+  briefId: string;
+  runToken: string;
+  variant: EstimateVariant;
+  company: string;
+  oneliner: string;
+  resultMd: string;
+  logo: string;
+  domain: string;
 }
 
-type ScreenId =
-  | "front-door"
-  | "working"
-  | "result"
-  | "lead-capture"
-  | "success"
-  | "error";
-
-interface Company {
+interface Contact {
   name: string;
-  oneliner?: string;
-  domain?: string;
+  phone: string;
+  email: string;
 }
 
-interface Ctx {
-  url: string;
-  /** What he typed, verbatim. parseAmount turns it into a number at send time. */
-  revenue: string;
-  profit: string;
-  /** One of TIME_TO_SELL. The one field here that tells Ben who to call today. */
-  timeToSell: string;
-  briefId?: string;
-  /**
-   * The finished run, signed by the server. Held so the brief can still be
-   * emailed after a deploy has emptied the server's in-memory store, which is
-   * what made a real request fail on Sep 17.
-   */
-  runToken?: string;
-  company?: Company;
-  resultMd?: string;
-  rangeVariant?: "number" | "by-hand";
-  rangeText?: string;
-  buyerTypes?: string;
-  lead?: { name: string; email: string; phone: string };
-  // What the server said when it refused. Set only when the server sent a real
-  // sentence, which is how the daily cap reaches the seller. Everything else
-  // keeps the page's own "we could not read that site" wording.
-  errorMessage?: string;
+const EMPTY_ANSWERS: EstimateAnswers = {
+  url: "",
+  timeline: "",
+  serious: null,
+  revenue: "",
+  profit: "",
+  staff: "",
+  note: "",
+};
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
-type Patch = Partial<Ctx>;
-type Go = (next: ScreenId, patch?: Patch) => void;
-
-interface StateProps {
-  ctx: Ctx;
-  go: Go;
-  setCtx: React.Dispatch<React.SetStateAction<Ctx>>;
-}
-
-// ─── Language plumbing ───────────────────────────────────────────────────────
-// Same shape as Home.tsx: one context carrying the copy table and the language,
-// so no component below has to be handed a prop it does not use.
-const VCopyContext = createContext<{ copy: VCopy; lang: VLang }>({
-  copy: VALUATION_COPY.en,
-  lang: "en",
-});
-const useVCopy = () => useContext(VCopyContext);
-
-// The language switch, "EN / עב", both always visible, the active one bold
-// navy. Real anchors, not client-side routes, so the server sends the right
-// per-language head with the new page. Hidden behind HEBREW_VALUATION_LIVE
-// until the Hebrew words exist; the routes work either way.
-function VLangSwitch() {
-  const { copy: C, lang } = useVCopy();
-  if (!HEBREW_VALUATION_LIVE) return null;
-  const isHe = lang === "he";
-  const search = typeof window === "undefined" ? "" : window.location.search;
-  const here = isHe ? "/he/valuation" : "/valuation";
-  const there = otherLangHref(lang, search);
-  return (
-    <div className="v-lang-switch" role="group" aria-label={C.nav.langAriaLabel}>
-      <a
-        href={isHe ? there : here}
-        lang="en"
-        className={isHe ? undefined : "lang-on"}
-        aria-current={isHe ? undefined : "true"}
-      >
-        {C.nav.langEn}
-      </a>
-      <span className="lang-sep" aria-hidden="true">
-        /
-      </span>
-      <a
-        href={isHe ? here : there}
-        lang="he"
-        className={isHe ? "lang-on" : undefined}
-        aria-current={isHe ? "true" : undefined}
-      >
-        {C.nav.langHe}
-      </a>
-    </div>
-  );
-}
-
-// ─── Intake ──────────────────────────────────────────────────────────────────
-// Revenue and profit used to be dropdowns of bands, and the engine was handed
-// the midpoint of whichever band he picked. So an owner turning over 21M and one
-// turning over 49M both arrived as 35M. Ben killed the bands on Sep 17: he types
-// the number now, and the engine gets the number he typed.
-//
-// Owner salary is gone entirely. It was the third box in a row of three, it is
-// the most personal thing on the page, and it was asked before the man had any
-// reason to trust us.
-
-// How long until he wants to be out. The one thing on this form that tells Ben
-// who to call today, which is what Ofir keeps asking for.
-// Digits, not words. A man scanning a dropdown reads "6" faster than "six",
-// and these are five options he is meant to pick from at a glance.
-//
-// The five codes live in valuationCopy.ts (TIME_TO_SELL_VALUES) and the labels
-// sit beside them in each language's table.
+// ─── Small helpers ──────────────────────────────────────────────────────────
 
 /**
- * Read a number the way a business owner writes one.
- *
- * "12M", "1.2m", "₪4,500,000", "750000", "2.5 million", "12 מיליון" all have to
- * land on the same number, because this box replaced a dropdown and the whole
- * point of losing the dropdown was that he stops rounding himself into a bucket.
- *
- * Returns undefined when there is no number in there at all, which the caller
- * treats as "he skipped it", not as an error.
+ * Whatever he typed into the box on the home page. It rides in history state,
+ * never in the address, so GA4 and the Meta Pixel cannot record his company.
+ * An old ?site= link still works and is cleaned off the address on arrival.
  */
-function parseAmount(raw: string): number | undefined {
-  const text = raw.trim().toLowerCase();
-  if (!text) return undefined;
-
-  // Strip currency marks, spaces and thousands separators, keep digits and dot.
-  const digits = text.replace(/[^0-9.]/g, "");
-  if (!digits || digits === ".") return undefined;
-  const n = Number(digits);
-  if (!isFinite(n) || n <= 0) return undefined;
-
-  // A trailing unit multiplies. "1.2m" is 1,200,000, not 1.2.
-  if (/(m|mm|million|מיליון)\s*$/.test(text)) return Math.round(n * 1_000_000);
-  if (/(k|thousand|אלף)\s*$/.test(text)) return Math.round(n * 1_000);
-
-  // No unit. A bare "12" from a man being asked his annual revenue in shekels
-  // means twelve million, not twelve shekels. Anything under a thousand is read
-  // as millions; everything above it is taken at face value.
-  if (n < 1_000) return Math.round(n * 1_000_000);
-  return Math.round(n);
-}
-
-// What we show back to him under the box, so he can see we read it the way he
-// meant it before he presses the button. The default is English, because the
-// same function also builds the "NIS 12M" that rides to Ben's lead email and
-// the Sheet on every run, whichever door he came in by.
-//
-// Hebrew reads "12 מיליון ש״ח", "1.5 מיליון ש״ח", "800 אלף ש״ח" (file 30, Sep 27
-// pass). Pure Hebrew and digits, so the line needs no direction marks.
-function formatAmount(n: number, lang: VLang = "en"): string {
-  if (lang === "he") {
-    const shekel = VALUATION_COPY.he.money.prefix;
-    if (n >= 1_000_000) {
-      const m = n / 1_000_000;
-      return `${m % 1 === 0 ? m : m.toFixed(1)} מיליון ${shekel}`;
-    }
-    if (n >= 1_000) return `${Math.round(n / 1_000)} אלף ${shekel}`;
-    return `${n} ${shekel}`;
-  }
-  const prefix = COPY_V.money.prefix;
-  if (n >= 1_000_000) {
-    const m = n / 1_000_000;
-    return `${prefix} ${m % 1 === 0 ? m : m.toFixed(1)}M`;
-  }
-  if (n >= 1_000) return `${prefix} ${Math.round(n / 1_000)}K`;
-  return `${prefix} ${n}`;
-}
-
-// The five real stages of a run. The page advances them off the live stream, never
-// off a timer. It used to sit 27 seconds on one stage called "Writing your brief"
-// with a single dot, which is why a 42 second run felt broken. Each stage now ends
-// on something the engine actually sent:
-//   read   -> the "searching" phase message
-//   learn  -> the JSON meta block at the top of the stream closes
-//   market -> "## Value" arrives in the text
-//   value  -> "## Range and call" arrives in the text
-//   range  -> the "done" message
-//
-// The ids are the signals. The labels live in valuationCopy.ts.
-const STAGE_COUNT = WORKING_STAGE_IDS.length;
-
-// Working-screen timings.
-const REASSURE_AFTER_MS = 25000; // one stage running this long shows the long-step line
-const TAG_MS = 6500; // tagline rotation cadence
-const COMPANY_REVEAL_MS = 2200; // skeleton -> filled company card
-const LEARN_FALLBACK_MS = 5000; // move off "Reading" if no search signal arrives
-const HARD_TIMEOUT_MS = 180000; // never hang: fall back to the calm screen after 3 min
-
-// ─── The ring ────────────────────────────────────────────────────────────────
-// The engine never says how far along it is, so the ring is driven by the five
-// checkpoints above. Each one is worth a fifth. Between checkpoints it creeps
-// toward the next one at the pace of a normal run and stops short of it, so it
-// never says a step is finished before the engine does. It never goes backwards.
-// A fast run jumps ahead, a slow run waits.
-
-// What a normal run takes per stage, measured on the live site 2026-09-22. This
-// is the pace the ring creeps at, not a clock the owner waits out.
-const MEDIAN_STAGE_MS = [5000, 10000, 10000, 10000, 7000];
-const RING_CREEP = 0.88; // how far into a stage the ring may get on its own
-const RING_R = 60; // matches the r on the two circles in the SVG below
-const RING_C = 2 * Math.PI * RING_R;
-const RING_SNAP_MS = 220; // the run to 100% once the engine says done
-const RING_HANDOVER_MS = 600; // then the result page opens
-
-// The sent screen used to carry two cards selling what a call is like and a
-// "Talk to us" button under them. Both went on Sep 17. He had just handed over
-// his name, his email and his phone; the button reopened the same form and asked
-// again, and the cards pitched a man who had already said yes. His one job on
-// this screen is to go and open the email.
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-// The lead email should read the way the screen read: "Within six months", not
-// "under-6m".
-//
-// Always the English label, on both pages. This string goes to the engine, to
-// Ben's lead email and into the "Time to sell" column of the Sheet, and that
-// column has to sort and read the same whichever door the owner came in by.
-function labelForTimeToSell(value?: string): string | undefined {
-  if (!value) return undefined;
-  return COPY_V.timeToSell[value as TimeToSellValue];
-}
-
-// What he typed, tidied for a human to read in an email. Undefined when he
-// left the box empty, so the email says "(none)" instead of "NIS NaN".
-function amountLabel(raw?: string): string | undefined {
-  const n = parseAmount(raw ?? "");
-  return n ? formatAmount(n) : undefined;
-}
-
-// Whatever the owner typed into the box on the home page.
-//
-// This used to throw away anything that did not already look like a domain, so
-// a man who typed his company's name instead of its address arrived here to an
-// empty box and had to start again, with no sign that anything had happened to
-// what he wrote. Now it comes through as typed. If it is not a website the run
-// will say so, and at least he can see what he put in and fix it.
-//
-// Still bounded: one line, nothing enormous. React escapes it on the way into
-// the field, and the value only ever becomes a URL after normalizeUrl.
 function readSiteParam(): string {
   if (typeof window === "undefined") return "";
   try {
-    // The home page hands the website over in history state, so it never sits
-    // in the address where GA4 and the Meta Pixel would record it. An old
-    // ?site= link still works; stripSiteParam below cleans the address.
     const fromState = (window.history.state as { site?: unknown } | null)?.site;
     const raw =
       typeof fromState === "string"
@@ -325,8 +112,6 @@ function readSiteParam(): string {
   }
 }
 
-// Takes ?site= out of the address bar after readSiteParam has used it, so a
-// reload, a copied link or any later event does not carry the company along.
 function stripSiteParam(): void {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -336,147 +121,97 @@ function stripSiteParam(): void {
     window.history.replaceState(
       window.history.state,
       "",
-      window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash
+      window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash,
     );
   } catch {
     // never break the page over the address bar
   }
 }
 
-// Deliberately loose. Something before the @, something after it, a dot, and
-// something after that. It catches "ben@gmail", which is the real mistake an
-// owner makes, without turning away a legitimate address we have not thought of.
-function looksLikeEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(value.trim());
-}
-
-function deriveDomain(url: string): string | undefined {
-  if (!url) return undefined;
+function deriveDomain(url: string): string {
   try {
-    const u = new URL(/^https?:\/\//i.test(url) ? url : "https://" + url);
+    const u = new URL(/^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`);
     return u.hostname.replace(/^www\./, "");
   } catch {
-    return undefined;
+    return url.trim();
   }
 }
 
-// The name we show until the engine sends his real one. It comes off the
-// address, so it is Latin either way; the fallback when the address gives us
-// nothing is a word, so it comes from the copy table.
+/** The name we show until the engine sends his real one: his domain, dressed up. */
 function deriveName(url: string, fallback: string): string {
-  const domain = deriveDomain(url);
-  if (!domain) return fallback;
-  const base = domain.split(".")[0];
-  if (!base) return fallback;
-  return base.charAt(0).toUpperCase() + base.slice(1);
+  const base = deriveDomain(url).split(".")[0];
+  return base ? base.charAt(0).toUpperCase() + base.slice(1) : fallback;
 }
 
-// Sellers type bare domains ("manltd.co.il"). The engine needs a real address with
-// a scheme, so add https:// when it is missing. Without this the run fails outright.
-function normalizeUrl(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return trimmed;
-  return /^https?:\/\//i.test(trimmed) ? trimmed : "https://" + trimmed;
+/** "Carmel Print" is CP. Letters in any script; never empty. */
+function initials(name: string): string {
+  const words = name.replace(/[^\p{L}\p{N} ]/gu, " ").split(/\s+/).filter(Boolean);
+  const out = words.slice(0, 2).map((w) => w.charAt(0)).join("").toUpperCase();
+  return out || "G";
 }
 
-// Render a safe inline subset of markdown: **bold** becomes <strong>, and a leading
-// bullet marker is dropped. No HTML injection: we only build React text and <strong>.
+/** **bold** to <strong>, and nothing else. No HTML from the engine, ever. */
 function renderInline(text: string): React.ReactNode {
-  const cleaned = text.replace(/^\s*[-*•]\s+/, "");
-  return cleaned
+  return text
+    .replace(/^\s*[-*•]\s+/, "")
     .split("**")
     .map((part, i) => (i % 2 === 1 ? <strong key={i}>{part}</strong> : part));
 }
 
-// A Value point may begin with a flag the brain emits: "positive:" or "watch:".
-// It drives a small arrow icon (navy up = positive, burgundy down = watch) and is
-// stripped before display. No flag means no icon (we never guess).
-function renderValuePoint(line: string, key: number): React.ReactNode {
-  let text = line.replace(/^\s*[-*•]\s+/, "");
-  // The flag comes bare ("positive: Scale and age.") or wrapped in the bold the
-  // model puts round the opening phrase ("**positive: Scale and age.**"). Only
-  // the bare shape used to be handled, so on a run that bolded it the word
-  // "positive:" went out to the seller with no arrow. Either way the flag is
-  // ours and not his, so it comes out and the bold stays where it was.
-  const m = text.match(/^(\*\*)?\s*(positive|watch):\s*/i);
-  const type = m ? (m[2].toLowerCase() as "positive" | "watch") : null;
-  if (m) text = (m[1] || "") + text.slice(m[0].length);
+/** A company title with the name isolated, so a Latin name never flips a Hebrew line. */
+function withBdi(title: (company: string) => string, company: string): React.ReactNode {
+  const [before, after = ""] = title("\u0000").split("\u0000");
   return (
-    <p key={key} className={"v-point" + (type ? " has-icon v-point-" + type : "")}>
-      {type && (
-        <span className="v-point-icon" aria-hidden="true">
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            {type === "positive" ? (
-              <path d="M8 13V3.5M4 7.5L8 3.5l4 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            ) : (
-              <path d="M8 3v9.5M4 8.5L8 12.5l4-4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            )}
-          </svg>
-        </span>
-      )}
-      <span className="v-point-text">{renderInline(text)}</span>
-    </p>
+    <>
+      {before}
+      <bdi>{company}</bdi>
+      {after}
+    </>
   );
 }
 
-// Section keys the page renders out of result_md. The Range card is built from the
-// meta fields (the number, the buyer line), plus one thing from the markdown since
-// v8: the sentence right under the number, where the engine names what it assumed
-// ("It assumes about 20 staff and a 16% margin. Tell us if that is off."). That
-// line is the hook for real numbers, and until Sep 22 the page never showed it.
-function parseResultMarkdown(md: string): { Market: string[]; Value: string[]; rangeLead: string } {
-  const out: { Market: string[]; Value: string[] } = { Market: [], Value: [] };
-  const range: string[] = [];
-  let cur: "Market" | "Value" | "Range" | null = null;
+/**
+ * The two cards out of what the engine wrote. Value lines carry a tag,
+ * "positive:" or "watch:", sometimes inside the bold. The tag never reaches
+ * the owner; the one risk is named in its label instead (the mockup).
+ */
+function parseCards(md: string): {
+  market: string[];
+  value: { watch: boolean; label: string; body: string }[];
+} {
+  const market: string[] = [];
+  const value: { watch: boolean; label: string; body: string }[] = [];
+  let cur: "market" | "value" | null = null;
   for (const raw of (md || "").split("\n")) {
     const line = raw.trim();
     const heading = line.match(/^##\s+(.+?)\s*$/);
     if (heading) {
-      const name = heading[1].trim();
-      cur = name === "Market" || name === "Value" ? name : name.startsWith("Range") ? "Range" : null;
+      const h = heading[1].trim();
+      cur = h === "Market" ? "market" : h === "Value" ? "value" : null;
       continue;
     }
     if (!cur || !line) continue;
-    if (cur === "Range") range.push(line);
-    else out[cur].push(line);
+    if (cur === "market") {
+      market.push(line);
+      continue;
+    }
+    let text = line.replace(/^\s*[-*•]\s+/, "");
+    const flag = text.match(/^(\*\*)?\s*(positive|watch):\s*/i);
+    const watch = flag ? flag[2].toLowerCase() === "watch" : false;
+    if (flag) text = (flag[1] || "") + text.slice(flag[0].length);
+    const bold = text.match(/^\*\*(.+?)\*\*\s*(.*)$/);
+    value.push(bold ? { watch, label: bold[1].trim(), body: bold[2].trim() } : { watch, label: "", body: text });
   }
-  // The lead is what sits between the "# ₪..." line and the buyer line. The
-  // buyer line and the fixed closing sentence are rendered from the meta, so
-  // stop at the first of them.
-  //
-  // These three openers are English, and on a Hebrew run the engine writes
-  // that prose in Hebrew, so this test could never find them. That is why
-  // server/lib/valuation-hebrew-addendum.md tells the engine to end the Range
-  // card at the assumption sentence on a Hebrew run and leave the buyer line
-  // and the fee line to the page, which prints them from its own table.
-  const lead: string[] = [];
-  for (const line of range) {
-    if (line.startsWith("#")) continue;
-    if (/^(There are real buyers|We work only for you|\*\*Talk to us)/i.test(line)) break;
-    lead.push(line);
-  }
-  return { ...out, rangeLead: lead.join(" ") };
+  return { market, value };
 }
 
 // ─── Reading the meta block while it streams ─────────────────────────────────
-// The engine writes a fenced ```json block first, then the cards. The server
-// splits the same block off at the end (parseMetaAndBody in routes/exitBrief.ts).
-// The working screen has to do it live, because two things hang off it: the
-// company one-liner in the card, and the point where "Learning your size and
-// your story" is finished. Seeing his own business described back to him is the
-// proof the tool actually read him.
-interface StreamMeta {
-  company_name?: string;
-  company_oneliner?: string;
-}
+// The engine writes a fenced json block first, then the cards. The working
+// screen reads it live for his company name, and its closing is the
+// "Learning about your business" checkpoint. Same rules as the server's
+// parseMetaAndBody: take the first fence that opens an object, wherever it
+// sits, and keep looking until the run ends.
 
-interface MetaRead {
-  meta: StreamMeta;
-  /** Where the seller-facing markdown starts, so headings are never hunted inside the JSON. */
-  bodyFrom: number;
-}
-
-/** Walk an object from its opening brace to its matching close. Null while it is still arriving. */
 function balancedObject(text: string, from: number): string | null {
   if (text[from] !== "{") return null;
   let depth = 0;
@@ -500,342 +235,476 @@ function balancedObject(text: string, from: number): string | null {
   return null;
 }
 
-/** Nothing but fences, rules and blank space in front of the meta block. */
-function isBlankLead(s: string): boolean {
-  return !/[A-Za-z]{3}/.test(s.replace(/json/gi, "").replace(/[-\s`_*]/g, ""));
-}
-
-/** Parses, and looks like our meta rather than some other object the model wrote. */
-function parseStreamMeta(raw: string): StreamMeta | null {
+function parseStreamMeta(raw: string): { company_name?: string } | null {
   try {
     const value: unknown = JSON.parse(raw.trim());
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-    const meta = value as StreamMeta & { range_variant?: string };
-    if (!meta.company_name && !meta.company_oneliner && !meta.range_variant) return null;
-    return meta;
+    return value as { company_name?: string };
   } catch {
     return null;
   }
 }
 
-/**
- * Read the meta block out of what has streamed so far.
- *
- * Returns null while the block is still arriving, so the caller can just try
- * again on the next chunk. Two shapes, the same two the server trusts in
- * parseMetaAndBody: a fenced block, and a bare object at the head when the model
- * forgets the fence.
- *
- * The fenced block is taken from wherever it sits, not only from the very top.
- * The prompt says no preamble, and the model writes one anyway while it is
- * searching. This function used to demand a clean run-up and so it never found
- * the block on a real run, while the server, which has no such demand, found it
- * every time. Page and server have to agree on this block or the card says one
- * thing and the result page says another.
- */
-function readMetaBlock(text: string): MetaRead | null {
-  // The first fence that actually opens an object. A code fence in the model's
-  // preamble is skipped, the same way the server's regex skips it.
+function readMetaBlock(text: string): { meta: { company_name?: string }; bodyFrom: number } | null {
   const open = text.match(/```(?:json)?\s*(?=\{)/i);
   if (open && typeof open.index === "number") {
     const after = open.index + open[0].length;
     const close = text.indexOf("```", after);
-    if (close === -1) return null; // the block has not closed yet
+    if (close === -1) return null;
     const meta = parseStreamMeta(text.slice(after, close));
     if (meta) return { meta, bodyFrom: close + 3 };
   }
-
   const head = text.slice(0, 4000);
   const brace = head.indexOf("{");
-  if (brace !== -1 && isBlankLead(head.slice(0, brace))) {
+  if (brace !== -1 && !/[A-Za-z]{3}/.test(head.slice(0, brace).replace(/json/gi, "").replace(/[-\s`_*]/g, ""))) {
     const obj = balancedObject(text, brace);
     if (!obj) return null;
     const meta = parseStreamMeta(obj);
     if (meta) return { meta, bodyFrom: brace + obj.length };
   }
-
   return null;
 }
 
-function CompanyLogo({
-  domain,
-  name,
-  className,
-}: {
-  domain?: string;
-  name: string;
-  className: string;
-}) {
-  const [errored, setErrored] = useState(false);
-  const letter = name.charAt(0).toUpperCase() || "G";
-  if (domain && !errored) {
+// ─── Pieces ──────────────────────────────────────────────────────────────────
+
+function LockIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path fill="currentColor" d="M4 7V5a4 4 0 1 1 8 0v2h1v8H3V7h1zm2 0h4V5a2 2 0 1 0-4 0v2z" />
+    </svg>
+  );
+}
+
+function Hourglass() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        d="M4 1.5h8M4 14.5h8M5 1.5c0 3.5 6 3.5 6 6.5s-6 3-6 6.5M11 1.5c0 3.5-6 3.5-6 6.5s6 3 6 6.5"
+      />
+    </svg>
+  );
+}
+
+function Chevron() {
+  return (
+    <svg className="ve-chev" viewBox="0 0 12 8" aria-hidden="true">
+      <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+/**
+ * His logo, pulled from his own site by the server. Shown only once it has
+ * loaded and looks like a logo: at least 32px, and not a wide banner. Until
+ * then, and whenever it fails, his initials. Never a broken image.
+ */
+function CompanyLogo({ src, name }: { src?: string; name: string }) {
+  const [good, setGood] = useState<string | null>(null);
+  useEffect(() => {
+    setGood(null);
+    if (!src) return;
+    let live = true;
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const ratio = h ? w / h : 0;
+      if (live && w >= 32 && h >= 32 && ratio >= 0.5 && ratio <= 2) setGood(src);
+    };
+    img.src = src;
+    return () => {
+      live = false;
+    };
+  }, [src]);
+  if (good) {
     return (
-      <div className={className} aria-hidden="true">
-        <img
-          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=128`}
-          alt=""
-          style={{ width: "100%", height: "100%", objectFit: "contain" }}
-          onError={() => setErrored(true)}
-        />
+      <div className="ve-logo has-img" aria-hidden="true">
+        <img src={good} alt="" onError={() => setGood(null)} />
       </div>
     );
   }
   return (
-    <div className={className} aria-hidden="true">
-      {letter}
+    <div className="ve-logo" aria-hidden="true">
+      {initials(name)}
     </div>
   );
 }
 
-// NumberSelect lived here: the "Pick a range" dropdown used by both the front
-// door and the lead popup. Both ask for typed numbers now. Removed Sep 17.
+function Confidential({ text }: { text: string }) {
+  return (
+    <p className="ve-confidential">
+      <LockIcon />
+      {text}
+    </p>
+  );
+}
 
-// A number the owner types, with what we read it as shown back underneath.
-function AmountField({
-  id,
-  label,
-  hint,
+function problemText(C: VCopy, p: ContactProblem): string {
+  return { all: C.gate.errAll, name: C.gate.errName, reach: C.gate.errReach, emailBad: C.gate.errEmailBad }[p];
+}
+
+/** Name, phone and email: the popup's boxes and the inline form's boxes. */
+function ContactFields({
+  idPrefix,
   value,
   onChange,
 }: {
-  id: string;
-  label: string;
-  hint: string;
-  value: string;
-  onChange: (v: string) => void;
+  idPrefix: string;
+  value: Contact;
+  onChange: (c: Contact) => void;
 }) {
-  const { copy: C, lang } = useVCopy();
-  const parsed = parseAmount(value);
+  const { copy: C } = useV();
   return (
-    <div className="v-field">
-      <label htmlFor={id} className="v-field-label">
-        {label}
-      </label>
-      <input
-        id={id}
-        type="text"
-        className="v-input"
-        placeholder={hint}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        inputMode="decimal"
-        autoComplete="off"
-        spellCheck={false}
-      />
-      {/* He sees us read his number back before he commits to it. "12" coming
-          back as NIS 12M is the difference between trust and a support email.
-          Only once there is something to read back: the empty version of this
-          line printed the same sentence under both boxes, which was noise. */}
-      {parsed && (
-        <p className="v-field-echo">
-          {C.front.echo(formatAmount(parsed, lang))}
-        </p>
-      )}
-    </div>
+    <>
+      <div>
+        <label className="ve-lbl" htmlFor={`${idPrefix}-name`}>
+          {C.gate.nameLabel}
+        </label>
+        <input
+          className="ve-input"
+          id={`${idPrefix}-name`}
+          type="text"
+          autoComplete="name"
+          value={value.name}
+          onChange={(e) => onChange({ ...value, name: e.target.value })}
+        />
+      </div>
+      <div className="ve-pair">
+        <div>
+          <label className="ve-lbl" htmlFor={`${idPrefix}-phone`}>
+            {C.gate.phoneLabel}
+          </label>
+          {/* A phone number and an address read left to right in any language. */}
+          <input
+            className="ve-input"
+            id={`${idPrefix}-phone`}
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            dir="ltr"
+            value={value.phone}
+            onChange={(e) => onChange({ ...value, phone: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="ve-lbl" htmlFor={`${idPrefix}-email`}>
+            {C.gate.emailLabel}
+          </label>
+          <input
+            className="ve-input"
+            id={`${idPrefix}-email`}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            dir="ltr"
+            spellCheck={false}
+            autoCapitalize="off"
+            value={value.email}
+            onChange={(e) => onChange({ ...value, email: e.target.value })}
+          />
+        </div>
+      </div>
+    </>
   );
 }
 
-// ─── Front door ──────────────────────────────────────────────────────────────
-function FrontDoorState({ ctx, go }: StateProps) {
-  const { copy: C } = useVCopy();
-  const [url, setUrl] = useState(ctx.url || "");
-  const [timeToSell, setTimeToSell] = useState(ctx.timeToSell || "");
-  const [revenue, setRevenue] = useState(ctx.revenue || "");
-  const [profit, setProfit] = useState(ctx.profit || "");
-  const [touched, setTouched] = useState(false);
+async function postJson(path: string, body: object): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
+  try {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    let data: Record<string, unknown> = {};
+    try {
+      data = (await res.json()) as Record<string, unknown>;
+    } catch {
+      data = {};
+    }
+    return { ok: res.ok, status: res.status, data };
+  } catch {
+    return { ok: false, status: 0, data: {} };
+  }
+}
 
-  const urlBad = !url.trim();
+// ─── Screen 1. The front door ───────────────────────────────────────────────
+
+function FrontDoor({
+  answers,
+  setAnswers,
+  tried,
+  onContinue,
+}: {
+  answers: EstimateAnswers;
+  setAnswers: React.Dispatch<React.SetStateAction<EstimateAnswers>>;
+  tried: boolean;
+  onContinue: (fromKeyboard: boolean) => void;
+}) {
+  const { copy: C } = useV();
+  const missing = useMemo(() => new Set(tried ? missingRequired(answers) : []), [tried, answers]);
+  const sliderRef = useRef<HTMLInputElement>(null);
+  const touched = answers.serious !== null;
+
+  const set = <K extends keyof EstimateAnswers>(key: K, value: EstimateAnswers[K]) =>
+    setAnswers((a) => ({ ...a, [key]: value }));
+
+  const setSerious = (n: number) => {
+    if (Number.isInteger(n) && n >= SERIOUS_MIN && n <= SERIOUS_MAX) set("serious", n);
+  };
+
+  const errProps = (field: RequiredField) =>
+    missing.has(field) ? { "aria-invalid": true as const, "aria-describedby": `ve-${field}-err` } : {};
+
+  const errLine = (field: RequiredField, text: string) =>
+    missing.has(field) ? (
+      <p className="ve-q-err" id={`ve-${field}-err`}>
+        {text}
+      </p>
+    ) : null;
+
+  const qClass = (field: RequiredField) => "ve-q" + (missing.has(field) ? " is-err" : "");
+
+  // A tap on Continue only scrolls to the first missing answer, as in the
+  // mockup, so a phone does not throw its keyboard up. From the keyboard, the
+  // focus goes there too, so he can carry on typing.
+  const byPointer = useRef(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setTouched(true);
-    const normalized = normalizeUrl(url);
-    if (!normalized) return;
-    go("working", { url: normalized, timeToSell, revenue, profit });
+    onContinue(!byPointer.current);
+    byPointer.current = false;
   }
 
+  const select = (
+    id: string,
+    field: "timeline" | "revenue" | "profit" | "staff",
+    codes: readonly string[],
+    labels: Record<string, string>,
+  ) => (
+    <div className="ve-select-wrap">
+      {/* A real <select>, so a phone opens its own picker. */}
+      <select
+        id={id}
+        className={"ve-select" + (answers[field] ? "" : " is-empty")}
+        value={answers[field]}
+        onChange={(e) => set(field, e.target.value as never)}
+        {...(field === "staff" ? {} : errProps(field))}
+      >
+        <option value="" disabled hidden>
+          {C.front.selectPlaceholder}
+        </option>
+        {codes.map((code) => (
+          <option key={code} value={code}>
+            {labels[code]}
+          </option>
+        ))}
+      </select>
+      <Chevron />
+    </div>
+  );
+
   return (
-    <section className="v-front">
-      <div className="v-front-inner">
-        <h1 className="v-front-h1">{C.front.headline}</h1>
-        <p className="v-front-lede">{C.front.lede}</p>
+    <section className="ve-front" aria-labelledby="ve-h-front">
+      <h1 id="ve-h-front" tabIndex={-1}>
+        {C.front.headline}
+      </h1>
 
-        <form className="v-front-form" onSubmit={handleSubmit} noValidate>
-          <div className="v-field">
-            <label htmlFor="v-url" className="v-field-label">
-              {C.front.urlLabel}
-            </label>
-            {/* A web address is Latin whatever the page language is, so the
-                box keeps its own direction and the placeholder with it. */}
-            <input
-              id="v-url"
-              type="text"
-              dir="ltr"
-              className={"v-input" + (touched && urlBad ? " has-error" : "")}
-              placeholder={C.front.urlPlaceholder}
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              autoComplete="url"
-              inputMode="url"
-              spellCheck={false}
-              autoCapitalize="off"
-              required
-            />
-            {touched && urlBad && (
-              <p className="v-field-error" role="alert">
-                {C.front.urlError}
-              </p>
-            )}
-          </div>
+      <form className="ve-form" onSubmit={handleSubmit} noValidate>
+        <div className={qClass("url")} id="ve-q-url">
+          <label className="ve-q-label" htmlFor="ve-url">
+            {C.front.urlLabel}
+          </label>
+          {/* A web address is Latin whatever the page language is. */}
+          <input
+            className="ve-input"
+            id="ve-url"
+            name="url"
+            type="text"
+            inputMode="url"
+            autoComplete="url"
+            autoCapitalize="off"
+            spellCheck={false}
+            dir="ltr"
+            placeholder={C.front.urlPlaceholder}
+            value={answers.url}
+            onChange={(e) => set("url", e.target.value)}
+            {...errProps("url")}
+          />
+          {errLine("url", C.front.urlError)}
+        </div>
 
-          <div className="v-field">
-            <label htmlFor="v-when" className="v-field-label">
-              {C.front.whenLabel}
-            </label>
-            <div className="v-select-wrap">
-              <select
-                id="v-when"
-                className="v-select"
-                value={timeToSell}
-                onChange={(e) => setTimeToSell(e.target.value)}
-              >
-                <option value="">{C.front.whenPlaceholder}</option>
-                {TIME_TO_SELL_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {C.timeToSell[value]}
-                  </option>
+        <div className={qClass("timeline")} id="ve-q-timeline">
+          <label className="ve-q-label" htmlFor="ve-timeline">
+            {C.front.whenLabel}
+          </label>
+          {select("ve-timeline", "timeline", TIMELINE_CODES, C.timeToSell)}
+          {errLine("timeline", C.front.missing)}
+        </div>
+
+        <div className={qClass("serious")} id="ve-q-serious">
+          <label className="ve-q-label" htmlFor="ve-serious">
+            {C.front.seriousLabel}
+          </label>
+          <div className="ve-serious-row">
+            <output className="ve-serious-val" htmlFor="ve-serious" aria-live="polite">
+              {touched ? answers.serious : C.front.seriousEmpty}
+            </output>
+            <div className="ve-slider-wrap">
+              {/* Starts with no answer. It sits on 5 with a hollow thumb, and
+                  only counts once he drags it, taps it or taps a number. */}
+              <input
+                ref={sliderRef}
+                className={"ve-slider" + (touched ? "" : " untouched")}
+                id="ve-serious"
+                type="range"
+                min={SERIOUS_MIN}
+                max={SERIOUS_MAX}
+                step={1}
+                value={answers.serious ?? 5}
+                aria-valuetext={touched ? C.front.seriousValueText(answers.serious!) : C.front.seriousNotChosen}
+                onChange={(e) => setSerious(Number(e.target.value))}
+                onPointerDown={() => {
+                  if (!touched) setTimeout(() => setSerious(Number(sliderRef.current?.value)), 0);
+                }}
+                {...errProps("serious")}
+              />
+              <div className="ve-ticks" aria-hidden="true">
+                {Array.from({ length: SERIOUS_MAX - SERIOUS_MIN + 1 }, (_, i) => i + SERIOUS_MIN).map((n) => (
+                  <button key={n} type="button" tabIndex={-1} onClick={() => setSerious(n)}>
+                    {n}
+                  </button>
                 ))}
-              </select>
-              <svg className="v-select-chev" viewBox="0 0 12 12" aria-hidden="true">
-                <path
-                  d="M2.5 4.5L6 8l3.5-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              </div>
             </div>
           </div>
+          <div className="ve-ends">
+            <span>{C.front.seriousEnds.low}</span>
+            <span>{C.front.seriousEnds.high}</span>
+          </div>
+          {errLine("serious", C.front.missing)}
+        </div>
 
-          <AmountField
-            id="v-rev"
-            label={C.front.revenueLabel}
-            hint={C.front.revenueHint}
-            value={revenue}
-            onChange={setRevenue}
+        <div className={qClass("revenue")} id="ve-q-revenue">
+          <label className="ve-q-label" htmlFor="ve-revenue">
+            {C.front.revenueLabel}
+          </label>
+          {select("ve-revenue", "revenue", REVENUE_CODES, C.revenue)}
+          {errLine("revenue", C.front.missing)}
+        </div>
+
+        <div className={qClass("profit")} id="ve-q-profit">
+          <label className="ve-q-label" htmlFor="ve-profit">
+            {C.front.profitLabel}
+          </label>
+          {select("ve-profit", "profit", PROFIT_CODES, C.profit)}
+          {errLine("profit", C.front.missing)}
+        </div>
+
+        <div className="ve-q" id="ve-q-staff">
+          <label className="ve-q-label" htmlFor="ve-staff">
+            {C.front.staffLabel}
+          </label>
+          {select("ve-staff", "staff", STAFF_CODES, C.staff)}
+        </div>
+
+        <div className="ve-q" id="ve-q-note">
+          <label className="ve-q-label" htmlFor="ve-note">
+            {C.front.noteLabel}
+          </label>
+          <textarea
+            className="ve-input"
+            id="ve-note"
+            name="note"
+            rows={3}
+            maxLength={NOTE_MAX}
+            value={answers.note}
+            onChange={(e) => set("note", e.target.value)}
           />
-          <AmountField
-            id="v-profit"
-            label={C.front.profitLabel}
-            hint={C.front.profitHint}
-            value={profit}
-            onChange={setProfit}
-          />
+        </div>
 
-          <p className="v-front-confidential">
-            <svg viewBox="0 0 16 16" aria-hidden="true" className="v-lock">
-              <path
-                d="M4.5 7V5a3.5 3.5 0 017 0v2M3.5 7h9v6.5h-9z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            {C.front.confidential}
-          </p>
-
-          <button type="submit" className="v-btn v-btn-primary v-btn-block">
+        <div className="ve-submit-zone">
+          <button
+            className="ve-btn block"
+            type="submit"
+            onPointerDown={() => {
+              byPointer.current = true;
+            }}
+          >
             {C.front.submit}
           </button>
-        </form>
-
-        <p className="v-disclaimer">{C.disclaimer}</p>
-      </div>
+          <p className="ve-contact-note">{C.front.contactNote}</p>
+          <Confidential text={C.front.confidential} />
+        </div>
+      </form>
+      <p className="ve-disclaimer">{C.disclaimer}</p>
     </section>
   );
 }
 
-// Module-level guard so the paid generate call fires once per URL, even through a
-// React StrictMode mount/unmount/remount in dev.
-let lastFiredUrl: string | null = null;
+// ─── Screen 2. While it works ───────────────────────────────────────────────
 
-// Let the seller try the same URL again after a dead end. Without this the guard
-// above blocks the second run and the working screen sits there for three
-// minutes. It matters now that a run can be refused by the daily cap: the honest
-// move after "try again later" is to let him try again.
-function allowRerun(): void {
-  lastFiredUrl = null;
-}
+const STAGE_COUNT = WORKING_STAGE_IDS.length;
+const REASSURE_AFTER_MS = 25000;
+const TAG_MS = 6500;
+const LEARN_FALLBACK_MS = 5000;
+const HARD_TIMEOUT_MS = 180000;
+// The ring creeps toward the next checkpoint at the pace of a normal run and
+// stops short of it, so it never says a step is done before the engine does.
+const MEDIAN_STAGE_MS = [5000, 10000, 10000, 10000, 7000];
+const RING_CREEP = 0.88;
+const RING_C = 2 * Math.PI * 52; // r = 52, as in the mockup
+const RING_HANDOVER_MS = 650;
 
-// ─── Working ─────────────────────────────────────────────────────────────────
-function WorkingState({ ctx, go }: StateProps) {
-  const { copy: C, lang } = useVCopy();
-  // 0 to 4 is the stage being worked on now. 5 means the engine has finished.
+// One paid run per press of Continue, even through a double mount in dev.
+let firedRun = -1;
+
+function Working({
+  runNo,
+  answers,
+  lang,
+  onDone,
+  onError,
+}: {
+  runNo: number;
+  answers: EstimateAnswers;
+  lang: VLang;
+  onDone: (r: RunResult) => void;
+  onError: (message?: string) => void;
+}) {
+  const { copy: C } = useV();
   const [stageIdx, setStageIdx] = useState(0);
-  const [tagIdx, setTagIdx] = useState(0);
-  const [companyRevealed, setCompanyRevealed] = useState(false);
-  const [reassure, setReassure] = useState(false);
   const [progress, setProgress] = useState(0);
   const [finishing, setFinishing] = useState(false);
-  // What the meta block said, read live the moment it closed.
-  const [companyName, setCompanyName] = useState<string | undefined>(undefined);
-  const [oneliner, setOneliner] = useState<string | undefined>(undefined);
+  const [tagIdx, setTagIdx] = useState(0);
+  const [reassure, setReassure] = useState(false);
+  const [company, setCompany] = useState<string | undefined>();
+  const [logo, setLogo] = useState<string | undefined>();
 
-  const domain = useMemo(() => deriveDomain(ctx.url), [ctx.url]);
-  const name = useMemo(
-    () => deriveName(ctx.url, C.working.companyFallbackName),
-    [ctx.url, C.working.companyFallbackName],
-  );
+  const domain = useMemo(() => deriveDomain(answers.url), [answers.url]);
+  const shownName = company || deriveName(answers.url, C.working.companyFallbackName);
 
-  const runStartedAt = useRef(Date.now());
-  const stageRef = useRef(0); // the same number as stageIdx, readable inside the stream loop
-  // When the stage on screen now began. A ref, not state, because the ring reads
-  // it in the same tick the stage changes, and a state update lands a render
-  // later. With state it read the old start time once per checkpoint and threw
-  // the ring most of the way into the next segment.
+  const startedAt = useRef(Date.now());
+  const stageRef = useRef(0);
   const stageStartedAt = useRef(Date.now());
-  const peakRef = useRef(0); // the ring never goes backwards
-  const handoverRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const peakRef = useRef(0);
 
-  /**
-   * Move the checklist on, once, and leave one line in the console with the
-   * milliseconds since the run started. Nothing on the server records how long
-   * a real run takes, so those console lines are the only way to time a run
-   * checkpoint by checkpoint.
-   */
   const advanceTo = useCallback((next: number) => {
     if (next <= stageRef.current) return;
     stageRef.current = next;
     stageStartedAt.current = Date.now();
-    const finished = WORKING_STAGE_IDS[next - 1];
-    console.log(
-      `[valuation] ${finished ?? "done"} ${Date.now() - runStartedAt.current}ms`,
-    );
+    // Nothing on the server times a run, so these console lines are the clock.
+    console.log(`[valuation] ${WORKING_STAGE_IDS[next - 1] ?? "done"} ${Date.now() - startedAt.current}ms`);
     setStageIdx(next);
   }, []);
 
-  // Rotating italic tagline.
-  const taglineCount = C.taglines.length;
   useEffect(() => {
-    const t = setInterval(
-      () => setTagIdx((i) => (i + 1) % taglineCount),
-      TAG_MS,
-    );
+    const t = setInterval(() => setTagIdx((i) => (i + 1) % C.taglines.length), TAG_MS);
     return () => clearInterval(t);
-  }, [taglineCount]);
+  }, [C.taglines.length]);
 
-  // Company card: brief skeleton, then the real logo. Seeing their own logo is the proof.
-  useEffect(() => {
-    const t = setTimeout(() => setCompanyRevealed(true), COMPANY_REVEAL_MS);
-    return () => clearTimeout(t);
-  }, []);
-
-  // The long-step line, only when one stage runs past 25 seconds. The clock
-  // restarts every time the stage changes.
   useEffect(() => {
     setReassure(false);
     if (stageIdx >= STAGE_COUNT) return;
@@ -843,1019 +712,696 @@ function WorkingState({ ctx, go }: StateProps) {
     return () => clearTimeout(t);
   }, [stageIdx]);
 
-  // Fallback so the screen always moves off "Reading" even if the search signal is
-  // missed. The real signals below override it. It is the only timer left that
-  // moves a stage.
   useEffect(() => {
     const t = setTimeout(() => advanceTo(1), LEARN_FALLBACK_MS);
     return () => clearTimeout(t);
   }, [advanceTo]);
 
-  // The ring creeps toward the next checkpoint while the engine works, and stops
-  // 88% of the way there. Landing a checkpoint is what carries it over.
   useEffect(() => {
     if (finishing || stageIdx >= STAGE_COUNT) return;
-    function tick() {
+    const tick = () => {
       const inStage = Date.now() - stageStartedAt.current;
-      const median = MEDIAN_STAGE_MS[stageIdx] || 10000;
-      const share = Math.min(RING_CREEP, (inStage / median) * RING_CREEP);
-      const next = Math.max(
-        (stageIdx + share) / STAGE_COUNT,
-        peakRef.current,
-      );
+      const share = Math.min(RING_CREEP, (inStage / (MEDIAN_STAGE_MS[stageIdx] || 10000)) * RING_CREEP);
+      const next = Math.max((stageIdx + share) / STAGE_COUNT, peakRef.current);
       peakRef.current = next;
       setProgress(next);
-    }
+    };
     tick();
-    const t = setInterval(tick, 100);
+    const t = setInterval(tick, prefersReducedMotion() ? 500 : 100);
     return () => clearInterval(t);
   }, [stageIdx, finishing]);
 
-  // The real valuation. Fire once, read the stream, advance stages on real signals,
-  // and never hang: a hard stop falls back to the calm screen.
+  // The run. Fired once, read as a stream, stages moved only by real signals.
   useEffect(() => {
-    if (lastFiredUrl === ctx.url) return; // already running/ran for this URL
-    lastFiredUrl = ctx.url;
-    // Counted here, behind the same guard, so one run is one start.
+    if (firedRun === runNo) return;
+    firedRun = runNo;
     trackValuationStart({ lang });
 
     const controller = new AbortController();
     let active = true;
+    let handover: ReturnType<typeof setTimeout> | null = null;
     const hardStop = setTimeout(() => {
-      if (active) {
-        active = false;
-        controller.abort();
-        go("error", { errorMessage: undefined });
-      }
+      if (!active) return;
+      active = false;
+      controller.abort();
+      onError(undefined);
     }, HARD_TIMEOUT_MS);
 
-    async function run() {
+    (async () => {
       try {
-        // His own figures, not the midpoint of a band he was made to pick.
-        // The language of the page at the moment he pressed the button is the
-        // language of the brief, the email and the row in Ben's Sheet. It
-        // travels with the run and is saved on it, so nothing downstream ever
-        // has to guess.
-        const payload: Record<string, string> = { url: ctx.url, lang };
-        const rev = parseAmount(ctx.revenue);
-        const prof = parseAmount(ctx.profit);
-        if (rev) payload.revenue = String(rev);
-        if (prof) payload.pretax_profit = String(prof);
-        if (ctx.timeToSell) payload.time_to_sell = labelForTimeToSell(ctx.timeToSell) ?? "";
-
-        const res = await fetch("/api/exit-brief", {
+        const res = await fetch("/api/valuation/estimate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            url: answers.url.trim(),
+            lang,
+            timeline: answers.timeline,
+            serious: answers.serious,
+            revenue: answers.revenue,
+            profit: answers.profit,
+            staff: answers.staff,
+            note: answers.note.trim(),
+          }),
           signal: controller.signal,
         });
 
         if (!res.ok || !res.body) {
-          // The server refuses for two different reasons and the seller should
-          // not be told the wrong one. A 429 means we hit a limit, and the
-          // server's own sentence points at Ofir. Anything else falls back to
-          // the page's "we could not read that site."
-          let serverMessage: string | undefined;
+          // A refusal carries the server's own sentence (the cooldown, the
+          // daily cap, a busy engine). Anything else is "could not read".
+          let message: string | undefined;
           try {
-            const body = (await res.json()) as { error?: string };
-            if (typeof body.error === "string" && body.error.trim()) {
-              serverMessage = body.error.trim();
-            }
+            const body = (await res.json()) as { error?: unknown };
+            if (typeof body.error === "string" && body.error.trim()) message = body.error.trim();
           } catch {
-            // Not JSON. Nothing to show, use the page's own wording.
+            // not JSON
           }
-          if (active) go("error", { errorMessage: serverMessage });
+          if (active) onError(message);
           return;
         }
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        // Everything the model has written so far, and where its seller-facing
-        // markdown starts. Headings are only ever hunted past that point, so a
-        // word inside the meta JSON can never move the checklist.
         let streamed = "";
         let bodyFrom = -1;
         let metaFound = false;
-        let done: {
-          briefId?: string;
-          meta?: Record<string, string>;
-          result_md?: string;
-          run_token?: string;
-        } | null =
-          null;
+        let done: Record<string, unknown> | null = null;
+        // The server's own sentence when the engine was busy mid-run.
+        let failed: string | undefined;
 
-        while (true) {
-          const { value, done: streamDone } = await reader.read();
-          if (streamDone) break;
+        for (;;) {
+          const { value, done: end } = await reader.read();
+          if (end) break;
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
           for (const line of lines) {
             if (!line.trim()) continue;
+            let msg: Record<string, unknown>;
             try {
-              const msg = JSON.parse(line);
-              if (msg.type === "phase" && msg.phase === "searching") {
-                advanceTo(1); // -> Learning your size and your story
-              } else if (msg.type === "chunk") {
-                streamed += typeof msg.data === "string" ? msg.data : "";
-
-                // Checkpoint 2. The meta block has closed and can be read, so
-                // his own business goes into the card.
-                //
-                // Kept separate from bodyFrom on purpose. The prompt says the
-                // block comes first and it does not always come first, so the
-                // page goes on looking for it right to the end of the run
-                // instead of giving up once the checklist has moved. Late is
-                // worth having: the card is the one place he sees that we read
-                // his business, not somebody else's.
-                if (!metaFound) {
-                  const read = readMetaBlock(streamed);
-                  if (read) {
-                    metaFound = true;
-                    setCompanyName(read.meta.company_name?.trim() || undefined);
-                    setOneliner(read.meta.company_oneliner?.trim() || undefined);
-                    console.log(
-                      `[valuation] meta block read ${Date.now() - runStartedAt.current}ms`,
-                    );
-                    if (bodyFrom === -1) {
-                      bodyFrom = read.bodyFrom;
-                      advanceTo(2); // -> Reading your market
-                    }
-                  }
-                }
-
-                // Safety net. If the meta block has not turned up by the time
-                // the first card heading does, the heading moves the checklist
-                // instead. The card keeps saying "Reading your website", which
-                // is honest, and the console says this happened.
-                if (bodyFrom === -1) {
-                  const market = streamed.indexOf("## Market");
-                  if (market !== -1) {
-                    bodyFrom = market;
-                    console.log(
-                      `[valuation] no meta block yet, ## Market moved the list ${Date.now() - runStartedAt.current}ms`,
-                    );
+              msg = JSON.parse(line) as Record<string, unknown>;
+            } catch {
+              continue;
+            }
+            if (msg.type === "phase" && msg.phase === "searching") advanceTo(1);
+            else if (msg.type === "site" && typeof msg.logo === "string") setLogo(msg.logo);
+            else if (msg.type === "chunk") {
+              streamed += typeof msg.data === "string" ? msg.data : "";
+              if (!metaFound) {
+                const read = readMetaBlock(streamed);
+                if (read) {
+                  metaFound = true;
+                  if (read.meta.company_name?.trim()) setCompany(read.meta.company_name.trim());
+                  if (bodyFrom === -1) {
+                    bodyFrom = read.bodyFrom;
                     advanceTo(2);
                   }
                 }
-
-                // Checkpoints 3 and 4, as each card heading lands.
-                if (bodyFrom !== -1 && stageRef.current < 4) {
-                  const body = streamed.slice(bodyFrom);
-                  if (body.includes("## Range and call")) advanceTo(4);
-                  else if (body.includes("## Value")) advanceTo(3);
-                }
-              } else if (msg.type === "done") {
-                done = msg;
               }
-            } catch {
-              // ignore partial/non-JSON lines
-            }
+              if (bodyFrom === -1) {
+                const market = streamed.indexOf("## Market");
+                if (market !== -1) {
+                  bodyFrom = market;
+                  advanceTo(2);
+                }
+              }
+              if (bodyFrom !== -1 && streamed.slice(bodyFrom).includes("## Value")) advanceTo(3);
+            } else if (msg.type === "phase" && msg.phase === "pricing") advanceTo(4);
+            else if (msg.type === "done") done = msg;
+            else if (msg.type === "error" && typeof msg.error === "string") failed = msg.error;
           }
         }
 
         if (!active) return;
-        if (!done || !done.briefId) {
-          go("error", { errorMessage: undefined });
+        const variant = done?.variant;
+        if (!done || typeof done.briefId !== "string" || !["locked", "by_hand", "big"].includes(String(variant))) {
+          onError(failed);
           return;
         }
 
-        const meta = done.meta || {};
-        const md = done.result_md || "";
-
-        // The brain marks a run it could not read at the exact domain given. Send the
-        // seller straight to the error screen, never a brief guessed from a same-name site.
-        if (meta.range_variant === "unreadable") {
-          go("error", { errorMessage: undefined });
-          return;
-        }
-
-        // Never draw blank cards. If the engine could not read the site, the meta is
-        // empty and the markdown has no Market/Value content. Show the calm fallback.
-        const parsed = parseResultMarkdown(md);
-        const usable =
-          parsed.Market.length > 0 ||
-          parsed.Value.length > 0 ||
-          Boolean(meta.range_text && meta.range_text.trim()) ||
-          meta.range_variant === "by_hand";
-        if (!usable) {
-          go("error", { errorMessage: undefined });
-          return;
-        }
-
-        advanceTo(STAGE_COUNT); // the fifth checkpoint, all five landed
-
-        const patch: Patch = {
+        advanceTo(STAGE_COUNT);
+        const result: RunResult = {
           briefId: done.briefId,
-          runToken: done.run_token,
-          resultMd: md,
-          company: {
-            name:
-              meta.company_name ||
-              deriveName(ctx.url, C.working.companyFallbackName),
-            oneliner: meta.company_oneliner,
-            domain: deriveDomain(ctx.url),
-          },
-          rangeVariant: meta.range_variant === "by_hand" ? "by-hand" : "number",
-          rangeText: meta.range_text || "",
-          buyerTypes: meta.buyer_types || "",
+          runToken: String(done.run_token ?? ""),
+          variant: variant as EstimateVariant,
+          company: String(done.company_name || "") || deriveName(answers.url, C.working.companyFallbackName),
+          oneliner: String(done.company_oneliner ?? ""),
+          resultMd: String(done.result_md ?? ""),
+          logo: String(done.logo ?? ""),
+          domain,
         };
-
-        // A by-hand result has no number to hand over, so it opens the way it
-        // does today, with the ring stopped where it stands. Only a finished run
-        // with a range earns the run to 100%. Nothing runs to 100% on a dead end.
-        if (patch.rangeVariant === "by-hand") {
-          trackValuationDone({ lang, range_variant: "by-hand" });
-          go("result", patch);
-          return;
-        }
-
         setFinishing(true);
         peakRef.current = 1;
         setProgress(1);
-        handoverRef.current = setTimeout(() => {
-          if (!active) return;
-          trackValuationDone({ lang, range_variant: "number" });
-          go("result", patch);
-        }, RING_SNAP_MS + RING_HANDOVER_MS);
-      } catch (err) {
-        if (active) go("error", { errorMessage: undefined });
+        handover = setTimeout(
+          () => {
+            if (!active) return;
+            trackValuationDone({ lang, range_variant: variant === "locked" ? "number" : "by-hand" });
+            onDone(result);
+          },
+          prefersReducedMotion() ? 0 : RING_HANDOVER_MS,
+        );
+      } catch {
+        if (active) onError(undefined);
       }
-    }
+    })();
 
-    run();
     return () => {
       active = false;
       controller.abort();
       clearTimeout(hardStop);
-      if (handoverRef.current) clearTimeout(handoverRef.current);
+      if (handover) clearTimeout(handover);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [runNo]);
 
   const pct = Math.round(progress * 100);
-  const shownName = companyName || name;
 
   return (
-    <section className="v-working">
-      <div className="v-working-head">
-        <h2 className="v-working-h2">{C.working.heading}</h2>
-        <p className="v-working-sub">{C.working.sub}</p>
-      </div>
-
-      <div className="v-working-left">
-        <ol
-          className="v-stages"
-          aria-live="polite"
-          aria-label={C.working.stagesAriaLabel}
-        >
-          {WORKING_STAGE_IDS.map((stageId, i) => {
-            const status = i < stageIdx ? "done" : i === stageIdx ? "active" : "pending";
-            return (
-              <li key={stageId} className={"v-stage is-" + status}>
-                <span className="v-stage-mark" aria-hidden="true">
-                  {status === "done" && (
-                    <svg viewBox="0 0 18 18" className="v-stage-check">
-                      <path
-                        d="M4 9.5l3.2 3L14 6"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
-                  {status === "active" && <span className="v-stage-dot"></span>}
-                </span>
-                <span className="v-stage-label">{C.stages[stageId]}</span>
-              </li>
-            );
-          })}
-        </ol>
-
-        <p
-          className={
-            "v-reassure" +
-            (reassure && stageIdx < STAGE_COUNT ? " is-visible" : "")
-          }
-          aria-live="polite"
-        >
-          {C.working.longStep}
-        </p>
-      </div>
-
-      <div className="v-working-right">
-        {/* Fills once, never spins. A wheel says "waiting". This says "working". */}
-        <div className="v-ring-wrap">
-          <div
-            className={"v-ring" + (finishing ? " is-finishing" : "")}
-            role="img"
-            aria-label={C.working.ringAriaLabel(pct)}
-          >
-            <svg viewBox="0 0 132 132" aria-hidden="true">
-              <circle className="track" cx="66" cy="66" r={RING_R} />
-              <circle
-                className="fill"
-                cx="66"
-                cy="66"
-                r={RING_R}
-                strokeDasharray={RING_C}
-                strokeDashoffset={RING_C * (1 - progress)}
-              />
-            </svg>
-            {/* A percentage stays "42%", never "%42", on a right-to-left page. */}
-            <span className="v-ring-num" dir="ltr">
-              {pct}%
-            </span>
+    <section className="ve-working" aria-labelledby="ve-h-working">
+      <div className="ve-co-head">
+        <CompanyLogo src={logo} name={shownName} />
+        <div style={{ minWidth: 0 }}>
+          <div className="nm">
+            <bdi>{shownName}</bdi>
+          </div>
+          <div className="url">
+            <bdi>{domain}</bdi>
           </div>
         </div>
-
-        <div className="v-company-card">
-          {companyRevealed ? (
-            <div className="v-company-content v-fade-in" key="filled">
-              <CompanyLogo domain={domain} name={shownName} className="v-company-logo" />
-              <div className="v-company-body">
-                {/* Until the engine sends his real name this is his domain
-                    dressed up, so it is Latin and must not flip on the Hebrew
-                    page. His own name, when it lands, is left alone. */}
-                <h3 className="v-company-name">
-                  {companyName ? shownName : <span dir="ltr">{shownName}</span>}
-                </h3>
-                {/* The key swap replays the fade, so the moment his own business
-                    is described back to him is the moment the line changes. */}
-                <p
-                  className="v-company-tagline v-fade-in"
-                  key={oneliner ? "oneliner" : "reading"}
-                >
-                  {oneliner || C.working.companyReading}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="v-company-content v-skeleton" key="skeleton" aria-hidden="true">
-              <div className="v-skel-logo"></div>
-              <div className="v-skel-lines">
-                <div className="v-skel-line v-skel-short"></div>
-                <div className="v-skel-line v-skel-long"></div>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
-
-      <div className="v-tagline-slot">
-        <div className="v-tagline" aria-hidden="true">
-          {C.taglines.map((t, i) => (
-            <span
-              key={i}
-              className={"v-tagline-line" + (i === tagIdx ? " is-visible" : "")}
-            >
-              {t}
-            </span>
+      <h1 id="ve-h-working" tabIndex={-1}>
+        {C.working.heading}
+      </h1>
+      <p className="sub">{C.working.sub}</p>
+      <div className="ve-ring-row">
+        <div className="ve-ring" role="img" aria-label={C.working.ringAriaLabel(pct)}>
+          <svg viewBox="0 0 112 112" aria-hidden="true">
+            <circle className="track" cx="56" cy="56" r="52" />
+            <circle
+              className="fill"
+              cx="56"
+              cy="56"
+              r="52"
+              strokeDasharray={RING_C}
+              strokeDashoffset={RING_C * (1 - progress)}
+            />
+          </svg>
+          {/* "42%", never "%42", on a right-to-left page. */}
+          <div className="ve-ring-pct" dir="ltr" aria-hidden="true">
+            {pct}%
+          </div>
+        </div>
+        <ol className="ve-steps" aria-label={C.working.stagesAriaLabel} aria-live="polite">
+          {WORKING_STAGE_IDS.map((id, i) => (
+            <li key={id} className={i < stageIdx ? "done" : i === stageIdx ? "now" : ""}>
+              <span className="dot" aria-hidden="true"></span>
+              {C.stages[id]}
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
+      {reassure && stageIdx < STAGE_COUNT && <p className="ve-long-step">{C.working.longStep}</p>}
+      <p className="ve-tagline" aria-hidden="true">
+        {C.taglines[tagIdx]}
+      </p>
     </section>
   );
 }
 
-// ─── Result ──────────────────────────────────────────────────────────────────
-function ResultState({ ctx, go }: StateProps) {
-  const { copy: C, lang } = useVCopy();
-  const company = ctx.company || {
-    name: deriveName(ctx.url, C.working.companyFallbackName),
-    domain: deriveDomain(ctx.url),
-  };
-  const variant = ctx.rangeVariant || "number";
-  const sections = useMemo(() => parseResultMarkdown(ctx.resultMd || ""), [ctx.resultMd]);
-  const buyerLine = ctx.buyerTypes ? C.result.buyerLine(ctx.buyerTypes) : "";
+// ─── Screen 3. The result ───────────────────────────────────────────────────
 
-  // This used to leave a note in sessionStorage for the home page's contact
-  // form, because "talk to us" sent the owner there. It opens a popup on this
-  // page now, and that popup sends the run itself, so the note had nowhere left
-  // to go. Cut Sep 17 with the rest of the handoff.
+function Result({
+  run,
+  answers,
+  lang,
+  contact,
+  setContact,
+  onUnlocked,
+}: {
+  run: RunResult;
+  answers: EstimateAnswers;
+  lang: VLang;
+  contact: Contact;
+  setContact: (c: Contact) => void;
+  onUnlocked: (range: string) => void;
+}) {
+  const { copy: C } = useV();
+  const special = run.variant !== "locked";
+  const [range, setRange] = useState<string | null>(null);
+  const locked = !special && range === null;
+  const cards = useMemo(() => parseCards(run.resultMd), [run.resultMd]);
 
-  return (
-    <section className="v-result">
-      <div className="v-result-inner">
-        <header className="v-result-header">
-          <CompanyLogo domain={company.domain} name={company.name} className="v-result-logo" />
-          <div className="v-result-titlewrap">
-            <h1 className="v-result-title">{titleWithBdi(C.result.title, company.name)}</h1>
-            <p className="v-result-disclaimer">{C.result.privateLine}</p>
-          </div>
-        </header>
+  // The popup's state.
+  const [gateMsg, setGateMsg] = useState<string | null>(null);
+  const [gateBusy, setGateBusy] = useState(false);
 
-        <div className="v-cards">
-          <article className="v-card">
-            <h2 className="v-card-h">{C.result.cardMarket}</h2>
-            <div className="v-card-body">
-              {sections.Market.map((p, i) => (
-                <p key={i}>{renderInline(p)}</p>
-              ))}
-            </div>
-          </article>
+  // The one CTA, and the inline form on the two no-number cases.
+  const [ctaDone, setCtaDone] = useState(false);
+  const [ctaBusy, setCtaBusy] = useState(false);
+  const [ctaMsg, setCtaMsg] = useState<string | null>(null);
 
-          <article className="v-card">
-            <h2 className="v-card-h">{C.result.cardValue}</h2>
-            <div className="v-card-body">
-              {sections.Value.map((p, i) => renderValuePoint(p, i))}
-            </div>
-          </article>
+  const rangeHeadingRef = useRef<HTMLHeadingElement>(null);
 
-          <article className="v-card v-card-accent">
-            <h2 className="v-card-h">{C.result.cardRange}</h2>
+  const token = { briefId: run.briefId, runToken: run.runToken };
 
-            {variant === "number" ? (
-              <>
-                {/* "₪3.8M to ₪4.8M" in English, "3.8 עד 4.8 מיליון ש״ח" in
-                    Hebrew (rangeText in server/lib/valuationMath.ts). */}
-                {ctx.rangeText && (
-                  <p className="v-range">
-                    {/* English: one left-to-right figure. Hebrew: a right-to-left
-                        line of Hebrew and digits, which needs no direction marks. */}
-                    <span dir={lang === "he" ? "rtl" : "ltr"}>{ctx.rangeText}</span>
-                  </p>
-                )}
-                <div className="v-card-body">
-                  {sections.rangeLead && <p>{renderInline(sections.rangeLead)}</p>}
-                  {buyerLine && <p>{buyerLine}</p>}
-                  <p className="v-trust">{C.result.trust}</p>
-                </div>
-                <div className="v-card-actions">
-                  <button
-                    type="button"
-                    className="v-btn v-btn-primary v-btn-block"
-                    onClick={() => openTalk("result")}
-                  >
-                    {C.result.talkBtn}
-                  </button>
-                  <button
-                    type="button"
-                    className="v-btn v-btn-outline v-btn-block"
-                    onClick={() => go("lead-capture")}
-                  >
-                    {C.result.briefBtn}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="v-byhand-lead">{C.result.byHandLead}</p>
-                <div className="v-card-body">
-                  <p>{C.result.byHandBody}</p>
-                  {buyerLine && <p>{buyerLine}</p>}
-                  <p className="v-trust">{C.result.trust}</p>
-                </div>
-                <div className="v-card-actions">
-                  <button
-                    type="button"
-                    className="v-btn v-btn-primary v-btn-block"
-                    onClick={() => openTalk("result_by_hand")}
-                  >
-                    {C.result.byHandBtn}
-                  </button>
-                </div>
-              </>
-            )}
-          </article>
-
-          {/* The number he just read, said plainly for what it is. It sits under
-              the range, not buried in a footer, because this is the screen where
-              a man decides what to believe. */}
-          <p className="v-disclaimer">{C.disclaimer}</p>
-        </div>
-      </div>
-
-      {/* The sticky bar that used to sit here said "Talk to Ofir Ben Haim and
-          Benjamin Aronson". It covered the bottom of the range card with a
-          second, weaker version of the button already inside it. Cut Sep 17. */}
-    </section>
-  );
-}
-
-// ─── Lead capture (modal over the result) ────────────────────────────────────
-function LeadCaptureState({ ctx, go, setCtx }: StateProps) {
-  const { copy: C } = useVCopy();
-  const [name, setName] = useState(ctx.lead?.name || "");
-  const [email, setEmail] = useState(ctx.lead?.email || "");
-  const [phone, setPhone] = useState(ctx.lead?.phone || "");
-  // This box used to ask for revenue, profit and owner salary a second time.
-  // The front door asks for them now, before the range is built, which is the
-  // only moment they can change the answer. Asking again here made an owner
-  // fill in numbers that were never going to be used. Cut Sep 17.
-  const [touched, setTouched] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  const dialogRef = useRef<HTMLDivElement>(null);
-
+  // The range opens right away, and focus lands on it. After the render, so
+  // the cards are no longer inert, and a tick later, because Firefox moves
+  // focus to the page itself when the popup's button leaves the page.
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  useEffect(() => {
+    if (!range) return;
     const t = setTimeout(() => {
-      dialogRef.current?.querySelector<HTMLElement>("input, select, button")?.focus();
-    }, 50);
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") go("result");
-    }
-    window.addEventListener("keydown", onKey);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [go]);
+      const h = rangeHeadingRef.current;
+      h?.focus({ preventScroll: true });
+      h?.closest("article")?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [range]);
 
-  // Say which field is wrong, in his words. Pressing the button with an empty
-  // phone box used to do nothing at all, and typing "ben@gmail" got him "we
-  // could not send it", which points the blame at us instead of at the typo.
-  const nameBad = !name.trim();
-  const emailBad = !email.trim() || !looksLikeEmail(email);
-  const phoneBad = !phone.trim();
-  const valid = !nameBad && !emailBad && !phoneBad;
-  const problem = !touched
-    ? null
-    : nameBad
-      ? C.brief.errName
-      : !email.trim()
-        ? C.brief.errEmailMissing
-        : !looksLikeEmail(email)
-          ? C.brief.errEmailBad
-          : phoneBad
-            ? C.brief.errPhone
-            : null;
-
-  async function handleSubmit(e: React.FormEvent) {
+  async function submitGate(e: React.FormEvent) {
     e.preventDefault();
-    setTouched(true);
-    setFailed(false);
-    if (!valid || submitting) return;
-
-    const lead = { name: name.trim(), email: email.trim(), phone: phone.trim() };
-    setCtx((c) => ({ ...c, lead }));
-    setSubmitting(true);
-
-    try {
-      const payload: Record<string, string> = {
-        ...lead,
-        briefId: ctx.briefId || "",
-        // Our own signed copy of the run, handed back in case the server has
-        // restarted since it made it.
-        runToken: ctx.runToken || "",
-      };
-      // What he told us at the front door, carried through so Ben opens this
-      // email and sees the man, his numbers and his timing in one place.
-      const rev = parseAmount(ctx.revenue);
-      const prof = parseAmount(ctx.profit);
-      if (rev) {
-        payload.revenue = String(rev);
-        payload.revenueBand = formatAmount(rev);
-      }
-      if (prof) {
-        payload.pretax_profit = String(prof);
-        payload.profitBand = formatAmount(prof);
-      }
-      payload.timeToSell = labelForTimeToSell(ctx.timeToSell) ?? "";
-      payload.site = ctx.company?.domain || ctx.url || "";
-      payload.companyName = ctx.company?.name ?? "";
-      payload.rangeShown = ctx.rangeText ?? "";
-      const res = await fetch("/api/exit-brief/pdf-request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      // This used to thank him no matter what. It now promises him an email, so
-      // it has to wait and find out whether the email actually left. Telling a
-      // man his brief is coming when it is not is worse than telling him no.
-      if (!res.ok) {
-        setFailed(true);
-        setSubmitting(false);
-        return;
-      }
-    } catch {
-      setFailed(true);
-      setSubmitting(false);
+    if (gateBusy) return;
+    const problem = contactProblem(contact.name, contact.phone, contact.email);
+    if (problem) {
+      setGateMsg(problemText(C, problem));
       return;
     }
-    go("success", { lead });
+    setGateMsg(null);
+    setGateBusy(true);
+    const r = await postJson("/api/valuation/unlock", {
+      ...token,
+      name: contact.name.trim(),
+      phone: contact.phone.trim(),
+      email: contact.email.trim(),
+    });
+    setGateBusy(false);
+    if (r.ok && typeof r.data.range === "string" && r.data.range) {
+      setRange(r.data.range);
+      onUnlocked(r.data.range);
+      trackContactSubmit({ form: "valuation", lang });
+      return;
+    }
+    const p = r.data.problem;
+    setGateMsg(typeof p === "string" && p in { all: 1, name: 1, reach: 1, emailBad: 1 } ? problemText(C, p as ContactProblem) : C.server.busy);
   }
 
-  function handleBackdrop(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) go("result");
+  async function talk(withDetails: boolean) {
+    if (ctaBusy) return;
+    if (withDetails) {
+      const problem = contactProblem(contact.name, contact.phone, contact.email);
+      if (problem) {
+        setCtaMsg(problemText(C, problem));
+        return;
+      }
+    }
+    setCtaMsg(null);
+    setCtaBusy(true);
+    trackTalkClick({ placement: special ? "result_by_hand" : "result", lang });
+    const r = await postJson("/api/valuation/talk", {
+      ...token,
+      name: contact.name.trim(),
+      phone: contact.phone.trim(),
+      email: contact.email.trim(),
+    });
+    setCtaBusy(false);
+    if (r.ok) {
+      setCtaDone(true);
+      if (withDetails) trackContactSubmit({ form: "valuation", lang });
+      return;
+    }
+    const p = r.data.problem;
+    setCtaMsg(typeof p === "string" && p in { all: 1, name: 1, reach: 1, emailBad: 1 } ? problemText(C, p as ContactProblem) : C.server.busy);
   }
 
-  return (
-    <>
-      <ResultState ctx={ctx} go={() => {}} setCtx={setCtx} />
-      <div className="v-modal-backdrop" onMouseDown={handleBackdrop}>
-        <div ref={dialogRef} className="v-modal" role="dialog" aria-modal="true" aria-labelledby="v-modal-title">
-          <button
-            type="button"
-            className="v-modal-close"
-            aria-label={C.brief.closeAriaLabel}
-            onClick={() => go("result")}
-          >
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path
-                d="M3.5 3.5l9 9M12.5 3.5l-9 9"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
+  const done = (
+    <p className="ve-call-done" role="status">
+      {C.result.callDone}
+    </p>
+  );
 
-          <h2 id="v-modal-title" className="v-modal-title">
-            {C.brief.title}
-          </h2>
-          <p className="v-modal-sub">{C.brief.sub}</p>
+  const scarcity = (
+    <p className="ve-scarcity">
+      <Hourglass />
+      {C.result.scarcity}
+    </p>
+  );
 
-          <form className="v-modal-form" onSubmit={handleSubmit} noValidate>
-            <div className="v-field">
-              <label htmlFor="lc-name" className="v-field-label">
-                {C.brief.nameLabel}
-              </label>
-              <input
-                id="lc-name"
-                type="text"
-                className={"v-input v-input-sm" + (touched && nameBad ? " has-error" : "")}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-                required
-              />
-            </div>
-
-            <div className="v-field">
-              <label htmlFor="lc-email" className="v-field-label">
-                {C.brief.emailLabel}
-              </label>
-              {/* An address is Latin, and a phone number reads left to right
-                  even in Hebrew. Both boxes keep their own direction. */}
-              <input
-                id="lc-email"
-                type="email"
-                dir="ltr"
-                className={"v-input v-input-sm" + (touched && emailBad ? " has-error" : "")}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                inputMode="email"
-                spellCheck={false}
-                autoCapitalize="off"
-                required
-              />
-            </div>
-
-            <div className="v-field">
-              <label htmlFor="lc-phone" className="v-field-label">
-                {C.brief.phoneLabel}
-              </label>
-              <input
-                id="lc-phone"
-                type="tel"
-                dir="ltr"
-                className={"v-input v-input-sm" + (touched && phoneBad ? " has-error" : "")}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                autoComplete="tel"
-                inputMode="tel"
-                required
-              />
-            </div>
-
-            <p className="v-modal-quiet">{C.brief.quiet}</p>
-
-            {/* A field he has to fix comes first. Only once the form is clean
-                does a failed send get to speak, so the two never argue. */}
-            {problem ? (
-              <p className="v-modal-error" role="alert">
-                {problem}
-              </p>
-            ) : (
-              failed && (
-                <p className="v-modal-error" role="alert">
-                  {C.brief.sendFailed}
-                </p>
-              )
-            )}
-
-            <button
-              type="submit"
-              className="v-btn v-btn-primary v-btn-block v-modal-submit"
-              disabled={submitting}
-            >
-              {submitting ? C.brief.sending : failed ? C.brief.retry : C.brief.submit}
+  let cta: React.ReactNode;
+  if (ctaDone) {
+    cta = done;
+  } else if (special) {
+    cta = (
+      <>
+        <p className="ve-cta-lead">{C.result.specialCta}</p>
+        <form
+          className="ve-inline-form"
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            void talk(true);
+          }}
+        >
+          <ContactFields idPrefix="ve-i" value={contact} onChange={setContact} />
+          {ctaMsg && (
+            <p className="ve-inline-err" role="alert">
+              {ctaMsg}
+            </p>
+          )}
+          <div className="ve-cta-act">
+            <button className="ve-btn" type="submit" disabled={ctaBusy} aria-busy={ctaBusy}>
+              {C.result.callBtn}
             </button>
-          </form>
+            {scarcity}
+          </div>
+          <Confidential text={C.gate.confidential} />
+        </form>
+      </>
+    );
+  } else {
+    cta = (
+      <>
+        <p className="ve-cta-lead">{C.result.ctaLead}</p>
+        <p className="ve-cta-body">{C.result.ctaBody}</p>
+        <div className="ve-cta-act">
+          <button
+            className="ve-btn"
+            type="button"
+            disabled={ctaBusy}
+            aria-busy={ctaBusy}
+            onClick={() => void talk(false)}
+          >
+            {C.result.callBtn}
+          </button>
+          {scarcity}
         </div>
-      </div>
-    </>
-  );
-}
+        {ctaMsg && (
+          <p className="ve-cta-err" role="alert">
+            {ctaMsg}
+          </p>
+        )}
+      </>
+    );
+  }
 
-// A Latin company name inside a Hebrew title can flip ("Geosoft Systems Ltd."
-// showed as ".Geosoft Systems Ltd"). The name goes in a <bdi> of its own so its
-// direction never leaks into the words around it.
-function titleWithBdi(title: (company: string) => string, company: string) {
-  const [before, after = ""] = title("\u0000").split("\u0000");
-  return (
-    <>
-      {before}
-      <bdi>{company}</bdi>
-      {after}
-    </>
-  );
-}
+  const company = run.company;
 
-// ─── Success ─────────────────────────────────────────────────────────────────
-function SuccessState({ ctx }: StateProps) {
-  const { copy: C } = useVCopy();
-  const company = ctx.company?.name?.trim();
   return (
-    <section className="v-success">
-      <div className="v-success-inner">
-        <h1 className="v-success-h1">{C.success.heading}</h1>
-        <p className="v-success-sub">
-          {company ? C.success.subWithCompany(company) : C.success.subPlain}
-        </p>
-        {/* The sending domain is new, so some first emails will be filtered.
-            Saying so costs nothing and saves the lead. */}
-        <p className="v-success-next">
-          {C.success.notThere}
-          <a className="v-success-mail" href={`mailto:${C.success.mail}`} dir="ltr">
-            {C.success.mail}
-          </a>
-          {C.success.notThereEnd}
-        </p>
+    <section className="ve-result" aria-labelledby="ve-h-result">
+      <h1 className="ve-r-title" id="ve-h-result" tabIndex={-1}>
+        {withBdi(special ? C.result.specialTitle : C.result.title, company)}
+      </h1>
+      <p className="ve-r-private">{C.result.privateLine}</p>
+
+      <div className="ve-r-grid">
+        <div className="ve-r-main">
+          {cards.market.length > 0 && (
+            <article className="ve-card" aria-labelledby="ve-h-market">
+              <h2 id="ve-h-market">{C.result.cardMarket}</h2>
+              {cards.market.map((line, i) => (
+                <p key={i}>{renderInline(line)}</p>
+              ))}
+            </article>
+          )}
+
+          <div className={"ve-locked-zone" + (locked ? " is-locked" : "")}>
+            <div className="ve-blurrable" aria-hidden={locked || undefined} inert={locked}>
+              {cards.value.length > 0 && (
+                <article className="ve-card" aria-labelledby="ve-h-value">
+                  <h2 id="ve-h-value">{C.result.cardValue}</h2>
+                  {cards.value.map((v, i) => (
+                    <p className="ve-value-item" key={i}>
+                      {v.label && (
+                        <>
+                          <strong>{v.watch && !/^watch\b/i.test(v.label) ? C.result.watchLabel(v.label) : v.label}</strong>{" "}
+                        </>
+                      )}
+                      {renderInline(v.body)}
+                    </p>
+                  ))}
+                </article>
+              )}
+
+              <article className="ve-card" aria-labelledby="ve-h-range">
+                <h2 id="ve-h-range" ref={rangeHeadingRef} tabIndex={-1}>
+                  {special ? C.result.cardSpecial : C.result.cardRange}
+                </h2>
+                {special ? (
+                  <div>
+                    <p className="ve-byhand-lead">{run.variant === "big" ? C.result.bigLead : C.result.byHandLead}</p>
+                    <p className="ve-range-line">{run.variant === "big" ? C.result.bigBody : C.result.byHandBody}</p>
+                  </div>
+                ) : (
+                  <div>
+                    {/* While locked this is a placeholder: the real range is
+                        not on this page until the server sends it. */}
+                    <p className="ve-range-fig">
+                      <bdi>{range ?? C.result.rangeFigure("00", "00")}</bdi>
+                    </p>
+                    <p className="ve-range-line">{C.result.rangeLine}</p>
+                  </div>
+                )}
+                <div className="ve-cta">{cta}</div>
+              </article>
+            </div>
+
+            {locked && (
+              <div className="ve-gate" role="region" aria-labelledby="ve-h-gate">
+                <form className="ve-gate-card" noValidate onSubmit={submitGate}>
+                  <p className="ve-eyebrow">{C.gate.label}</p>
+                  <h2 id="ve-h-gate">{C.gate.heading}</h2>
+                  <p className="gsub">{C.gate.sub}</p>
+                  <ContactFields idPrefix="ve-g" value={contact} onChange={setContact} />
+                  {gateMsg && (
+                    <p className="ve-gate-err" role="alert">
+                      {gateMsg}
+                    </p>
+                  )}
+                  <button className="ve-btn block" type="submit" disabled={gateBusy} aria-busy={gateBusy}>
+                    {C.gate.submit}
+                  </button>
+                  <Confidential text={C.gate.confidential} />
+                </form>
+              </div>
+            )}
+          </div>
+          <p className="ve-disclaimer">{C.disclaimer}</p>
+        </div>
+
+        <aside className="ve-card ve-co-card" aria-label={C.result.companyAriaLabel}>
+          <CompanyLogo src={run.logo || undefined} name={company} />
+          <p className="ve-co-name">
+            <bdi>{company}</bdi>
+          </p>
+          {run.oneliner && <p className="ve-co-desc">{run.oneliner}</p>}
+          <p className="ve-co-url">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" />
+              <path d="M1.5 8h13M8 1.5c2 2 2 11 0 13M8 1.5c-2 2-2 11 0 13" fill="none" stroke="currentColor" />
+            </svg>
+            <bdi>{run.domain}</bdi>
+          </p>
+          <dl className="ve-co-bands">
+            <div>
+              <dt>{C.result.coRevenue}</dt>
+              <dd>
+                <bdi>{answers.revenue ? C.revenue[answers.revenue] : ""}</bdi>
+              </dd>
+            </div>
+            <div>
+              <dt>{C.result.coProfit}</dt>
+              <dd>
+                <bdi>{answers.profit ? C.profit[answers.profit] : ""}</bdi>
+              </dd>
+            </div>
+          </dl>
+        </aside>
       </div>
     </section>
   );
 }
 
-// ─── Error ───────────────────────────────────────────────────────────────────
-function ErrorState({ ctx, go }: StateProps) {
-  const { copy: C } = useVCopy();
-  // Two different dead ends, two different headings. When the server handed
-  // back a sentence (the daily cap, the per-minute limit, a busy engine) it is
-  // the truth and it goes on screen. The server picks that sentence by the
-  // language the run was started in. Otherwise we could not read the site.
-  const serverSaid = ctx.errorMessage;
+// ─── When it cannot run ─────────────────────────────────────────────────────
+
+function ErrorScreen({ message, onRetry, onTalk }: { message?: string; onRetry: () => void; onTalk: () => void }) {
+  const { copy: C } = useV();
   return (
-    <section className="v-error">
-      <div className="v-error-inner">
-        <h1 className="v-error-h1">
-          {serverSaid ? C.error.headingBlocked : C.error.headingUnreadable}
-        </h1>
-        <p className="v-error-sub">{serverSaid ?? C.error.subUnreadable}</p>
-        <div className="v-error-actions">
-          <button
-            type="button"
-            className="v-btn v-btn-primary v-error-btn"
-            onClick={() => openTalk("error")}
-          >
-            {C.error.talkBtn}
-          </button>
-          <button
-            type="button"
-            className="v-btn v-btn-outline v-error-btn"
-            onClick={() => {
-              allowRerun();
-              go("front-door", { errorMessage: undefined });
-            }}
-          >
-            {C.error.retryBtn}
-          </button>
-        </div>
+    <section className="ve-error" aria-labelledby="ve-h-error">
+      <h1 id="ve-h-error" tabIndex={-1}>
+        {message ? C.error.headingBlocked : C.error.headingUnreadable}
+      </h1>
+      <p>{message ?? C.error.subUnreadable}</p>
+      <div className="ve-error-actions">
+        <button type="button" className="ve-btn" onClick={onTalk}>
+          {C.error.talkBtn}
+        </button>
+        <button type="button" className="ve-btn ve-btn-outline" onClick={onRetry}>
+          {C.error.retryBtn}
+        </button>
       </div>
     </section>
   );
 }
 
-// ─── Talk to us (popup, any state) ───────────────────────────────────────────
-// The short form behind every "talk to us" on this page. Three boxes and a
-// message, because a man who has just read his range wants to say one thing and
-// be done. When he ran a valuation, it rides along with the lead, so the note
-// that reaches office@ says who he is and what he was quoted.
-function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
-  const { copy: C, lang } = useVCopy();
-  const [name, setName] = useState(ctx.lead?.name || "");
-  const [reach, setReach] = useState(ctx.lead?.email || ctx.lead?.phone || "");
+// ─── The talk popup, behind "Talk to us" in the top bar ──────────────────────
+// A short note to office@ through the contact form's route. When he ran an
+// estimate, it rides along so the note says who he is.
+
+function TalkModal({
+  onClose,
+  run,
+  answers,
+  contact,
+  range,
+}: {
+  onClose: () => void;
+  run: RunResult | null;
+  answers: EstimateAnswers;
+  contact: Contact;
+  range: string | null;
+}) {
+  const { copy: C, lang } = useV();
+  const [name, setName] = useState(contact.name);
+  const [reach, setReach] = useState(contact.email || contact.phone);
   const [message, setMessage] = useState("");
-  const [touched, setTouched] = useState(false);
+  const [tried, setTried] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
-
   const dialogRef = useRef<HTMLDivElement>(null);
+  const opener = useRef<Element | null>(typeof document !== "undefined" ? document.activeElement : null);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const t = setTimeout(() => dialogRef.current?.querySelector<HTMLElement>("input, textarea, button")?.focus(), 30);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "Tab" && dialogRef.current) {
+        // Keep Tab inside the popup while it is open.
+        const items = dialogRef.current.querySelectorAll<HTMLElement>("input, textarea, button");
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    const back = opener.current;
     return () => {
       document.body.style.overflow = prev;
-    };
-  }, []);
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      dialogRef.current?.querySelector<HTMLElement>("input, textarea, button")?.focus();
-    }, 50);
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => {
       clearTimeout(t);
       window.removeEventListener("keydown", onKey);
+      if (back instanceof HTMLElement) back.focus();
     };
   }, [onClose]);
 
-  const nameBad = !name.trim();
-  // One box takes a phone or an email, same as the home page. It only has to be
-  // something we can answer on.
-  const reachIsEmail = reach.includes("@");
-  const reachBad = !reach.trim() || (reachIsEmail && !looksLikeEmail(reach));
-  const problem = !touched
+  const isEmail = reach.includes("@");
+  const problem = !tried
     ? null
-    : nameBad
+    : !name.trim()
       ? C.talk.errName
       : !reach.trim()
         ? C.talk.errReachMissing
-        : reachIsEmail && !looksLikeEmail(reach)
+        : isEmail && contactProblem(name, "", reach) === "emailBad"
           ? C.talk.errEmailBad
           : null;
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setTouched(true);
-    if (nameBad || reachBad || status === "sending") return;
+    setTried(true);
+    if (!name.trim() || !reach.trim() || (isEmail && contactProblem(name, "", reach) === "emailBad")) return;
+    if (status === "sending") return;
     setStatus("sending");
-    try {
-      const res = await fetch("/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: reachIsEmail ? reach.trim() : undefined,
-          phone: reachIsEmail ? undefined : reach.trim(),
-          message: message.trim() || "(no message)",
-          // Which door he came in by. The Sheet's "Source page" column is how
-          // Ben tells a Hebrew visitor from an English one.
-          sourcePage: lang === "he" ? "/he/valuation" : "/valuation",
-          ...(ctx.briefId
-            ? {
-                valuation: {
-                  briefId: ctx.briefId,
-                  site: ctx.company?.domain || ctx.url,
-                  company: ctx.company?.name,
-                  range: ctx.rangeText,
-                  revenue: amountLabel(ctx.revenue),
-                  profit: amountLabel(ctx.profit),
-                  timeToSell: labelForTimeToSell(ctx.timeToSell),
-                },
-              }
-            : {}),
-        }),
-      });
-      setStatus(res.ok ? "sent" : "failed");
-      // Counted only when the lead really went through.
-      if (res.ok) trackContactSubmit({ form: "valuation", lang });
-    } catch {
-      setStatus("failed");
-    }
+    const r = await postJson("/api/contact", {
+      name: name.trim(),
+      email: isEmail ? reach.trim() : undefined,
+      phone: isEmail ? undefined : reach.trim(),
+      message: message.trim() || "(no message)",
+      sourcePage: VALUATION_PATH[lang],
+      ...(run
+        ? {
+            valuation: {
+              briefId: run.briefId,
+              site: run.domain,
+              company: run.company,
+              range: range ?? "",
+              revenue: answers.revenue ? C.revenue[answers.revenue] : "",
+              profit: answers.profit ? C.profit[answers.profit] : "",
+              timeToSell: answers.timeline ? C.timeToSell[answers.timeline] : "",
+            },
+          }
+        : {}),
+    });
+    setStatus(r.ok ? "sent" : "failed");
+    if (r.ok) trackContactSubmit({ form: "valuation", lang });
   }
 
   return (
-    <div
-      className="v-modal-backdrop"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        ref={dialogRef}
-        className="v-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="v-talk-title"
-      >
-        <button
-          type="button"
-          className="v-modal-close"
-          aria-label={C.talk.closeAriaLabel}
-          onClick={onClose}
-        >
+    <div className="ve-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={dialogRef} className="ve-modal" role="dialog" aria-modal="true" aria-labelledby="ve-talk-title">
+        <button type="button" className="ve-modal-close" aria-label={C.talk.closeAriaLabel} onClick={onClose}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path
-              d="M3.5 3.5l9 9M12.5 3.5l-9 9"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
+            <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </button>
-
         {status === "sent" ? (
           <>
-            <h2 id="v-talk-title" className="v-modal-title">
-              {C.talk.sentTitle}
-            </h2>
-            <p className="v-modal-sub">{C.talk.sentBody}</p>
-            <button
-              type="button"
-              className="v-btn v-btn-primary v-btn-block v-modal-submit"
-              onClick={onClose}
-            >
+            <h2 id="ve-talk-title">{C.talk.sentTitle}</h2>
+            <p className="ve-modal-sub" role="status">
+              {C.talk.sentBody}
+            </p>
+            <button type="button" className="ve-btn block" onClick={onClose}>
               {C.talk.closeBtn}
             </button>
           </>
         ) : (
           <>
-            <h2 id="v-talk-title" className="v-modal-title">
-              {C.talk.title}
-            </h2>
-            <p className="v-modal-sub">
-              {ctx.briefId ? C.talk.subWithRun : C.talk.subNoRun}
-            </p>
-
-            <form className="v-modal-form" onSubmit={handleSubmit} noValidate>
-              <div className="v-field">
-                <label htmlFor="talk-name" className="v-field-label">
+            <h2 id="ve-talk-title">{C.talk.title}</h2>
+            <p className="ve-modal-sub">{run ? C.talk.subWithRun : C.talk.subNoRun}</p>
+            <form className="ve-inline-form" noValidate onSubmit={submit}>
+              <div>
+                <label className="ve-lbl" htmlFor="ve-t-name">
                   {C.talk.nameLabel}
                 </label>
-                <input
-                  id="talk-name"
-                  type="text"
-                  className={"v-input v-input-sm" + (touched && nameBad ? " has-error" : "")}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  autoComplete="name"
-                  required
-                />
+                <input className="ve-input" id="ve-t-name" type="text" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
-
-              <div className="v-field">
-                <label htmlFor="talk-reach" className="v-field-label">
+              <div>
+                <label className="ve-lbl" htmlFor="ve-t-reach">
                   {C.talk.reachLabel}
                 </label>
-                {/* A phone number or an address, either way Latin. */}
                 <input
-                  id="talk-reach"
+                  className="ve-input"
+                  id="ve-t-reach"
                   type="text"
                   dir="ltr"
-                  className={"v-input v-input-sm" + (touched && reachBad ? " has-error" : "")}
-                  value={reach}
-                  onChange={(e) => setReach(e.target.value)}
                   spellCheck={false}
                   autoCapitalize="off"
-                  required
+                  value={reach}
+                  onChange={(e) => setReach(e.target.value)}
                 />
               </div>
-
-              <div className="v-field">
-                <label htmlFor="talk-message" className="v-field-label">
+              <div>
+                <label className="ve-lbl" htmlFor="ve-t-msg">
                   {C.talk.messageLabel}
                 </label>
-                <textarea
-                  id="talk-message"
-                  className="v-input v-input-sm"
-                  rows={3}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                />
+                <textarea className="ve-input" id="ve-t-msg" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} />
               </div>
-
               {problem ? (
-                <p className="v-modal-error" role="alert">
+                <p className="ve-modal-err" role="alert">
                   {problem}
                 </p>
               ) : (
                 status === "failed" && (
-                  <p className="v-modal-error" role="alert">
+                  <p className="ve-modal-err" role="alert">
                     {C.talk.sendFailed}
                   </p>
                 )
               )}
-
-              <button
-                type="submit"
-                className="v-btn v-btn-primary v-btn-block v-modal-submit"
-                disabled={status === "sending"}
-              >
-                {status === "sending"
-                  ? C.talk.sending
-                  : status === "failed"
-                    ? C.talk.retry
-                    : C.talk.submit}
+              <button type="submit" className="ve-btn block" disabled={status === "sending"}>
+                {status === "sending" ? C.talk.sending : status === "failed" ? C.talk.retry : C.talk.submit}
               </button>
             </form>
           </>
@@ -1865,53 +1411,40 @@ function TalkModal({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
   );
 }
 
-const STATE_COMPONENTS: Record<ScreenId, (props: StateProps) => React.ReactElement> = {
-  "front-door": FrontDoorState,
-  working: WorkingState,
-  result: ResultState,
-  "lead-capture": LeadCaptureState,
-  success: SuccessState,
-  error: ErrorState,
-};
+// ─── The page ───────────────────────────────────────────────────────────────
 
-export default function Valuation({ lang = "en" }: { lang?: VLang }) {
-  const copy = VALUATION_COPY[lang];
+export default function Valuation({ lang = "en", copy }: { lang?: VLang; copy?: VCopy }) {
+  const C = copy ?? VALUATION_COPY[lang];
   const dir = lang === "he" ? "rtl" : "ltr";
-  const [state, setState] = useState<ScreenId>("front-door");
+  const [screen, setScreen] = useState<Screen>("front");
+  const [answers, setAnswers] = useState<EstimateAnswers>(() => ({ ...EMPTY_ANSWERS, url: readSiteParam() }));
+  const [tried, setTried] = useState(false);
+  const [runNo, setRunNo] = useState(0);
+  const [run, setRun] = useState<RunResult | null>(null);
+  const [range, setRange] = useState<string | null>(null);
+  const [contact, setContact] = useState<Contact>({ name: "", phone: "", email: "" });
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [talkOpen, setTalkOpen] = useState(false);
-  const [ctx, setCtx] = useState<Ctx>({
-    // The home page hero asks for the website and hands it over in history
-    // state, so the box on this page is already filled when he arrives and he
-    // does not have to type it twice. Read once, on mount.
-    url: readSiteParam(),
-    revenue: "",
-    profit: "",
-    timeToSell: "",
-  });
 
   useEffect(() => {
     stripSiteParam();
   }, []);
 
-  const go: Go = (next, patch) => {
-    if (patch) setCtx((c) => ({ ...c, ...patch }));
-    setState(next);
-  };
-
-  // Every "talk to us" button on this page, wherever it sits, lands here.
+  // Let him pinch to zoom here. index.html caps the zoom for the whole site;
+  // the server lifts it on a direct visit (server/_core/vite.ts), and this
+  // lifts it after a hop from the home page, then puts it back on the way out.
   useEffect(() => {
-    function onTalk(e: Event) {
-      const placement = (e as CustomEvent<{ placement?: string }>).detail?.placement ?? "unknown";
-      trackTalkClick({ placement, lang });
-      setTalkOpen(true);
-    }
-    window.addEventListener(TALK_EVENT, onTalk);
-    return () => window.removeEventListener(TALK_EVENT, onTalk);
-  }, [lang]);
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+    if (!meta) return;
+    const before = meta.content;
+    meta.content = "width=device-width, initial-scale=1.0";
+    return () => {
+      meta.content = before;
+    };
+  }, []);
 
-  // The server sets <html lang dir> on first load (server/_core/vite.ts).
-  // This keeps it right after a client-side hop, and puts it back to English
-  // on the way out, the same way Home.tsx does.
+  // The server sets <html lang dir> on first load; this keeps it right after a
+  // client-side hop, and puts it back on the way out.
   useEffect(() => {
     const el = document.documentElement;
     el.lang = lang;
@@ -1922,40 +1455,142 @@ export default function Valuation({ lang = "en" }: { lang?: VLang }) {
     };
   }, [lang, dir]);
 
-  const StateComponent = STATE_COMPONENTS[state] || FrontDoorState;
+  // Each screen starts at the top with its heading focused, so a screen
+  // reader hears where it is and Tab starts from there.
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    window.scrollTo(0, 0);
+    document.querySelector<HTMLElement>(".ve-main h1")?.focus({ preventScroll: true });
+  }, [screen]);
+
+  function onContinue(fromKeyboard: boolean) {
+    setTried(true);
+    const missing = missingRequired(answers);
+    if (missing.length) {
+      // Quiet until he presses Continue. Then each missing answer turns red,
+      // and the page goes to the first one.
+      // After the red lines are on the page: they make it taller, and Safari
+      // drops a smooth scroll that the page grows under.
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          const target = document.getElementById(`ve-q-${missing[0]}`);
+          const control = document.getElementById(`ve-${missing[0]}`);
+          if (fromKeyboard) control?.focus({ preventScroll: true });
+          target?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "center" });
+        });
+      }, 0);
+      return;
+    }
+    setRun(null);
+    setRange(null);
+    setRunNo((n) => n + 1);
+    setScreen("working");
+  }
+
+  const openTalk = (placement: string) => {
+    trackTalkClick({ placement, lang });
+    setTalkOpen(true);
+  };
+  const closeTalk = useCallback(() => setTalkOpen(false), []);
+
+  const done = answeredCount(answers);
 
   return (
-    <VCopyContext.Provider value={{ copy, lang }}>
-      <div
-        className={lang === "he" ? "v-page v-rtl" : "v-page"}
-        data-state={state}
-        lang={lang}
-        dir={dir}
-      >
-        <header className="v-topbar">
-          <a className="brand" href={lang === "he" ? "/he/" : "/"} aria-label={copy.nav.homeAriaLabel}>
-            {/* The same lockup the home page uses, tagline and all. This page
-                used to show the mark and wordmark only, so an owner who came
-                here off an ad never saw what the firm does. */}
-            <Lockup markHeight={24} />
+    <VCtx.Provider value={{ copy: C, lang }}>
+      <div className="ve" lang={lang} dir={dir} data-screen={screen}>
+        <header className="ve-topbar">
+          <a className="brand" href={lang === "he" ? "/he/" : "/"} aria-label={C.nav.homeAriaLabel}>
+            <Lockup markHeight={32} />
           </a>
-          <div className="v-topbar-right">
-            {/* Only where no run is live. Switching language is a page load,
-                and on the working screen it killed the run (Sep 27). After
-                the run it would drop his result. Both languages. */}
-            {(state === "front-door" || state === "error") && <VLangSwitch />}
-            <button type="button" className="talk" onClick={() => openTalk("nav")}>
-              {copy.nav.talkToUs}
+          <div className="ve-topbar-end">
+            {/* Only where no run is live: switching language is a page load. */}
+            {HEBREW_VALUATION_LIVE && (screen === "front" || screen === "error") && (
+              <nav className="ve-lang" aria-label={C.nav.langAriaLabel}>
+                <a href={VALUATION_PATH.en} lang="en" aria-current={lang === "en" ? "true" : undefined}>
+                  {C.nav.langEn}
+                </a>
+                <span className="sep" aria-hidden="true">
+                  /
+                </span>
+                <a href={VALUATION_PATH.he} lang="he" aria-current={lang === "he" ? "true" : undefined}>
+                  {C.nav.langHe}
+                </a>
+              </nav>
+            )}
+            <button type="button" className="ve-talk" onClick={() => openTalk("nav")}>
+              <span>{C.nav.talkToUs}</span>
             </button>
           </div>
         </header>
 
-        <main className="v-main" id="main">
-          <StateComponent ctx={ctx} go={go} setCtx={setCtx} />
+        <main className="ve-main" id="main">
+          {screen === "front" && (
+            <>
+              <div
+                className="ve-progress"
+                role="progressbar"
+                aria-label={C.front.progressAriaLabel}
+                aria-valuemin={0}
+                aria-valuemax={REQUIRED_FIELDS.length}
+                aria-valuenow={done}
+              >
+                <div className="ve-progress-fill" style={{ width: `${(done / REQUIRED_FIELDS.length) * 100}%` }} />
+              </div>
+              <FrontDoor answers={answers} setAnswers={setAnswers} tried={tried} onContinue={onContinue} />
+            </>
+          )}
+          {screen === "working" && (
+            <Working
+              runNo={runNo}
+              answers={answers}
+              lang={lang}
+              onDone={(r) => {
+                setRun(r);
+                setScreen("result");
+              }}
+              onError={(message) => {
+                setErrorMessage(message);
+                setScreen("error");
+              }}
+            />
+          )}
+          {screen === "result" && run && (
+            <Result
+              key={run.briefId}
+              run={run}
+              answers={answers}
+              lang={lang}
+              contact={contact}
+              setContact={setContact}
+              onUnlocked={setRange}
+            />
+          )}
+          {screen === "error" && (
+            <ErrorScreen
+              message={errorMessage}
+              onTalk={() => openTalk("error")}
+              onRetry={() => {
+                setErrorMessage(undefined);
+                setScreen("front");
+              }}
+            />
+          )}
         </main>
 
-        {talkOpen && <TalkModal ctx={ctx} onClose={() => setTalkOpen(false)} />}
+        {talkOpen && (
+          <TalkModal
+            onClose={closeTalk}
+            run={run}
+            answers={answers}
+            contact={contact}
+            range={range}
+          />
+        )}
       </div>
-    </VCopyContext.Provider>
+    </VCtx.Provider>
   );
 }

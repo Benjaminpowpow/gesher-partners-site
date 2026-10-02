@@ -8,10 +8,17 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Valuation from "./pages/Valuation";
+import ValuationLegacy from "./pages/ValuationLegacy";
+import { lazy, Suspense } from "react";
 import ExitBrief from "./pages/ExitBrief";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import TestRender from "./pages/TestRender";
+
+// Loaded only in dev; the import is dropped from the production build.
+const ValuationRtlPreview = import.meta.env.DEV
+  ? lazy(() => import("./pages/ValuationRtlPreview"))
+  : () => null;
 
 function Router() {
   // Meta needs a PageView on each client-side route change. GA4 counts these
@@ -36,13 +43,22 @@ function Router() {
       <Route path="/en/">
         <Redirect to="/" replace />
       </Route>
-      {/* The valuation tool, same two-URL model as the home page. The Hebrew
-          route works today but nothing links to it: the toggle is hidden
-          behind HEBREW_VALUATION_LIVE in pages/valuationCopy.ts until the
-          Hebrew words land. */}
+      {/* The valuation tool, same two-URL model as the home page. English
+          runs the valuation estimate (Oct 1, site/35). Hebrew keeps the old
+          tool, untouched, until the Hebrew pass swaps in the new one with
+          Hebrew words and deletes ValuationLegacy. */}
       <Route path="/valuation" component={() => <Valuation lang="en" />} />
-      <Route path="/he/valuation" component={() => <Valuation lang="he" />} />
-      <Route path="/he/valuation/" component={() => <Valuation lang="he" />} />
+      <Route path="/he/valuation" component={() => <ValuationLegacy lang="he" />} />
+      <Route path="/he/valuation/" component={() => <ValuationLegacy lang="he" />} />
+      {/* Dev only, never built into the live site: the new tool right to
+          left with placeholder words, for the Hebrew-ready check. */}
+      {import.meta.env.DEV && (
+        <Route path="/dev/valuation-rtl">
+          <Suspense fallback={null}>
+            <ValuationRtlPreview />
+          </Suspense>
+        </Route>
+      )}
       <Route path="/exit-brief" component={ExitBrief} />
       <Route path="/test-render" component={TestRender} />
       <Route path="/privacy" component={Privacy} />

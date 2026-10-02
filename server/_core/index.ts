@@ -9,6 +9,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { registerApiRoutes } from "../routes/exitBrief";
+import { registerEstimateRoutes } from "../routes/valuationEstimate";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -38,6 +39,9 @@ async function startServer() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   registerApiRoutes(app);
+  // The valuation estimate at /valuation (Oct 1). /he/valuation still runs
+  // the old tool through registerApiRoutes until the Hebrew pass.
+  registerEstimateRoutes(app);
   // tRPC API
   app.use(
     "/api/trpc",

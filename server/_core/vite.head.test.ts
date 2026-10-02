@@ -8,6 +8,7 @@ import { homeLang, localizeHtml, valuationLang } from "./vite";
 const TEMPLATE = `<!doctype html>
 <html lang="en" dir="ltr">
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>Old title</title>
     <meta name="description" content="Old description" />
     <meta property="og:title" content="Old og title" />
@@ -86,12 +87,19 @@ describe("localizeHtml", () => {
   it("gives /valuation its own title and canonical", () => {
     const html = localizeHtml(TEMPLATE, "/valuation?site=ash-electric.co.il");
     expect(html).toContain('<html lang="en" dir="ltr">');
-    expect(html).toContain("<title>Free business valuation | Gesher Partners</title>");
+    // site/35, head.title and head.description (Oct 1).
+    expect(html).toContain("<title>Free business valuation estimate | Gesher Partners</title>");
+    expect(html).toContain(
+      "For owners planning to sell. Answer a few short questions and get an estimated value range for your business. Private and free.",
+    );
     expect(html).toContain('<link rel="canonical" href="https://gesherpartners.com/valuation" />');
     expect(html).toContain('<meta property="og:url" content="https://gesherpartners.com/valuation" />');
     expect(html).toContain('hreflang="he" href="https://gesherpartners.com/he/valuation"');
     expect(html).toContain('hreflang="x-default" href="https://gesherpartners.com/valuation"');
     expect(html).toContain('<meta property="og:locale" content="en_US" />');
+    // Pinch-zoom is allowed on the estimate (Lighthouse meta-viewport).
+    expect(html).toContain('<meta name="viewport" content="width=device-width, initial-scale=1.0" />');
+    expect(html).not.toContain("maximum-scale");
     // No FAQ schema on the tool. Those nine questions live on the home page.
     expect(html).not.toContain('"@type":"FAQPage"');
     expect(html).not.toContain("noindex");
@@ -100,6 +108,8 @@ describe("localizeHtml", () => {
   it("serves /he/valuation right to left, with its Hebrew title, and lets it be indexed", () => {
     for (const url of ["/he/valuation", "/he/valuation/"]) {
       const html = localizeHtml(TEMPLATE, url);
+    // The old Hebrew tool keeps the site's viewport until the Hebrew pass.
+    expect(html).toContain("maximum-scale=1");
       expect(html).toContain('<html lang="he" dir="rtl">');
       expect(html).toContain('<link rel="canonical" href="https://gesherpartners.com/he/valuation" />');
       expect(html).toContain('<meta property="og:locale" content="he_IL" />');
