@@ -15,7 +15,7 @@
 import { describe, expect, it } from "vitest";
 import { PROFIT_BAND, type ProfitCode } from "@shared/valuationEstimate";
 import { rangeFigureText } from "../../client/src/pages/valuationCopy";
-import { VERTICALS, estimateRange, roundEstimate } from "./valuationMath";
+import { VERTICALS, computeRange, estimateRange, roundEstimate } from "./valuationMath";
 
 function shown(row: { floor: number; top: number; margin?: number }, profit: ProfitCode): string {
   const r = estimateRange(row, PROFIT_BAND[profit]);
@@ -93,12 +93,47 @@ describe("the live library rows, each industry's own low and high multiple", () 
     it("₪5M to 10M", () => expect(shown(row, "5-10")).toBe("₪14M to ₪34M"));
   });
 
-  it("dental and other practices have no profit multiple, so they are priced by hand", () => {
+  // Clinics, 4.8x to 5.7x of profit before tax (Ben, Oct 2, DealStats
+  // Prompt 19). Same edges as every other industry, never by hand.
+  describe("clinics (healthcare-services), 4.8x to 5.7x profit before tax", () => {
     const row = VERTICALS.get("healthcare-services")!;
-    expect(row.margin).toBeUndefined();
+    it("is priced on profit, not revenue", () => {
+      expect([row.floor, row.top, row.onRevenue]).toEqual([4.8, 5.7, false]);
+    });
+    // LOW 0.5 x 4.8 = 2.4, down to 2.  HIGH 1 x 5.7 = 5.7, up to 6.
+    it("Under ₪1M", () => expect(shown(row, "under-1")).toBe("₪2M to ₪6M"));
+    // LOW 1 x 4.8 = 4.8, down to 4.5.  HIGH 2.5 x 5.7 = 14.25, 10 and up, up to 15.
+    it("₪1M to 2.5M is ₪4.5M to ₪15M (the item 12 check)", () => expect(shown(row, "1-2.5")).toBe("₪4.5M to ₪15M"));
+    // LOW 2.5 x 4.8 = 12, 10 and up, stays 12.  HIGH 5 x 5.7 = 28.5, up to 29.
+    it("₪2.5M to 5M", () => expect(shown(row, "2.5-5")).toBe("₪12M to ₪29M"));
+    // LOW 5 x 4.8 = 24.  HIGH 10 x 5.7 = 57.
+    it("₪5M to 10M", () => expect(shown(row, "5-10")).toBe("₪24M to ₪57M"));
+    it("Over ₪10M", () => expect(shown(row, "over-10")).toBe("big"));
+  });
+
+  it("an industry priced on revenue would go by hand (none is today)", () => {
     for (const p of ["under-1", "1-2.5", "2.5-5", "5-10", "over-10"] as ProfitCode[]) {
-      expect(estimateRange(row, PROFIT_BAND[p]).outcome).toBe("by_hand");
+      expect(estimateRange({ floor: 0.63, top: 0.8, onRevenue: true }, PROFIT_BAND[p]).outcome).toBe("by_hand");
     }
+    expect([...VERTICALS.values()].filter((r) => r.onRevenue)).toEqual([]);
+  });
+});
+
+// The old tool still serves /he/valuation until the Hebrew pass, from the same
+// library. Clinics now have a profit band and no margin, so only a profit can
+// price them there; revenue alone or the site alone goes by hand, never NaN.
+describe("the old tool's math on clinics", () => {
+  const row = VERTICALS.get("healthcare-services")!;
+  it("with a profit: profit x 4.8, the old Tier 3", () => {
+    // 2M x 4.8 = 9.6M, nearest half million 9.5M. High 9.5 x 1.25 = 11.875, nearest 12.
+    const r = computeRange({ row, profit: 2_000_000, revenue: 10_000_000 });
+    expect([r.outcome, r.tier, r.low, r.high]).toEqual(["number", 3, 9_500_000, 12_000_000]);
+  });
+  it("with revenue only: by hand", () => {
+    expect(computeRange({ row, revenue: 10_000_000 })).toMatchObject({ outcome: "by_hand", low: 0, high: 0 });
+  });
+  it("with the site only: by hand", () => {
+    expect(computeRange({ row, headcount: 12 })).toMatchObject({ outcome: "by_hand", low: 0, high: 0 });
   });
 });
 

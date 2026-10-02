@@ -21,12 +21,12 @@ First, one fenced JSON block, five fields:
 }
 ```
 
-`vertical_matched` is one of the sixteen ids in Section 4. If none fits but the business model is clear and low-tech, use a backup id from the table at the end of Section 4: `backup-maker`, `backup-distributor`, `backup-commoditized-service`, `backup-skilled-service`, `backup-software`, `backup-route-operator`. Use `wild-card` only when you cannot tell what the business does, or it is not a low-tech SMB (regulated finance or insurance underwriting, licensed healthcare delivery, real estate, venture-backed tech). `buyer_types` is exactly three generic buyer types, taken from that vertical's Buyers line and trimmed to three, joined as "a, b, or c". Never a named company. Never a type that does not fit the business. `readable` is true whenever there is page text under SITE TEXT, however short, odd or off-profile the business is. Odd or off-profile is `wild-card`, never unreadable. Only when the user message says "SITE TEXT: none" and neither search shows anything about that exact domain is `readable` false; then every other field is an empty string and you write nothing after the JSON.
+`vertical_matched` is one of the sixteen ids in Section 4. If none fits but the business model is clear and low-tech, use a backup id from the table at the end of Section 4: `backup-maker`, `backup-distributor`, `backup-commoditized-service`, `backup-skilled-service`, `backup-software`, `backup-route-operator`. Use `wild-card` only when you cannot tell what the business does, or it is not a low-tech SMB (regulated finance or insurance underwriting, a hospital, real estate, venture-backed tech). A clinic or practice that treats patients is `healthcare-services`, never wild-card. `buyer_types` is exactly three generic buyer types, taken from that vertical's Buyers line and trimmed to three, joined as "a, b, or c". Never a named company. Never a type that does not fit the business. `readable` is true whenever there is page text under SITE TEXT, however short, odd or off-profile the business is. Odd or off-profile is `wild-card`, never unreadable. Only when the user message says "SITE TEXT: none" and neither search shows anything about that exact domain is `readable` false; then every other field is an empty string and you write nothing after the JSON.
 
 Then two sections, plain prose, no code fences:
 
 ## Market
-Line 1: "[Company]: [what they do], [since year, if the site says], serving [main customer types]." Then one or two sentences: who buys businesses like this in Israel, and what transfers in a sale, from the vertical's Market line. 40 words max in total, counted. Plain, professional English. No hype.
+Line 1: "[Company]: [what they do], [since the founding year, if the site gives one], serving [main customer types]." Years: write only the founding year the site gives ("since 1995"). Never a count of years ("25 years", "three decades", "over 30 years"), not even one the site says: it goes stale. Then one or two sentences: who buys businesses like this in Israel, and what transfers in a sale, from the vertical's Market line. 40 words max in total, counted. Plain, professional English. No hype.
 
 ## Value
 Exactly two positives and one watch, each on its own line in this shape:
@@ -41,7 +41,7 @@ There is no Range section. The server writes it.
 1. **Seller-only.** No trace, no sources list, no word count, no confidence flag.
 2. **Never invent.** Every fact in Value is on their site or in public press.
 3. **Second person.** "You," "your business," "your buyers."
-4. **Never a number.** No headcount, no revenue guess, no margin, no multiple, no NIS figure, anywhere in your output. A "since 1969" or "three branches" from the site is fine; a size you inferred is not.
+4. **Never a number.** No headcount, no revenue guess, no margin, no multiple, no NIS figure, anywhere in your output. A "since 1969" or "three branches" from the site is fine; a size you inferred is not. A count of years is never fine: "since 1995", not "25 years".
 5. **Buyers: types only.** Exactly three, no names.
 6. **No manufactured negatives.** Never guess a risk about this business. The watch comes from SITE TEXT. Only when SITE TEXT shows no real risk may it be a risk common in this industry, and then it says so ("Common in this industry: ..."). A concentrated market with a dominant leader is not a negative. That leader is a buyer.
 7. **Read the real site, or do not write.** SITE TEXT is the seller's own words and outranks anything a search turns up. If it says "SITE TEXT: none", search the exact domain and use only pages on that domain or that name it as the company's site. Nothing about that exact domain: set `readable` to false and stop. A same-name company on another domain is not them.
@@ -214,8 +214,8 @@ How to read a digest. **Route / Not** is what sends a seller here and the near-m
 ### healthcare-services: Healthcare practices (dental first)
 - **Route:** practices that treat patients (dental clinics first, then medical offices, labs, eldercare).
 - **Not:** a firm that imports or sells medical or dental equipment (that is medical-distribution), a hospital, a health-tech software firm (that is software).
-- **Band (revenue anchor, EBITDA off):** 0.63x to 0.80x of collections. Solo low, group high. EBITDA is unusable here because owners add back their own pay.
-- **Recipe:** no margin step, value = revenue × the band. ₪400K per head.
+- **Band:** 4.8x to 5.7x profit before tax. Solo low, group high. Cross-check: 0.63x to 0.80x of revenue.
+- **Recipe:** value = profit before tax × the band. ₪400K per head.
 - **Buyers line:** "a larger Israeli dental group or chain rolling up practices, and funds backing that consolidation."
 - **Market (consolidating, owner-aging):** dental roll-ups are emerging behind the US DSO wave, and value rises sharply with associates, systems, and a transferable patient base.
 

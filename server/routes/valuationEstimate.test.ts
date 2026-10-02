@@ -102,7 +102,7 @@ function brief(vertical: string, company = "Roltag"): string {
 }
 
 const READ = {
-  read: { text: "x".repeat(3000), finalUrl: "https://roltag.co.il/", thin: false, logoUrl: "https://roltag.co.il/logo.png" },
+  read: { text: "Roltag, label printing since 1969. " + "x".repeat(3000), finalUrl: "https://roltag.co.il/", thin: false, logoUrl: "https://roltag.co.il/logo.png" },
   noSuchHost: false,
 };
 
@@ -179,10 +179,13 @@ async function post(path: string, body: object) {
 function leaks(text: string): string[] {
   const needles = ["₪4M to ₪13M", "₪4M", "₪13M", "4M to", "13M", "\"4\"", "\"13\""];
   // The sealed token is base64; decode each part too, so a readable token fails.
+  // Only parts that decode to readable text count: the sealed token is random
+  // bytes, which now and then spell "13M" by chance and made this test flaky.
   const decoded = text
     .split(/[^A-Za-z0-9_-]+/)
     .filter((s) => s.length > 40)
     .map((s) => Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"))
+    .filter((s) => /^[\x20-\x7E\s₪]*$/.test(s))
     .join("\n");
   return needles.filter((n) => text.includes(n) || decoded.includes(n));
 }
@@ -280,25 +283,21 @@ describe("the lead in the Sheet", () => {
     expect(sent[0].subject).toBe("New valuation lead: Dana (roltag.co.il)");
   });
 
-  it("email only: his email goes out with the new words, once", async () => {
+  it("email only: details saved, nothing goes to him, a note to office@ that says no email was sent", async () => {
     const r = await estimate();
     const body = { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "Dana Levi", email: "dana@carmel.co.il" };
     await post("/api/valuation/unlock", body);
-    await post("/api/valuation/unlock", body);
     await tick();
-    const his = sent.filter((m) => m.to === "dana@carmel.co.il");
-    expect(his).toHaveLength(1);
-    expect(his[0].subject).toBe("Roltag: your estimated value range");
-    expect(his[0].text).toContain("Hello Dana, here is the estimate you just ran.");
-    expect(his[0].text).toContain("YOUR ESTIMATED VALUE RANGE");
-    expect(his[0].text).toContain("₪4M to ₪13M");
-    expect(his[0].text).toContain(COPY_V.email.disclaimer);
-    expect(his[0].text).toContain(COPY_V.email.closeBody);
-    expect(his[0].text).toContain(COPY_V.email.fine);
-    expect(his[0].text).not.toMatch(/Snapshot|cookie cutter|Who would buy|warning/i);
+    expect(sheet.update).toContainEqual(
+      expect.objectContaining({ contactName: "Dana Levi", contactPhone: "", contactEmail: "dana@carmel.co.il", gaveDetails: "yes" }),
+    );
+    expect(sent.map((m) => m.to)).toEqual([expect.stringContaining("@gesherpartners.com")]);
+    expect(sent[0].subject).toBe("New valuation lead: Dana Levi (roltag.co.il)");
+    expect(sent[0].html).toContain("He left his details and saw his range.");
+    expect(sent[0].html).not.toMatch(/emailed him/i);
   });
 
-  it("both: saved, emailed", async () => {
+  it("both: saved, nothing goes to him", async () => {
     const r = await estimate();
     await post("/api/valuation/unlock", {
       briefId: r.done!.briefId,
@@ -311,7 +310,7 @@ describe("the lead in the Sheet", () => {
     expect(sheet.update).toContainEqual(
       expect.objectContaining({ contactPhone: "050-1234567", contactEmail: "dana@carmel.co.il", gaveDetails: "yes" }),
     );
-    expect(sent.some((m) => m.to === "dana@carmel.co.il")).toBe(true);
+    expect(sent.filter((m) => !m.to.includes("@gesherpartners.com"))).toEqual([]);
   });
 
   it("Talk to us after the range marks the hot lead", async () => {
@@ -348,10 +347,16 @@ describe("the two no-number cases", () => {
     expect(sheet.update).toContainEqual(expect.objectContaining({ range: "", path: "big (over ₪10M profit)" }));
   });
 
-  it("an industry with no profit multiple (dental) is priced by hand", async () => {
+  it("a clinic is priced on profit like every other industry, never by hand (item 12)", async () => {
     engineText = brief("healthcare-services", "Smile Clinic");
     const r = await estimate();
-    expect(r.done?.variant).toBe("by_hand");
+    expect(r.done?.variant).toBe("locked");
+    expect(leaks(r.raw)).toEqual([]);
+    const u = await post("/api/valuation/unlock", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "D", phone: "050-1234567" });
+    // 1 x 4.8 = 4.8, down to 4.5; 2.5 x 5.7 = 14.25, up to 15.
+    expect(u.data.range).toBe("₪4.5M to ₪15M");
+    await tick();
+    expect(sheet.update).toContainEqual(expect.objectContaining({ vertical: "healthcare-services", path: "estimate", multiple: "4.8 to 5.7" }));
   });
 
   it("every other industry gets a number: by hand only when the engine cannot tell", async () => {
@@ -384,9 +389,8 @@ describe("the two no-number cases", () => {
     expect(sheet.update).toContainEqual(
       expect.objectContaining({ contactEmail: "dana@carmel.co.il", gaveDetails: "yes", askedToSpeak: "yes" }),
     );
-    const his = sent.find((m) => m.to === "dana@carmel.co.il");
-    expect(his?.subject).toBe("Roltag: your value estimate");
-    expect(his?.text).toContain(COPY_V.email.byHandLine);
+    expect(sent.map((m) => m.to)).toEqual([expect.stringContaining("@gesherpartners.com")]);
+    expect(sent[0].subject).toBe("Hot lead, asked to speak: Dana (roltag.co.il)");
   });
 });
 
@@ -529,36 +533,87 @@ describe("short and honest cards", () => {
   });
 });
 
-describe("the confirmation when he presses Talk to us", () => {
-  it("with an email: one short note, his words, signed by both, once", async () => {
+describe("no email to the owner, ever (item 14)", () => {
+  it("details with an email, then Talk to us twice: only office@ hears, once per press", async () => {
     const r = await estimate();
     const token = { briefId: r.done!.briefId, runToken: r.done!.run_token };
-    const who = { name: "Dana", phone: "", email: "dana@carmel.co.il" };
+    const who = { name: "Dana", phone: "050-1234567", email: "dana@carmel.co.il" };
     await post("/api/valuation/unlock", { ...token, ...who });
     await post("/api/valuation/talk", { ...token, ...who });
     await post("/api/valuation/talk", { ...token, ...who });
     await tick();
-    const notes = sent.filter((m) => m.to === "dana@carmel.co.il" && m.subject === "We got your request");
-    expect(notes).toHaveLength(1);
-    expect(notes[0].text).toBe("We got your request. Ofir or Benjamin will reach out shortly.\n\nOfir and Benjamin\nGesher Partners");
+    expect(sent.filter((m) => !m.to.includes("@gesherpartners.com"))).toEqual([]);
+    expect(sent.map((m) => m.subject)).toEqual([
+      "New valuation lead: Dana (roltag.co.il)",
+      "Hot lead, asked to speak: Dana (roltag.co.il)",
+      "Hot lead, asked to speak: Dana (roltag.co.il)",
+    ]);
   });
 
-  it("with a phone only: nothing goes to him", async () => {
+  it("phone only, then Talk to us: office@ gets both lead emails, nobody else gets anything", async () => {
     const r = await estimate();
     const token = { briefId: r.done!.briefId, runToken: r.done!.run_token };
-    await post("/api/valuation/unlock", { ...token, name: "Dana", phone: "050-1234567" });
-    await post("/api/valuation/talk", { ...token, name: "Dana", phone: "050-1234567" });
+    const who = { name: "Dana", phone: "050-1234567" };
+    await post("/api/valuation/unlock", { ...token, ...who });
+    await post("/api/valuation/talk", { ...token, ...who });
     await tick();
-    expect(sent.filter((m) => !m.to.includes("@gesherpartners.com"))).toEqual([]);
+    expect(sent.map((m) => m.to)).toEqual([
+      expect.stringContaining("@gesherpartners.com"),
+      expect.stringContaining("@gesherpartners.com"),
+    ]);
+    expect(sent.map((m) => m.subject)).toEqual([
+      "New valuation lead: Dana (roltag.co.il)",
+      "Hot lead, asked to speak: Dana (roltag.co.il)",
+    ]);
+    expect(sent[0].html).toContain("No email, so call him.");
   });
 
-  it("on a no-number case with an email: his letter, then the confirmation", async () => {
-    engineText = brief("wild-card");
+  it("the two no-number cases with an email: only office@ hears", async () => {
+    for (const body of [{ ...ANSWERS, profit: "over-10" }, ANSWERS]) {
+      clearEstimateStateForTests();
+      sent.length = 0;
+      engineText = body === ANSWERS ? brief("wild-card") : brief("manufacturing");
+      const r = await estimate(body);
+      await post("/api/valuation/talk", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "Dana", email: "dana@carmel.co.il" });
+      await tick();
+      expect(sent.map((m) => m.to)).toEqual([expect.stringContaining("@gesherpartners.com")]);
+    }
+  });
+});
+
+// ─── Years (item 13) ─────────────────────────────────────────────────────────
+describe("years in business", () => {
+  const COUNTED = brief("industrial-equipment-distribution", "Man Ltd").replace(
+    "positive: **Sticky customers.** Pharma clients reorder for years.",
+    "positive: **25 years and a national service footprint.** You built a trusted brand.",
+  );
+
+  it("a count of years gets the quiet retry, told to use the founding year", async () => {
+    engineQueue.push(COUNTED, brief("industrial-equipment-distribution", "Man Ltd"));
+    const r = await estimate({ ...ANSWERS, url: "manltd.co.il" });
+    expect(create).toHaveBeenCalledTimes(2);
+    const second = JSON.stringify((create.mock.calls[1] as unknown[])[0]);
+    expect(second).toContain('The cards say \\"25 years\\"');
+    expect(r.done?.result_md).not.toMatch(/25 years/);
+  });
+
+  it("if the retry still counts years, the count is taken out before he sees it", async () => {
+    engineQueue.push(COUNTED, COUNTED);
+    const r = await estimate({ ...ANSWERS, url: "manltd.co.il" });
+    expect(r.done?.result_md).not.toMatch(/years/);
+    expect(r.done?.result_md).toContain("positive: **A national service footprint.** You built a trusted brand.");
+  });
+
+  it("a founding year the site shows stays; one it does not show goes", async () => {
+    // The site says 1969 (READ). The engine's 1955 is not on it.
+    engineQueue.push(brief("manufacturing").replace("since 1969", "since 1955"), brief("manufacturing").replace("since 1969", "since 1955"));
     const r = await estimate();
-    await post("/api/valuation/talk", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "Dana", email: "dana@carmel.co.il" });
-    await tick();
-    await tick();
-    const his = sent.filter((m) => m.to === "dana@carmel.co.il").map((m) => m.subject);
-    expect(his).toEqual(["Roltag: your value estimate", "We got your request"]);
+    expect(r.done?.result_md).not.toContain("1955");
+    expect(r.done?.result_md).toContain("Roltag: label printer, serving pharma and food.");
+    clearEstimateStateForTests();
+    create.mockClear();
+    const ok = await estimate();
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(ok.done?.result_md).toContain("since 1969");
   });
 });

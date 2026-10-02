@@ -24,10 +24,16 @@ import { EXIT_BRIEF_SYSTEM_PROMPT } from "./exitBriefSkill";
 
 export interface VerticalRow {
   id: string;
-  /** EBITDA multiple, floor and top. For healthcare-services it is a revenue multiple. */
+  /** The multiple, floor and top: on EBITDA, or on profit before tax (healthcare-services, since Oct 2). */
   floor: number;
   top: number;
-  /** EBITDA over revenue, as a fraction. Undefined when the band is on revenue. */
+  /**
+   * True when the band multiplies revenue, not profit: the library says
+   * "revenue anchor" in the band's label. No vertical does today. Dental did
+   * until Oct 2, when Ben approved 4.8x to 5.7x of profit before tax.
+   */
+  onRevenue: boolean;
+  /** EBITDA over revenue, as a fraction. Undefined when the library gives none. */
   margin?: number;
   /** Revenue per employee, in NIS. */
   perHead: number;
@@ -77,7 +83,7 @@ export function parseVerticals(bundle: string = EXIT_BRIEF_SYSTEM_PROMPT): Map<s
   const blocks = section.split(/^### (?=[a-z0-9-]+: )/m).slice(1);
   for (const block of blocks) {
     const id = block.slice(0, block.indexOf(":")).trim();
-    const band = block.match(/\*\*Band[^*]*\*\*\s*(\d+(?:\.\d+)?)x to (\d+(?:\.\d+)?)x/);
+    const band = block.match(/\*\*Band([^*]*)\*\*\s*(\d+(?:\.\d+)?)x to (\d+(?:\.\d+)?)x/);
     const recipe = block.match(/\*\*Recipe:\*\*([^\n]*)/);
     const buyers = block.match(/\*\*Buyers line:\*\*\s*"([^"]+)"/);
     if (!band || !recipe || !buyers) continue;
@@ -86,8 +92,9 @@ export function parseVerticals(bundle: string = EXIT_BRIEF_SYSTEM_PROMPT): Map<s
     if (!perHead) continue;
     rows.set(id, {
       id,
-      floor: Number(band[1]),
-      top: Number(band[2]),
+      floor: Number(band[2]),
+      top: Number(band[3]),
+      onRevenue: /revenue/i.test(band[1]),
       margin: margin ? Number(margin[1]) / 100 : undefined,
       perHead: nis(perHead[1], perHead[2]),
       buyers: buyers[1],
@@ -110,6 +117,7 @@ export function parseVerticals(bundle: string = EXIT_BRIEF_SYSTEM_PROMPT): Map<s
       id,
       floor: Number(m[2]),
       top: Number(m[3]),
+      onRevenue: false,
       margin: Number(m[4]) / 100,
       perHead: nis(m[5], m[6]),
       buyers: buyersByModel.get(id) ?? "a larger Israeli operator in your space, and funds that buy founder-run businesses your size",
@@ -135,8 +143,12 @@ export interface RangeResult {
   /** NIS. Zero when gated. */
   low: number;
   high: number;
-  /** "number", or the gate that fired. */
-  outcome: "number" | "too_small" | "too_big";
+  /**
+   * "number", or the gate that fired. "by_hand": a band on profit with no
+   * margin in the library (healthcare-services) and no profit given, so
+   * revenue or headcount cannot reach a profit to price.
+   */
+  outcome: "number" | "too_small" | "too_big" | "by_hand";
   headcountUsed: number;
   headcountSource: string;
   perHead: number;
@@ -154,7 +166,9 @@ function roundTo(value: number, step: number, mode: "down" | "nearest"): number 
 /** The whole recipe, in one place. */
 export function computeRange(input: RangeInput): RangeResult {
   const { row } = input;
-  const onRevenue = row.margin === undefined;
+  const onRevenue = row.onRevenue;
+  // Revenue or headcount reaches a profit only through the margin.
+  const noProfitRoute = !onRevenue && row.margin === undefined && !(input.profit && input.profit > 0);
   let tier: 1 | 2 | 3;
   let low: number;
   let headcountUsed = 0;
@@ -194,7 +208,8 @@ export function computeRange(input: RangeInput): RangeResult {
   }
 
   let outcome: RangeResult["outcome"] = "number";
-  if (low < 1 * M) outcome = "too_small";
+  if (noProfitRoute) outcome = "by_hand";
+  else if (low < 1 * M) outcome = "too_small";
   else if (low > 100 * M) outcome = "too_big";
 
   return {
@@ -257,12 +272,13 @@ export function roundEstimate(valueInMillions: number, direction: "down" | "up")
  * The range for one industry row and one profit band.
  *
  * band: the profit band in NIS millions, hi null for the open top. Over ₪10M
- * has no number (35, round 3). An industry the library prices on revenue
- * (dental, healthcare-services) has no profit multiple, so it is priced by
- * hand until Ben has one (Ben, Oct 1).
+ * has no number (35, round 3). An industry the library prices on revenue has
+ * no profit multiple, so it is priced by hand. None does today: clinics
+ * (healthcare-services) moved to 4.8x to 5.7x of profit before tax on Oct 2
+ * (Ben), and use the same edges as everyone else.
  */
 export function estimateRange(
-  row: Pick<VerticalRow, "floor" | "top" | "margin">,
+  row: Pick<VerticalRow, "floor" | "top"> & { onRevenue?: boolean },
   band: { lo: number; hi: number | null },
 ): EstimateRangeResult {
   const none = (outcome: "big" | "by_hand"): EstimateRangeResult => ({
@@ -272,7 +288,7 @@ export function estimateRange(
     floor: row.floor,
     top: row.top,
   });
-  if (row.margin === undefined) return none("by_hand");
+  if (row.onRevenue) return none("by_hand");
   if (band.hi === null) return none("big");
   const lowM = roundEstimate(band.lo * row.floor, "down");
   const highM = roundEstimate(band.hi * row.top, "up");

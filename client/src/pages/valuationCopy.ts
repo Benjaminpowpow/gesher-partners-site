@@ -1,6 +1,6 @@
 /**
  * Every word the valuation estimate says, in one place: the page, the popup,
- * the email, the server's refusals and the page head.
+ * the server's refusals and the page head.
  *
  * Source: site/35-valuation-lead-magnet.md in the vault (Ben, Oct 1 2026).
  * Each key below is the key in that file's tables, word for word. Change the
@@ -13,8 +13,8 @@
  * then /he/valuation runs the old tool, untouched, from ValuationLegacy.tsx and
  * valuationCopyLegacy.ts, which the Hebrew pass deletes.
  *
- * This file is imported by the server too (the email, the refusals, the head
- * and the Sheet labels), so it must stay plain data: no React, no browser.
+ * This file is imported by the server too (the refusals, the head and the
+ * Sheet labels), so it must stay plain data: no React, no browser.
  */
 import type {
   ProfitCode,
@@ -229,41 +229,10 @@ const COPY_V = {
     retry: "Try again",
   },
 
-  /* ─── The email, only when he left an email ──────────────────────────── */
-  email: {
-    subject: (company: string) => `${company}: your estimated value range`,
-    title: (company: string) => `${company}: your estimated value range`,
-    // The two no-number cases have no range, so the subject and title use the
-    // page's own title for them (result.specialTitle).
-    specialSubject: (company: string) => `${company}: your value estimate`,
-    specialTitle: (company: string) => `${company}: your value estimate`,
-    greeting: (first: string) =>
-      first
-        ? `Hello ${first}, here is the estimate you just ran.`
-        : "Here is the estimate you just ran.",
-    rangeLabel: "Your estimated value range",
-    disclaimer:
-      "This estimate is based on the bands you chose and on what buyers pay for similar businesses. Your financial statements are what make it more precise.",
-    byHandLine: "Your business deserves a closer look.",
-    byHandBody:
-      "Some businesses are too specific for a quick formula, and yours is one of them.",
-    // Over ₪10M profit. The page's own two lines (result.bigLead, bigBody).
-    bigLine: "At this size, we price by hand.",
-    bigBody: "A short call with Ofir or Benjamin gives you a real number.",
-    closeLead: "Want a more accurate number?",
-    closeBody:
-      "For a more accurate number, we need your financial statements. Reply to this email and we will send you an NDA first. If you would rather talk first, just say so.",
-    closeRead: "We read every reply ourselves.",
-    fine: "An estimate, not a formal valuation. Not an offer, or advice to buy or sell.",
-    // The short note when he presses "Talk to us" and left an email (Ben,
-    // Oct 2). Nothing goes if he left only a phone.
-    talkSubject: "We got your request",
-    talkBody: "We got your request. Ofir or Benjamin will reach out shortly.",
-    // Kept from the old letter.
-    privateLabel: "Strictly private",
-    signName: "Ofir and Benjamin",
-    signFirm: "Gesher Partners",
-  },
+  /* ─── No email to the owner (Ben, Oct 2) ─────────────────────────────── */
+  // The owner gets no email at all, so there are no email lines (35, "The
+  // email (REMOVED 2026-10-02)"). The two lead emails to office@ are internal
+  // English and live in server/routes/valuationEstimate.ts.
 
   /* ─── What the server says when it refuses ───────────────────────────── */
   // These come before the popup, so we do not have his details yet. That is

@@ -22,6 +22,10 @@
  * same row in when it ends, his details land in it the moment he sends them,
  * and "Talk to us" marks it. One row per run, found by its Brief ID.
  *
+ * NO EMAIL TO THE OWNER (Ben, Oct 2). Nothing on the page promises one, so
+ * nothing is sent: no estimate letter, no confirmation. The two lead emails
+ * to office@ are the only mail this file sends.
+ *
  * The old tool (routes/exitBrief.ts) still serves /he/valuation until the
  * Hebrew pass. Both share the engine, the daily cap and the mail settings.
  */
@@ -65,17 +69,8 @@ import { countDomainRun, countRun, gateRefusal, getClientIp } from "../lib/runGa
 import { appendValuationRow, updateValuationRow, type ValuationRow } from "../lib/leadsSheet";
 import { noSiteBlock, readSite, siteReadBlock } from "../lib/readSite";
 import { VERTICALS, estimateRange } from "../lib/valuationMath";
-import { briefProblems, tidyBrief, trimMarket } from "../lib/briefShape";
+import { briefProblems, scrubYears, tidyBrief, trimMarket } from "../lib/briefShape";
 import { openRun, sealRun } from "../lib/runToken";
-import {
-  buildEstimateEmailHtml,
-  buildEstimateEmailText,
-  buildTalkConfirmationHtml,
-  buildTalkConfirmationText,
-  estimateSubject,
-  talkConfirmationSubject,
-  type EstimateLetter,
-} from "../lib/estimateEmail";
 import { NOTIFY_EMAIL, esc, sender } from "../lib/mail";
 
 // ─── The run ────────────────────────────────────────────────────────────────
@@ -144,8 +139,6 @@ const cacheKey = (lang: RunLang, domain: string) => `${lang}|${domain}`;
 export function clearEstimateStateForTests(): void {
   runStore.clear();
   briefCache.clear();
-  emailed.clear();
-  confirmed.clear();
 }
 
 // ─── The Sheet, in order ────────────────────────────────────────────────────
@@ -236,8 +229,8 @@ export function decideVariant(
   const r = estimateRange(row, PROFIT_BAND[profit]);
   const multiple = `${row.floor} to ${row.top}`;
   if (r.outcome === "by_hand") {
-    // An industry the library prices on revenue (dental). No profit multiple
-    // yet, so by hand until Ben has one (Oct 1).
+    // An industry the library prices on revenue: no profit multiple, so by
+    // hand. None does today; clinics moved to profit on Oct 2 (Ben).
     return { variant: "by_hand", rangeText: "", path: "by_hand (no profit multiple)", multiple: "" };
   }
   if (r.outcome === "big") return { variant: "big", rangeText: "", path: "big (over ₪10M profit)", multiple };
@@ -452,12 +445,16 @@ async function handleEstimate(req: Request, res: Response) {
 
     // Short and honest (Ben, Oct 2). Each Value point is cut to its label and
     // first sentence. If the cards still break the rules (Market over 40
-    // words, a point over 20, a watch that guesses), one quiet retry is told
-    // exactly what to fix. The retry's cards are kept only if they are better,
-    // and the first run's industry stays, so the price never moves on a retry.
-    // Last, Market is cut to whole sentences that fit. Log: "shape-retry".
+    // words, a point over 20, a watch that guesses, a count of years, a year
+    // the site does not show), one quiet retry is told exactly what to fix.
+    // The retry's cards are kept only if they are better, and the first run's
+    // industry stays, so the price never moves on a retry. Last, any count of
+    // years left is taken out, and Market is cut to whole sentences that fit.
+    // Log: "shape-retry". Years are checked against a full read only; a thin
+    // read or a search is not enough of the site to say a year is not on it.
+    const siteText = siteRead && !siteRead.thin ? siteRead.text : undefined;
     let resultMd = tidyBrief(marketAndValue(brief.resultMd));
-    let problems = meta.readable === false || !hasCards(resultMd) ? [] : briefProblems(resultMd);
+    let problems = meta.readable === false || !hasCards(resultMd) ? [] : briefProblems(resultMd, { siteText });
     if (problems.length) {
       console.warn(`[estimate] shape-retry briefId=${briefId}: ${problems.join(" | ")}`);
       try {
@@ -472,7 +469,7 @@ async function handleEstimate(req: Request, res: Response) {
           attempts,
         });
         const retried = tidyBrief(marketAndValue(parseMetaAndBody(again).resultMd));
-        const left = briefProblems(retried);
+        const left = briefProblems(retried, { siteText });
         if (hasCards(retried) && left.length < problems.length) {
           resultMd = retried;
           problems = left;
@@ -482,7 +479,7 @@ async function handleEstimate(req: Request, res: Response) {
       }
       if (problems.length) console.warn(`[estimate] shape-retry left briefId=${briefId}: ${problems.join(" | ")}`);
     }
-    resultMd = trimMarket(resultMd);
+    resultMd = trimMarket(scrubYears(resultMd, { siteText }));
     const cost = runCostUsd(attempts);
 
     if (meta.readable === false || !hasCards(resultMd)) {
@@ -599,79 +596,6 @@ function readContact(body: unknown): Contact {
   return { name: text(b.name, 120), phone: text(b.phone, 40), email: text(b.email, 200) };
 }
 
-// One owner email per run, however many times the button is pressed.
-const emailed = new Set<string>();
-
-function letterFor(run: EstimateRun): EstimateLetter {
-  return {
-    companyName: run.company,
-    companyOneliner: run.oneliner,
-    variant: run.variant,
-    rangeText: run.rangeText,
-    resultMd: run.resultMd,
-    logoUrl: run.logoUrl,
-    lang: run.lang,
-  };
-}
-
-/** The owner's email. Only when he left one, only once per run. */
-async function sendOwnerEmail(briefId: string, run: EstimateRun, who: Contact): Promise<void> {
-  if (!who.email || emailed.has(briefId)) return;
-  const key = process.env.RESEND_API_KEY;
-  if (!key) {
-    console.error(`[estimate] RESEND_API_KEY not set. No email to the owner, briefId=${briefId}`);
-    return;
-  }
-  emailed.add(briefId);
-  try {
-    const letter = letterFor(run);
-    await new Resend(key).emails.send({
-      from: sender("Gesher"),
-      to: who.email,
-      // The reply is the call to action, so it must land where a human reads.
-      replyTo: NOTIFY_EMAIL,
-      subject: estimateSubject(letter),
-      html: buildEstimateEmailHtml(letter, { name: who.name }),
-      text: buildEstimateEmailText(letter, { name: who.name }),
-    });
-    console.log(`[estimate] emailed the owner, briefId=${briefId}`);
-  } catch (err) {
-    emailed.delete(briefId);
-    console.error(`[estimate] owner email failed, briefId=${briefId}:`, err);
-  }
-}
-
-// One confirmation per run, however many times "Talk to us" is pressed.
-const confirmed = new Set<string>();
-
-/**
- * The short note when he presses "Talk to us" (Ben, Oct 2): "We got your
- * request." Only when he left an email, only once per run.
- */
-async function sendTalkConfirmation(briefId: string, run: EstimateRun, who: Contact): Promise<void> {
-  if (!who.email || confirmed.has(briefId)) return;
-  const key = process.env.RESEND_API_KEY;
-  if (!key) {
-    console.error(`[estimate] RESEND_API_KEY not set. No confirmation to the owner, briefId=${briefId}`);
-    return;
-  }
-  confirmed.add(briefId);
-  try {
-    await new Resend(key).emails.send({
-      from: sender("Gesher"),
-      to: who.email,
-      replyTo: NOTIFY_EMAIL,
-      subject: talkConfirmationSubject(run.lang),
-      html: buildTalkConfirmationHtml(run.lang),
-      text: buildTalkConfirmationText(run.lang),
-    });
-    console.log(`[estimate] confirmed the talk request, briefId=${briefId}`);
-  } catch (err) {
-    confirmed.delete(briefId);
-    console.error(`[estimate] confirmation failed, briefId=${briefId}:`, err);
-  }
-}
-
 /**
  * Ben's copy, to office@. Internal, English, every field on one screen. The
  * Sheet is the list; this is the tap on the shoulder.
@@ -697,11 +621,12 @@ async function notifyBen(kind: "details" | "talk", briefId: string, run: Estimat
     ["Language", run.lang],
     ["Brief ID", briefId],
   ];
+  // The owner gets no email (Ben, Oct 2), so this never says we sent one.
   const lead =
     kind === "talk"
       ? "He pressed Talk to us. Hot lead."
       : who.email
-        ? "He left his details and saw his range. We emailed him his estimate."
+        ? "He left his details and saw his range."
         : "He left his details and saw his range. No email, so call him.";
   const subject =
     kind === "talk"
@@ -759,7 +684,6 @@ async function handleUnlock(req: Request, res: Response) {
     }),
   );
   res.json({ range: run.rangeText });
-  void sendOwnerEmail(briefId, run, who);
   void notifyBen("details", briefId, run, who);
 }
 
@@ -778,7 +702,6 @@ async function handleTalk(req: Request, res: Response) {
     // email only; the Sheet has them.
     sheetThen(briefId, () => updateValuationRow(briefId, { askedToSpeak: "yes" }));
     res.json({ ok: true });
-    void sendTalkConfirmation(briefId, run, who);
     void notifyBen("talk", briefId, run, who);
     return;
   }
@@ -800,9 +723,6 @@ async function handleTalk(req: Request, res: Response) {
     }),
   );
   res.json({ ok: true });
-  // His estimate letter first, then the short confirmation, both only when he
-  // left an email. In that order, so the confirmation is the last word.
-  void sendOwnerEmail(briefId, run, who).then(() => sendTalkConfirmation(briefId, run, who));
   void notifyBen("talk", briefId, run, who);
 }
 

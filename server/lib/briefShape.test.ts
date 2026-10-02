@@ -4,7 +4,7 @@
  * emails showed them.
  */
 import { describe, expect, it } from "vitest";
-import { briefProblems, tidyBrief, trimMarket, wordCount, MARKET_MAX_WORDS } from "./briefShape";
+import { briefProblems, scrubYears, tidyBrief, trimMarket, wordCount, yearCounts, MARKET_MAX_WORDS } from "./briefShape";
 
 const ESHET = `## Market
 
@@ -61,7 +61,7 @@ describe("the checks", () => {
     expect(problems.some((p) => p.includes("guesses") && p.includes("likely"))).toBe(true);
   });
 
-  it("Man Ltd's cards: Market too long, all three points over 20 words; its watch does not guess", () => {
+  it("Man Ltd's cards: Market too long, all three points over 20 words, a count of years; its watch does not guess", () => {
     // Counted by hand: 7 + 17 = 24, 6 + 16 = 22, 4 + 19 = 23.
     const problems = briefProblems(tidyBrief(MANLTD));
     expect(problems).toEqual([
@@ -69,6 +69,7 @@ describe("the checks", () => {
       'Value point "25 years and a national service footprint." is 24 words. The limit is 20, label included.',
       'Value point "Recurring revenue from service and parts." is 22 words. The limit is 20, label included.',
       'Value point "Dependence on foreign brands." is 23 words. The limit is 20, label included.',
+      'The cards say "25 years". Never write how long the business has run. Write the founding year SITE TEXT gives ("since 1995"), or leave it out.',
     ]);
   });
 
@@ -114,5 +115,77 @@ describe("tidying", () => {
 
   it("leaves a short Market alone", () => {
     expect(trimMarket(SHORT)).toBe(SHORT);
+  });
+});
+
+// ─── Years (item 13, Ben Oct 2) ──────────────────────────────────────────────
+// Man Ltd's live run said "25 years" for a company founded in 1995.
+describe("years in business", () => {
+  const MAN_SITE = "Man Ltd. Founded in 1995. Industrial cleaning machines, sales and service.";
+
+  it("finds every way of counting years", () => {
+    expect(yearCounts("25 years and a national service footprint")).toEqual(["25 years"]);
+    expect(yearCounts("for over three decades")).toEqual(["three decades"]);
+    expect(yearCounts("a 30-year track record, 40+ years, twenty-five years")).toEqual(["30-year", "40+ years", "twenty-five years"]);
+    expect(yearCounts("for decades, half a century, a quarter century")).toEqual(["decades", "half a century", "a quarter century"]);
+  });
+
+  it("leaves alone what is not an age", () => {
+    expect(yearCounts("Pharma clients reorder for years.")).toEqual([]);
+    expect(yearCounts("Customers sign 5-year contracts and a 10-year warranty.")).toEqual([]);
+    expect(yearCounts("since 1995")).toEqual([]);
+  });
+
+  it("Man Ltd's real cards: the count is a problem, the year from the site is not", () => {
+    const problems = briefProblems(tidyBrief(MANLTD), { siteText: MAN_SITE });
+    expect(problems).toContain(
+      'The cards say "25 years". Never write how long the business has run. Write the founding year SITE TEXT gives ("since 1995"), or leave it out.',
+    );
+    expect(problems.some((p) => p.includes("does not show"))).toBe(false);
+  });
+
+  it("a year the site does not show is a problem; with no site text there is no year check", () => {
+    const md = SHORT.replace("since 1969", "since 1955");
+    expect(briefProblems(md, { siteText: "Roltag, label printing since 1969." })).toEqual([
+      "The cards say 1955, which SITE TEXT does not show. Write only a year SITE TEXT shows, or leave it out.",
+    ]);
+    expect(briefProblems(md)).toEqual([]);
+    expect(briefProblems(SHORT, { siteText: "Roltag, label printing since 1969." })).toEqual([]);
+  });
+
+  it("takes the count out of Man Ltd's label and keeps the capital", () => {
+    const out = scrubYears(tidyBrief(MANLTD), { siteText: MAN_SITE });
+    expect(out).toContain("positive: **A national service footprint.** You have built a trusted brand");
+    expect(out).toContain("since 1995");
+    expect(yearCounts(out)).toEqual([]);
+  });
+
+  it("takes a clause between commas out whole", () => {
+    const md = SHORT.replace(
+      "Roltag: label printer since 1969, serving pharma and food.",
+      "Roltag: label printer, with over 50 years of experience, serving pharma and food.",
+    );
+    expect(scrubYears(md)).toContain("Roltag: label printer, serving pharma and food.");
+  });
+
+  it("takes the phrase and its lead-in out of a plain sentence", () => {
+    const md = SHORT.replace("watch: **Few buyers.** The price comes from a real process.", "watch: **Few buyers.** You have run the shop for over 30 years without a deputy.");
+    expect(scrubYears(md)).toContain("watch: **Few buyers.** You have run the shop without a deputy.");
+  });
+
+  it("takes out a founding year the site does not show, with its since", () => {
+    const md = SHORT.replace("since 1969", "since 1955");
+    expect(scrubYears(md, { siteText: "Roltag, label printing since 1969." })).toContain("Roltag: label printer, serving pharma and food.");
+    expect(scrubYears(SHORT, { siteText: "Roltag, label printing since 1969." })).toBe(SHORT);
+  });
+
+  it("drops a later Market sentence the cut leaves too short", () => {
+    const md = SHORT.replace(
+      "Larger printing groups buy shops like this for the client book.",
+      "Larger printing groups buy shops like this for the client book. Over 25 years.",
+    );
+    const out = scrubYears(md);
+    expect(out).toContain("Larger printing groups buy shops like this for the client book.\n");
+    expect(out).not.toMatch(/25|Over\./);
   });
 });
