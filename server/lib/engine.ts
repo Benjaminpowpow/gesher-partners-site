@@ -189,7 +189,7 @@ export interface BriefMeta {
   // Filled by the server:
   range_variant?: string; // "number" | "by_hand" | "unreadable"
   range_text?: string;
-  path_used?: string; // "T1" | "T2" | "T3" | wild_card | too_big | too_small | unreadable
+  path_used?: string; // "T1" | "T2" | "T3" | wild_card | too_big | too_small | by_hand | unreadable
   tier?: number;
   headcount_used?: number;
   headcount_source?: string;

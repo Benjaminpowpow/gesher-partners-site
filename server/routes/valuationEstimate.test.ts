@@ -8,7 +8,8 @@
  * the cache, and the server's refusals in site/35's words.
  *
  * Roltag on manufacturing (4.2x to 5.0x) at ₪1M to 2.5M of profit prices at
- * ₪6M to ₪11M: LOW 1.375 x 4.2 = 5.775 -> 6, HIGH 2.125 x 5.0 = 10.625 -> 11.
+ * ₪4M to ₪13M (band edges, Oct 2): LOW 1 x 4.2 = 4.2, down to 4; HIGH
+ * 2.5 x 5.0 = 12.5, up to 13.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
@@ -18,11 +19,13 @@ import type { Server } from "node:http";
 // ─── Fakes ───────────────────────────────────────────────────────────────────
 const calls: string[] = [];
 let engineText = "";
+// Answers for the next calls, in order, before falling back to engineText.
+const engineQueue: string[] = [];
 let engineFails = false;
 const create = vi.fn(async () => {
   calls.push("engine");
   if (engineFails) throw new Error("overloaded");
-  const text = engineText;
+  const text = engineQueue.length ? engineQueue.shift()! : engineText;
   return (async function* () {
     yield { type: "message_start", message: { usage: { input_tokens: 1000, cache_read_input_tokens: 0 } } };
     yield { type: "content_block_start", content_block: { type: "server_tool_use" } };
@@ -99,7 +102,7 @@ function brief(vertical: string, company = "Roltag"): string {
 }
 
 const READ = {
-  read: { text: "x".repeat(3000), finalUrl: "https://roltag.co.il/", thin: false, logoUrl: "https://roltag.co.il/logo.png" },
+  read: { text: "Roltag, label printing since 1969. " + "x".repeat(3000), finalUrl: "https://roltag.co.il/", thin: false, logoUrl: "https://roltag.co.il/logo.png" },
   noSuchHost: false,
 };
 
@@ -132,6 +135,7 @@ beforeEach(() => {
   sent.length = 0;
   create.mockClear();
   engineFails = false;
+  engineQueue.length = 0;
   engineText = brief("manufacturing");
   siteResult = READ;
 });
@@ -173,12 +177,15 @@ async function post(path: string, body: object) {
 
 /** Every way the range could leak: the figure, each end, and the bare numbers. */
 function leaks(text: string): string[] {
-  const needles = ["₪6M to ₪11M", "₪6M", "₪11M", "6M to", "11M", "\"6\"", "\"11\""];
+  const needles = ["₪4M to ₪13M", "₪4M", "₪13M", "4M to", "13M", "\"4\"", "\"13\""];
   // The sealed token is base64; decode each part too, so a readable token fails.
+  // Only parts that decode to readable text count: the sealed token is random
+  // bytes, which now and then spell "13M" by chance and made this test flaky.
   const decoded = text
     .split(/[^A-Za-z0-9_-]+/)
     .filter((s) => s.length > 40)
     .map((s) => Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"))
+    .filter((s) => /^[\x20-\x7E\s₪]*$/.test(s))
     .join("\n");
   return needles.filter((n) => text.includes(n) || decoded.includes(n));
 }
@@ -206,13 +213,13 @@ describe("the lock", () => {
     expect(bad.data.problem).toBe("reach");
     expect(leaks(bad.raw)).toEqual([]);
 
-    const forged = await post("/api/valuation/unlock", { briefId: "nope", runToken: "a.b.c", name: "Dana", phone: "050" });
+    const forged = await post("/api/valuation/unlock", { briefId: "nope", runToken: "a.b.c", name: "Dana", phone: "050-1234567" });
     expect(forged.status).toBe(404);
     expect(leaks(forged.raw)).toEqual([]);
 
     const ok = await post("/api/valuation/unlock", { ...token, name: "Dana Levi", phone: "050-1234567", email: "" });
     expect(ok.status).toBe(200);
-    expect(ok.data.range).toBe("₪6M to ₪11M");
+    expect(ok.data.range).toBe("₪4M to ₪13M");
   });
 
   it("the sealed token alone opens the run after a restart", async () => {
@@ -224,7 +231,7 @@ describe("the lock", () => {
       name: "Dana",
       email: "dana@carmel.co.il",
     });
-    expect(ok.data.range).toBe("₪6M to ₪11M");
+    expect(ok.data.range).toBe("₪4M to ₪13M");
   });
 });
 
@@ -257,7 +264,7 @@ describe("the lead in the Sheet", () => {
       expect.objectContaining({
         briefId: r.done!.briefId,
         company: "Roltag",
-        range: "₪6M to ₪11M",
+        range: "₪4M to ₪13M",
         vertical: "manufacturing",
         path: "estimate",
         multiple: "4.2 to 5",
@@ -276,25 +283,21 @@ describe("the lead in the Sheet", () => {
     expect(sent[0].subject).toBe("New valuation lead: Dana (roltag.co.il)");
   });
 
-  it("email only: his email goes out with the new words, once", async () => {
+  it("email only: details saved, nothing goes to him, a note to office@ that says no email was sent", async () => {
     const r = await estimate();
     const body = { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "Dana Levi", email: "dana@carmel.co.il" };
     await post("/api/valuation/unlock", body);
-    await post("/api/valuation/unlock", body);
     await tick();
-    const his = sent.filter((m) => m.to === "dana@carmel.co.il");
-    expect(his).toHaveLength(1);
-    expect(his[0].subject).toBe("Roltag: your estimated value range");
-    expect(his[0].text).toContain("Hello Dana, here is the estimate you just ran.");
-    expect(his[0].text).toContain("YOUR ESTIMATED VALUE RANGE");
-    expect(his[0].text).toContain("₪6M to ₪11M");
-    expect(his[0].text).toContain(COPY_V.email.disclaimer);
-    expect(his[0].text).toContain(COPY_V.email.closeBody);
-    expect(his[0].text).toContain(COPY_V.email.fine);
-    expect(his[0].text).not.toMatch(/Snapshot|cookie cutter|Who would buy|warning/i);
+    expect(sheet.update).toContainEqual(
+      expect.objectContaining({ contactName: "Dana Levi", contactPhone: "", contactEmail: "dana@carmel.co.il", gaveDetails: "yes" }),
+    );
+    expect(sent.map((m) => m.to)).toEqual([expect.stringContaining("@gesherpartners.com")]);
+    expect(sent[0].subject).toBe("New valuation lead: Dana Levi (roltag.co.il)");
+    expect(sent[0].html).toContain("He left his details and saw his range.");
+    expect(sent[0].html).not.toMatch(/emailed him/i);
   });
 
-  it("both: saved, emailed", async () => {
+  it("both: saved, nothing goes to him", async () => {
     const r = await estimate();
     await post("/api/valuation/unlock", {
       briefId: r.done!.briefId,
@@ -307,14 +310,14 @@ describe("the lead in the Sheet", () => {
     expect(sheet.update).toContainEqual(
       expect.objectContaining({ contactPhone: "050-1234567", contactEmail: "dana@carmel.co.il", gaveDetails: "yes" }),
     );
-    expect(sent.some((m) => m.to === "dana@carmel.co.il")).toBe(true);
+    expect(sent.filter((m) => !m.to.includes("@gesherpartners.com"))).toEqual([]);
   });
 
   it("Talk to us after the range marks the hot lead", async () => {
     const r = await estimate();
     const token = { briefId: r.done!.briefId, runToken: r.done!.run_token };
-    await post("/api/valuation/unlock", { ...token, name: "Dana", phone: "050" });
-    const t = await post("/api/valuation/talk", { ...token, name: "Dana", phone: "050" });
+    await post("/api/valuation/unlock", { ...token, name: "Dana", phone: "050-1234567" });
+    const t = await post("/api/valuation/talk", { ...token, name: "Dana", phone: "050-1234567" });
     expect(t.status).toBe(200);
     await tick();
     expect(sheet.update).toContainEqual(expect.objectContaining({ briefId: token.briefId, askedToSpeak: "yes" }));
@@ -344,10 +347,16 @@ describe("the two no-number cases", () => {
     expect(sheet.update).toContainEqual(expect.objectContaining({ range: "", path: "big (over ₪10M profit)" }));
   });
 
-  it("an industry with no profit multiple (dental) is priced by hand", async () => {
+  it("a clinic is priced on profit like every other industry, never by hand (item 12)", async () => {
     engineText = brief("healthcare-services", "Smile Clinic");
     const r = await estimate();
-    expect(r.done?.variant).toBe("by_hand");
+    expect(r.done?.variant).toBe("locked");
+    expect(leaks(r.raw)).toEqual([]);
+    const u = await post("/api/valuation/unlock", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "D", phone: "050-1234567" });
+    // 1 x 4.8 = 4.8, down to 4.5; 2.5 x 5.7 = 14.25, up to 15.
+    expect(u.data.range).toBe("₪4.5M to ₪15M");
+    await tick();
+    expect(sheet.update).toContainEqual(expect.objectContaining({ vertical: "healthcare-services", path: "estimate", multiple: "4.8 to 5.7" }));
   });
 
   it("every other industry gets a number: by hand only when the engine cannot tell", async () => {
@@ -362,7 +371,7 @@ describe("the two no-number cases", () => {
   it("there is nothing to unlock", async () => {
     engineText = brief("wild-card");
     const r = await estimate();
-    const u = await post("/api/valuation/unlock", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "D", phone: "1" });
+    const u = await post("/api/valuation/unlock", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "D", phone: "050-1234567" });
     expect(u.status).toBe(409);
   });
 
@@ -371,7 +380,7 @@ describe("the two no-number cases", () => {
     const r = await estimate();
     const token = { briefId: r.done!.briefId, runToken: r.done!.run_token };
     expect((await post("/api/valuation/talk", { ...token })).data.problem).toBe("all");
-    expect((await post("/api/valuation/talk", { ...token, phone: "050" })).data.problem).toBe("name");
+    expect((await post("/api/valuation/talk", { ...token, phone: "050-1234567" })).data.problem).toBe("name");
     expect((await post("/api/valuation/talk", { ...token, name: "Dana" })).data.problem).toBe("reach");
     expect((await post("/api/valuation/talk", { ...token, name: "Dana", email: "dana@x" })).data.problem).toBe("emailBad");
     const ok = await post("/api/valuation/talk", { ...token, name: "Dana", email: "dana@carmel.co.il" });
@@ -380,9 +389,8 @@ describe("the two no-number cases", () => {
     expect(sheet.update).toContainEqual(
       expect.objectContaining({ contactEmail: "dana@carmel.co.il", gaveDetails: "yes", askedToSpeak: "yes" }),
     );
-    const his = sent.find((m) => m.to === "dana@carmel.co.il");
-    expect(his?.subject).toBe("Roltag: your value estimate");
-    expect(his?.text).toContain(COPY_V.email.byHandLine);
+    expect(sent.map((m) => m.to)).toEqual([expect.stringContaining("@gesherpartners.com")]);
+    expect(sent[0].subject).toBe("Hot lead, asked to speak: Dana (roltag.co.il)");
   });
 });
 
@@ -392,9 +400,9 @@ describe("the cache", () => {
     const a = await estimate();
     const b = await estimate();
     expect(create).toHaveBeenCalledTimes(1);
-    const ra = await post("/api/valuation/unlock", { briefId: a.done!.briefId, runToken: a.done!.run_token, name: "D", phone: "1" });
-    const rb = await post("/api/valuation/unlock", { briefId: b.done!.briefId, runToken: b.done!.run_token, name: "D", phone: "1" });
-    expect(ra.data.range).toBe("₪6M to ₪11M");
+    const ra = await post("/api/valuation/unlock", { briefId: a.done!.briefId, runToken: a.done!.run_token, name: "D", phone: "050-1234567" });
+    const rb = await post("/api/valuation/unlock", { briefId: b.done!.briefId, runToken: b.done!.run_token, name: "D", phone: "050-1234567" });
+    expect(ra.data.range).toBe("₪4M to ₪13M");
     expect(rb.data.range).toBe(ra.data.range);
     expect(leaks(b.raw)).toEqual([]);
   });
@@ -403,8 +411,8 @@ describe("the cache", () => {
     await estimate();
     const b = await estimate({ ...ANSWERS, profit: "2.5-5" });
     expect(create).toHaveBeenCalledTimes(1);
-    const rb = await post("/api/valuation/unlock", { briefId: b.done!.briefId, runToken: b.done!.run_token, name: "D", phone: "1" });
-    expect(rb.data.range).toBe("₪13M to ₪22M");
+    const rb = await post("/api/valuation/unlock", { briefId: b.done!.briefId, runToken: b.done!.run_token, name: "D", phone: "050-1234567" });
+    expect(rb.data.range).toBe("₪10M to ₪25M");
   });
 });
 
@@ -463,5 +471,149 @@ describe("the server's refusals, in site/35's words", () => {
     const r = await estimate({ ...ANSWERS, url: "no-such-site-gesher-test.co.il" });
     expect(r.done?.variant).toBe("unreadable");
     expect(create).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Oct 2, after Ben's live test ────────────────────────────────────────────
+describe("the live test sites, with the answers from the Sheet rows", () => {
+  it("manltd.co.il: ₪12M to ₪28M, and the revenue check flags it", async () => {
+    engineText = brief("industrial-equipment-distribution", "Man Ltd");
+    const r = await estimate({ ...ANSWERS, url: "manltd.co.il", timeline: "exploring", serious: 5, revenue: "5-10", profit: "2.5-5", staff: "11-50", note: "" });
+    expect(sheet.append[0]).toMatchObject({ revenueCheck: "flag" });
+    const u = await post("/api/valuation/unlock", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "Ben", phone: "050-1234567" });
+    expect(u.data.range).toBe("₪12M to ₪28M");
+  });
+
+  it("eshet.co.il: ₪21M to ₪50M, and the revenue check is fine", async () => {
+    engineText = brief("manufacturing", "Eshet Eilon Industries");
+    const r = await estimate({ ...ANSWERS, url: "eshet.co.il", timeline: "now", serious: 6, revenue: "25-50", profit: "5-10", staff: "2-10", note: "test 1" });
+    expect(sheet.append[0]).toMatchObject({ revenueCheck: "" });
+    const u = await post("/api/valuation/unlock", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "Ben", phone: "050-1234567" });
+    expect(u.data.range).toBe("₪21M to ₪50M");
+  });
+});
+
+describe("short and honest cards", () => {
+  const LONG = brief("manufacturing").replace(
+    /## Market\n[^\n]+/,
+    "## Market\nRoltag: label printer since 1969, serving pharma and food. " +
+      "Larger printing and packaging groups buy shops like this one for the client book and the machines, and so do funds. " +
+      "What transfers in a sale is the reputation, the machines and the customers who reorder every single year.",
+  ).replace(
+    "watch: **Few buyers.** The price comes from a real process.",
+    "watch: **Concentrated customers.** A few large brands likely represent a significant share of revenue.",
+  );
+
+  it("a run that breaks the rules gets one quiet retry, and the better cards win", async () => {
+    engineQueue.push(LONG, brief("manufacturing"));
+    const r = await estimate();
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(r.done?.result_md).not.toContain("likely");
+    expect(r.done?.result_md).toContain("Roltag: label printer since 1969");
+  });
+
+  it("the retry never moves the price: the first run's industry stays", async () => {
+    engineQueue.push(LONG, brief("vertical-saas-vms"));
+    const r = await estimate();
+    const u = await post("/api/valuation/unlock", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "D", phone: "050-1234567" });
+    expect(u.data.range).toBe("₪4M to ₪13M"); // manufacturing, not SaaS
+  });
+
+  it("if the retry is no better, Market is still cut to whole sentences under 40 words", async () => {
+    engineQueue.push(LONG, LONG);
+    const r = await estimate();
+    const market = String(r.done?.result_md).split("## Value")[0].replace("## Market", "").trim();
+    expect(market.split(/\s+/).length).toBeLessThanOrEqual(40);
+    expect(market.endsWith(".")).toBe(true);
+  });
+
+  it("cards that keep the rules cost one run, no retry", async () => {
+    await estimate();
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("no email to the owner, ever (item 14)", () => {
+  it("details with an email, then Talk to us twice: only office@ hears, once per press", async () => {
+    const r = await estimate();
+    const token = { briefId: r.done!.briefId, runToken: r.done!.run_token };
+    const who = { name: "Dana", phone: "050-1234567", email: "dana@carmel.co.il" };
+    await post("/api/valuation/unlock", { ...token, ...who });
+    await post("/api/valuation/talk", { ...token, ...who });
+    await post("/api/valuation/talk", { ...token, ...who });
+    await tick();
+    expect(sent.filter((m) => !m.to.includes("@gesherpartners.com"))).toEqual([]);
+    expect(sent.map((m) => m.subject)).toEqual([
+      "New valuation lead: Dana (roltag.co.il)",
+      "Hot lead, asked to speak: Dana (roltag.co.il)",
+      "Hot lead, asked to speak: Dana (roltag.co.il)",
+    ]);
+  });
+
+  it("phone only, then Talk to us: office@ gets both lead emails, nobody else gets anything", async () => {
+    const r = await estimate();
+    const token = { briefId: r.done!.briefId, runToken: r.done!.run_token };
+    const who = { name: "Dana", phone: "050-1234567" };
+    await post("/api/valuation/unlock", { ...token, ...who });
+    await post("/api/valuation/talk", { ...token, ...who });
+    await tick();
+    expect(sent.map((m) => m.to)).toEqual([
+      expect.stringContaining("@gesherpartners.com"),
+      expect.stringContaining("@gesherpartners.com"),
+    ]);
+    expect(sent.map((m) => m.subject)).toEqual([
+      "New valuation lead: Dana (roltag.co.il)",
+      "Hot lead, asked to speak: Dana (roltag.co.il)",
+    ]);
+    expect(sent[0].html).toContain("No email, so call him.");
+  });
+
+  it("the two no-number cases with an email: only office@ hears", async () => {
+    for (const body of [{ ...ANSWERS, profit: "over-10" }, ANSWERS]) {
+      clearEstimateStateForTests();
+      sent.length = 0;
+      engineText = body === ANSWERS ? brief("wild-card") : brief("manufacturing");
+      const r = await estimate(body);
+      await post("/api/valuation/talk", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "Dana", email: "dana@carmel.co.il" });
+      await tick();
+      expect(sent.map((m) => m.to)).toEqual([expect.stringContaining("@gesherpartners.com")]);
+    }
+  });
+});
+
+// ─── Years (item 13) ─────────────────────────────────────────────────────────
+describe("years in business", () => {
+  const COUNTED = brief("industrial-equipment-distribution", "Man Ltd").replace(
+    "positive: **Sticky customers.** Pharma clients reorder for years.",
+    "positive: **25 years and a national service footprint.** You built a trusted brand.",
+  );
+
+  it("a count of years gets the quiet retry, told to use the founding year", async () => {
+    engineQueue.push(COUNTED, brief("industrial-equipment-distribution", "Man Ltd"));
+    const r = await estimate({ ...ANSWERS, url: "manltd.co.il" });
+    expect(create).toHaveBeenCalledTimes(2);
+    const second = JSON.stringify((create.mock.calls[1] as unknown[])[0]);
+    expect(second).toContain('The cards say \\"25 years\\"');
+    expect(r.done?.result_md).not.toMatch(/25 years/);
+  });
+
+  it("if the retry still counts years, the count is taken out before he sees it", async () => {
+    engineQueue.push(COUNTED, COUNTED);
+    const r = await estimate({ ...ANSWERS, url: "manltd.co.il" });
+    expect(r.done?.result_md).not.toMatch(/years/);
+    expect(r.done?.result_md).toContain("positive: **A national service footprint.** You built a trusted brand.");
+  });
+
+  it("a founding year the site shows stays; one it does not show goes", async () => {
+    // The site says 1969 (READ). The engine's 1955 is not on it.
+    engineQueue.push(brief("manufacturing").replace("since 1969", "since 1955"), brief("manufacturing").replace("since 1969", "since 1955"));
+    const r = await estimate();
+    expect(r.done?.result_md).not.toContain("1955");
+    expect(r.done?.result_md).toContain("Roltag: label printer, serving pharma and food.");
+    clearEstimateStateForTests();
+    create.mockClear();
+    const ok = await estimate();
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(ok.done?.result_md).toContain("since 1969");
   });
 });

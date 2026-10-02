@@ -1,6 +1,6 @@
 /**
  * Every word the valuation estimate says, in one place: the page, the popup,
- * the email, the server's refusals and the page head.
+ * the server's refusals and the page head.
  *
  * Source: site/35-valuation-lead-magnet.md in the vault (Ben, Oct 1 2026).
  * Each key below is the key in that file's tables, word for word. Change the
@@ -13,8 +13,8 @@
  * then /he/valuation runs the old tool, untouched, from ValuationLegacy.tsx and
  * valuationCopyLegacy.ts, which the Hebrew pass deletes.
  *
- * This file is imported by the server too (the email, the refusals, the head
- * and the Sheet labels), so it must stay plain data: no React, no browser.
+ * This file is imported by the server too (the refusals, the head and the
+ * Sheet labels), so it must stay plain data: no React, no browser.
  */
 import type {
   ProfitCode,
@@ -54,8 +54,10 @@ const COPY_V = {
   /* ─── Screen 1. The front door ───────────────────────────────────────── */
   front: {
     headline: "Free business value estimate",
-    // front.progress has no words on screen. This is its name for a screen
-    // reader. From the locked mockup.
+    // The small label at the end of the progress line (Ben, Oct 2): one step
+    // per required answer, 0% to 100%.
+    progress: (percent: number) => `${percent}% complete`,
+    // The progress line's name for a screen reader. From the locked mockup.
     progressAriaLabel: "Questions answered",
     urlLabel: "What is your company website?",
     urlPlaceholder: "yourcompany.co.il",
@@ -150,6 +152,8 @@ const COPY_V = {
     errAll: "Please add your name, and a phone number or an email.",
     errName: "Please add your name.",
     errReach: "Fill in a phone number or an email. One is enough.",
+    // Israeli numbers only (Ben, Oct 2).
+    errPhoneBad: "That phone number looks incomplete. Check it and try again.",
     errEmailBad: "That email looks incomplete. Check it and try again.",
     confidential: "100% confidential. We never share your details.",
     submit: "Show my range",
@@ -225,37 +229,10 @@ const COPY_V = {
     retry: "Try again",
   },
 
-  /* ─── The email, only when he left an email ──────────────────────────── */
-  email: {
-    subject: (company: string) => `${company}: your estimated value range`,
-    title: (company: string) => `${company}: your estimated value range`,
-    // The two no-number cases have no range, so the subject and title use the
-    // page's own title for them (result.specialTitle).
-    specialSubject: (company: string) => `${company}: your value estimate`,
-    specialTitle: (company: string) => `${company}: your value estimate`,
-    greeting: (first: string) =>
-      first
-        ? `Hello ${first}, here is the estimate you just ran.`
-        : "Here is the estimate you just ran.",
-    rangeLabel: "Your estimated value range",
-    disclaimer:
-      "This estimate is based on the bands you chose and on what buyers pay for similar businesses. Your financial statements are what make it more precise.",
-    byHandLine: "Your business deserves a closer look.",
-    byHandBody:
-      "Some businesses are too specific for a quick formula, and yours is one of them.",
-    // Over ₪10M profit. The page's own two lines (result.bigLead, bigBody).
-    bigLine: "At this size, we price by hand.",
-    bigBody: "A short call with Ofir or Benjamin gives you a real number.",
-    closeLead: "Want a more accurate number?",
-    closeBody:
-      "For a more accurate number, we need your financial statements. Reply to this email and we will send you an NDA first. If you would rather talk first, just say so.",
-    closeRead: "We read every reply ourselves.",
-    fine: "An estimate, not a formal valuation. Not an offer, or advice to buy or sell.",
-    // Kept from the old letter.
-    privateLabel: "Strictly private",
-    signName: "Ofir and Benjamin",
-    signFirm: "Gesher Partners",
-  },
+  /* ─── No email to the owner (Ben, Oct 2) ─────────────────────────────── */
+  // The owner gets no email at all, so there are no email lines (35, "The
+  // email (REMOVED 2026-10-02)"). The two lead emails to office@ are internal
+  // English and live in server/routes/valuationEstimate.ts.
 
   /* ─── What the server says when it refuses ───────────────────────────── */
   // These come before the popup, so we do not have his details yet. That is

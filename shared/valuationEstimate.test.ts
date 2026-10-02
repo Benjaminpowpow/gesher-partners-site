@@ -8,6 +8,7 @@ import {
   REQUIRED_FIELDS,
   answeredCount,
   contactProblem,
+  looksLikeIsraeliPhone,
   missingRequired,
   revenueCheckFails,
   type EstimateAnswers,
@@ -93,17 +94,69 @@ describe("the popup and the inline form", () => {
   it("spaces are not an answer", () => expect(contactProblem("  ", "  ", "  ")).toBe("all"));
 });
 
-describe("the revenue check (only impossible pairs, Ben Oct 1)", () => {
-  const flagged: [RevenueCode, ProfitCode][] = [
-    ["under-5", "5-10"],
-    ["under-5", "over-10"],
-    ["5-10", "over-10"],
-  ];
-  it("flags exactly the three impossible pairs", () => {
+describe("the revenue check (profit middle over revenue middle above 30%, Ben Oct 2)", () => {
+  // Middles: revenue 2.5, 7.5, 17.5, 37.5, 50 (open top: its bottom edge).
+  //          profit  0.5, 1.75, 3.75, 7.5, 10.
+  it("Man Ltd's test is a flag: 3.75 / 7.5 = 50%", () => {
+    expect(revenueCheckFails("5-10", "2.5-5")).toBe(true);
+  });
+  it("Eshet's test is fine: 7.5 / 37.5 = 20%", () => {
+    expect(revenueCheckFails("25-50", "5-10")).toBe(false);
+  });
+  it("flags exactly the pairs above 30%", () => {
     const revenues: RevenueCode[] = ["under-5", "5-10", "10-25", "25-50", "over-50"];
     const profits: ProfitCode[] = ["under-1", "1-2.5", "2.5-5", "5-10", "over-10"];
     const hits: string[] = [];
     for (const r of revenues) for (const p of profits) if (revenueCheckFails(r, p)) hits.push(`${r}|${p}`);
-    expect(hits.sort()).toEqual(flagged.map(([r, p]) => `${r}|${p}`).sort());
+    expect(hits.sort()).toEqual(
+      [
+        // 1.75/2.5 = 70%, 3.75/2.5, 7.5/2.5, 10/2.5
+        "under-5|1-2.5", "under-5|2.5-5", "under-5|5-10", "under-5|over-10",
+        // 3.75/7.5 = 50%, 7.5/7.5, 10/7.5   (1.75/7.5 = 23% is fine)
+        "5-10|2.5-5", "5-10|5-10", "5-10|over-10",
+        // 7.5/17.5 = 43%, 10/17.5 = 57%     (3.75/17.5 = 21% is fine)
+        "10-25|5-10", "10-25|over-10",
+        // 25 to 50: 10/37.5 = 27% is fine. Over 50: 10/50 = 20% is fine.
+      ].sort(),
+    );
+  });
+  it("under ₪1M of profit on under ₪5M of revenue is fine: 0.5 / 2.5 = 20%", () => {
+    expect(revenueCheckFails("under-5", "under-1")).toBe(false);
+  });
+});
+
+describe("the phone check (Israeli numbers only, Ben Oct 2)", () => {
+  const good = [
+    "050-1234567", // mobile, 10 digits
+    "0501234567",
+    "050 123 4567",
+    "03-1234567", // landline, 9 digits
+    "031234567",
+    "+972-50-123-4567",
+    "+972501234567",
+    "+972 3 123 4567", // landline with +972
+    "00972501234567",
+    "972501234567",
+    "+972-050-1234567", // the 0 kept after +972
+    "501234567", // the 0 left off
+    "(050) 123-4567",
+  ];
+  const bad = [
+    "15678728", // Ben's test row: no Israeli number starts 01
+    "2016553553", // a US number
+    "050", // too short
+    "050-12345678", // 11 digits
+    "+1 201 655 3553", // another country
+    "050-123-456a", // a letter
+    "",
+  ];
+  for (const n of good) it(`accepts ${n}`, () => expect(looksLikeIsraeliPhone(n)).toBe(true));
+  for (const n of bad)
+    it(`turns away ${JSON.stringify(n)}`, () => expect(looksLikeIsraeliPhone(n)).toBe(false));
+  it("a phone that is not Israeli is its own message, after name and reach", () => {
+    expect(contactProblem("Dana", "15678728", "")).toBe("phoneBad");
+    expect(contactProblem("", "15678728", "")).toBe("name");
+    expect(contactProblem("Dana", "15678728", "dana@gmail")).toBe("phoneBad");
+    expect(contactProblem("Dana", "050-1234567", "dana@gmail")).toBe("emailBad");
   });
 });

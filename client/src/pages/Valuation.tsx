@@ -42,6 +42,8 @@ import {
   TIMELINE_CODES,
   answeredCount,
   contactProblem,
+  looksLikeEmail,
+  looksLikeIsraeliPhone,
   missingRequired,
   type ContactProblem,
   type EstimateAnswers,
@@ -84,6 +86,84 @@ const EMPTY_ANSWERS: EstimateAnswers = {
   staff: "",
   note: "",
 };
+
+/** To the very top, at once. The site's base CSS makes scrolling smooth. */
+export function scrollToTop(): void {
+  window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+}
+
+// ─── The phone keyboard ─────────────────────────────────────────────────────
+// On a phone the keyboard covers the bottom of the screen without making the
+// page any shorter: only the "visual viewport" shrinks. So while he types his
+// email, the button under it can sit behind the keyboard. These keep it in
+// sight (Ben, Oct 2), without pushing the box he is typing in off the top.
+
+const KEYBOARD_SETTLE_MS = 350; // the keyboard slides up; measure after it has
+
+function visibleArea(): { top: number; bottom: number } {
+  const vv = window.visualViewport;
+  const top = vv ? vv.offsetTop : 0;
+  return { top, bottom: top + (vv ? vv.height : window.innerHeight) };
+}
+
+/** Scroll the page just enough that the button shows above the keyboard. */
+function keepInSight(button: HTMLElement, typing: Element | null): void {
+  const margin = 12;
+  const area = visibleArea();
+  const b = button.getBoundingClientRect();
+  const need = b.bottom - (area.bottom - margin);
+  if (need <= 0) return;
+  // Never so far that the box he is typing in goes above the top.
+  const room = typing ? typing.getBoundingClientRect().top - (area.top + margin) : need;
+  const by = Math.min(need, Math.max(0, room));
+  if (by > 0) window.scrollBy({ top: by, left: 0, behavior: "instant" as ScrollBehavior });
+}
+
+/** For a form in the page (the popup over the range, the inline boxes). */
+function useSubmitInSight(formRef: React.RefObject<HTMLFormElement | null>): void {
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const run = () => {
+      const active = document.activeElement;
+      const button = form.querySelector<HTMLElement>('button[type="submit"]');
+      if (button && active && form.contains(active) && active !== button) keepInSight(button, active);
+    };
+    const onFocus = () => {
+      clearTimeout(timer);
+      timer = setTimeout(run, KEYBOARD_SETTLE_MS);
+    };
+    form.addEventListener("focusin", onFocus);
+    window.visualViewport?.addEventListener("resize", run);
+    return () => {
+      clearTimeout(timer);
+      form.removeEventListener("focusin", onFocus);
+      window.visualViewport?.removeEventListener("resize", run);
+    };
+  }, [formRef]);
+}
+
+/**
+ * For the talk popup, which is pinned to the screen: it follows the visible
+ * area, so it shrinks above the keyboard and scrolls inside itself.
+ */
+function useVisibleBox(): React.CSSProperties | undefined {
+  const [box, setBox] = useState<React.CSSProperties | undefined>(undefined);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setBox({ top: vv.offsetTop, height: vv.height, bottom: "auto" });
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+  return box;
+}
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -177,10 +257,10 @@ function withBdi(title: (company: string) => string, company: string): React.Rea
  */
 function parseCards(md: string): {
   market: string[];
-  value: { watch: boolean; label: string; body: string }[];
+  value: { watch: boolean; tagged: boolean; label: string; body: string }[];
 } {
   const market: string[] = [];
-  const value: { watch: boolean; label: string; body: string }[] = [];
+  const value: { watch: boolean; tagged: boolean; label: string; body: string }[] = [];
   let cur: "market" | "value" | null = null;
   for (const raw of (md || "").split("\n")) {
     const line = raw.trim();
@@ -198,9 +278,10 @@ function parseCards(md: string): {
     let text = line.replace(/^\s*[-*•]\s+/, "");
     const flag = text.match(/^(\*\*)?\s*(positive|watch):\s*/i);
     const watch = flag ? flag[2].toLowerCase() === "watch" : false;
+    const tagged = Boolean(flag);
     if (flag) text = (flag[1] || "") + text.slice(flag[0].length);
     const bold = text.match(/^\*\*(.+?)\*\*\s*(.*)$/);
-    value.push(bold ? { watch, label: bold[1].trim(), body: bold[2].trim() } : { watch, label: "", body: text });
+    value.push(bold ? { watch, tagged, label: bold[1].trim(), body: bold[2].trim() } : { watch, tagged, label: "", body: text });
   }
   return { market, value };
 }
@@ -343,7 +424,40 @@ function Confidential({ text }: { text: string }) {
 }
 
 function problemText(C: VCopy, p: ContactProblem): string {
-  return { all: C.gate.errAll, name: C.gate.errName, reach: C.gate.errReach, emailBad: C.gate.errEmailBad }[p];
+  return {
+    all: C.gate.errAll,
+    name: C.gate.errName,
+    reach: C.gate.errReach,
+    phoneBad: C.gate.errPhoneBad,
+    emailBad: C.gate.errEmailBad,
+  }[p];
+}
+
+const PROBLEMS = new Set<string>(["all", "name", "reach", "phoneBad", "emailBad"]);
+
+/** The server's answer to a bad form, as the line to show. */
+function serverProblem(C: VCopy, p: unknown): string {
+  return typeof p === "string" && PROBLEMS.has(p) ? problemText(C, p as ContactProblem) : C.server.busy;
+}
+
+/**
+ * The icon before each Value point (Ben, Oct 2): a check for a strength, an
+ * alert for the watch, in the brand's navy and burgundy. A point the engine
+ * did not tag gets no icon; the page never guesses.
+ */
+function ValueIcon({ watch }: { watch: boolean }) {
+  return (
+    <span className={"ve-value-icon" + (watch ? " is-watch" : " is-positive")} aria-hidden="true">
+      <svg viewBox="0 0 16 16">
+        <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.3" />
+        {watch ? (
+          <path d="M8 4.2v4.6M8 11.2v.4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        ) : (
+          <path d="M5 8.3l2 2 4-4.3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        )}
+      </svg>
+    </span>
+  );
 }
 
 /** Name, phone and email: the popup's boxes and the inline form's boxes. */
@@ -962,6 +1076,10 @@ function Result({
   const [ctaMsg, setCtaMsg] = useState<string | null>(null);
 
   const rangeHeadingRef = useRef<HTMLHeadingElement>(null);
+  const gateFormRef = useRef<HTMLFormElement>(null);
+  const inlineFormRef = useRef<HTMLFormElement>(null);
+  useSubmitInSight(gateFormRef);
+  useSubmitInSight(inlineFormRef);
 
   const token = { briefId: run.briefId, runToken: run.runToken };
 
@@ -1002,7 +1120,7 @@ function Result({
       return;
     }
     const p = r.data.problem;
-    setGateMsg(typeof p === "string" && p in { all: 1, name: 1, reach: 1, emailBad: 1 } ? problemText(C, p as ContactProblem) : C.server.busy);
+    setGateMsg(serverProblem(C, p));
   }
 
   async function talk(withDetails: boolean) {
@@ -1030,7 +1148,7 @@ function Result({
       return;
     }
     const p = r.data.problem;
-    setCtaMsg(typeof p === "string" && p in { all: 1, name: 1, reach: 1, emailBad: 1 } ? problemText(C, p as ContactProblem) : C.server.busy);
+    setCtaMsg(serverProblem(C, p));
   }
 
   const done = (
@@ -1054,6 +1172,7 @@ function Result({
       <>
         <p className="ve-cta-lead">{C.result.specialCta}</p>
         <form
+          ref={inlineFormRef}
           className="ve-inline-form"
           noValidate
           onSubmit={(e) => {
@@ -1129,13 +1248,16 @@ function Result({
                 <article className="ve-card" aria-labelledby="ve-h-value">
                   <h2 id="ve-h-value">{C.result.cardValue}</h2>
                   {cards.value.map((v, i) => (
-                    <p className="ve-value-item" key={i}>
-                      {v.label && (
-                        <>
-                          <strong>{v.watch && !/^watch\b/i.test(v.label) ? C.result.watchLabel(v.label) : v.label}</strong>{" "}
-                        </>
-                      )}
-                      {renderInline(v.body)}
+                    <p className={"ve-value-item" + (v.tagged ? " has-icon" : "")} key={i}>
+                      {v.tagged && <ValueIcon watch={v.watch} />}
+                      <span className="ve-value-text">
+                        {v.label && (
+                          <>
+                            <strong>{v.watch && !/^watch\b/i.test(v.label) ? C.result.watchLabel(v.label) : v.label}</strong>{" "}
+                          </>
+                        )}
+                        {renderInline(v.body)}
+                      </span>
                     </p>
                   ))}
                 </article>
@@ -1166,7 +1288,7 @@ function Result({
 
             {locked && (
               <div className="ve-gate" role="region" aria-labelledby="ve-h-gate">
-                <form className="ve-gate-card" noValidate onSubmit={submitGate}>
+                <form ref={gateFormRef} className="ve-gate-card" noValidate onSubmit={submitGate}>
                   <p className="ve-eyebrow">{C.gate.label}</p>
                   <h2 id="ve-h-gate">{C.gate.heading}</h2>
                   <p className="gsub">{C.gate.sub}</p>
@@ -1266,12 +1388,40 @@ function TalkModal({
   const [tried, setTried] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
   const dialogRef = useRef<HTMLDivElement>(null);
+  const box = useVisibleBox();
+
+  // The send button in sight inside the popup while he types.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onFocus = (e: FocusEvent) => {
+      if (!(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        dialog.querySelector<HTMLElement>('button[type="submit"]')?.scrollIntoView({ block: "nearest" });
+        (e.target as HTMLElement).scrollIntoView({ block: "nearest" });
+      }, KEYBOARD_SETTLE_MS);
+    };
+    dialog.addEventListener("focusin", onFocus);
+    return () => {
+      clearTimeout(timer);
+      dialog.removeEventListener("focusin", onFocus);
+    };
+  }, []);
   const opener = useRef<Element | null>(typeof document !== "undefined" ? document.activeElement : null);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const t = setTimeout(() => dialogRef.current?.querySelector<HTMLElement>("input, textarea, button")?.focus(), 30);
+    // Start on the name box, not the close button, and only if he is not
+    // already in a box: a fast tap must never have its focus pulled away
+    // (a space typed into the close button would close the popup).
+    const t = setTimeout(() => {
+      const dialog = dialogRef.current;
+      if (!dialog || dialog.contains(document.activeElement)) return;
+      dialog.querySelector<HTMLElement>("input, textarea")?.focus();
+    }, 30);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       if (e.key === "Tab" && dialogRef.current) {
@@ -1299,20 +1449,23 @@ function TalkModal({
   }, [onClose]);
 
   const isEmail = reach.includes("@");
-  const problem = !tried
-    ? null
-    : !name.trim()
-      ? C.talk.errName
-      : !reach.trim()
-        ? C.talk.errReachMissing
-        : isEmail && contactProblem(name, "", reach) === "emailBad"
-          ? C.talk.errEmailBad
-          : null;
+  // One box for a phone or an email. An email has to look whole, and a phone
+  // has to be Israeli (Ben, Oct 2), the same rules as the popup.
+  const reachProblem = !reach.trim()
+    ? C.talk.errReachMissing
+    : isEmail
+      ? looksLikeEmail(reach)
+        ? null
+        : C.talk.errEmailBad
+      : looksLikeIsraeliPhone(reach)
+        ? null
+        : C.gate.errPhoneBad;
+  const problem = !tried ? null : !name.trim() ? C.talk.errName : reachProblem;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setTried(true);
-    if (!name.trim() || !reach.trim() || (isEmail && contactProblem(name, "", reach) === "emailBad")) return;
+    if (!name.trim() || reachProblem) return;
     if (status === "sending") return;
     setStatus("sending");
     const r = await postJson("/api/contact", {
@@ -1340,7 +1493,7 @@ function TalkModal({
   }
 
   return (
-    <div className="ve-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="ve-modal-backdrop" style={box} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div ref={dialogRef} className="ve-modal" role="dialog" aria-modal="true" aria-labelledby="ve-talk-title">
         <button type="button" className="ve-modal-close" aria-label={C.talk.closeAriaLabel} onClick={onClose}>
           <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -1455,15 +1608,17 @@ export default function Valuation({ lang = "en", copy }: { lang?: VLang; copy?: 
     };
   }, [lang, dir]);
 
-  // Each screen starts at the top with its heading focused, so a screen
-  // reader hears where it is and Tab starts from there.
+  // Each screen starts at the very top (Ben, Oct 2: a phone landed in the
+  // middle of the page), at once, not with the site's smooth scroll. After
+  // the first one, its heading takes the focus too, so a screen reader hears
+  // where it is and Tab starts from there.
   const first = useRef(true);
   useEffect(() => {
+    scrollToTop();
     if (first.current) {
       first.current = false;
       return;
     }
-    window.scrollTo(0, 0);
     document.querySelector<HTMLElement>(".ve-main h1")?.focus({ preventScroll: true });
   }, [screen]);
 
@@ -1498,6 +1653,7 @@ export default function Valuation({ lang = "en", copy }: { lang?: VLang; copy?: 
   const closeTalk = useCallback(() => setTalkOpen(false), []);
 
   const done = answeredCount(answers);
+  const percent = Math.round((done / REQUIRED_FIELDS.length) * 100);
 
   return (
     <VCtx.Provider value={{ copy: C, lang }}>
@@ -1530,15 +1686,23 @@ export default function Valuation({ lang = "en", copy }: { lang?: VLang; copy?: 
         <main className="ve-main" id="main">
           {screen === "front" && (
             <>
-              <div
-                className="ve-progress"
-                role="progressbar"
-                aria-label={C.front.progressAriaLabel}
-                aria-valuemin={0}
-                aria-valuemax={REQUIRED_FIELDS.length}
-                aria-valuenow={done}
-              >
-                <div className="ve-progress-fill" style={{ width: `${(done / REQUIRED_FIELDS.length) * 100}%` }} />
+              {/* The thin line pinned to the top, and its small label at the end:
+                  one step per required answer, 0% to 100% (Ben, Oct 2). */}
+              <div className="ve-progress-wrap">
+                <div
+                  className="ve-progress"
+                  role="progressbar"
+                  aria-label={C.front.progressAriaLabel}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={percent}
+                  aria-valuetext={C.front.progress(percent)}
+                >
+                  <div className="ve-progress-fill" style={{ width: `${percent}%` }} />
+                </div>
+                <span className="ve-progress-label" aria-hidden="true">
+                  {C.front.progress(percent)}
+                </span>
               </div>
               <FrontDoor answers={answers} setAnswers={setAnswers} tried={tried} onContinue={onContinue} />
             </>
