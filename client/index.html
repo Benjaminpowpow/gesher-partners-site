@@ -21,6 +21,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Playfair+Display:wght@700;800&family=Source+Serif+Pro:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=Heebo:wght@400;500;600&family=Frank+Ruhl+Libre:wght@500;700&display=swap" rel="stylesheet" />
+    <!-- A browser fetches a web font only when text first uses it. Here that
+         is after the app's script has loaded and drawn the page, so on a slow
+         phone the hero first set in a fallback face and moved when the fonts
+         swapped in. Ask for the four Latin faces the page opens with now, in
+         parallel with the script. This runs once the stylesheet above has
+         loaded, so the faces are known. -->
+    <script>
+      if (document.fonts && document.fonts.load) {
+        ["500 1em Newsreader", "400 1em Newsreader", "400 1em Inter", "600 1em Inter"].forEach(function (f) {
+          document.fonts.load(f);
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

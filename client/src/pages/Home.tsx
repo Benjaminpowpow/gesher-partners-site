@@ -1,31 +1,36 @@
 /**
- * Home — the Gesher homepage (v4).
+ * Home: the Gesher homepage.
  *
- * Ported from the locked v4 mockup (vault: PROJECTS/israel-ai-investment-bank/
- * site/14-homepage-mock-v4-locked.md and its template HTML), with the final
- * English wording from 17-homepage-final-copy.md. Where the template and the
- * copy file disagreed on words, the copy file won.
+ * October redesign (vault: PROJECTS/israel-ai-investment-bank/site/
+ * 39-homepage-redesign-build-kickoff.md, approved by Ben on 2026-10-03; the
+ * look is 38-homepage-redesign-mock.html). File 39 holds every English line
+ * with its key and wins over the mock. The v4 port before it came from
+ * 14-homepage-mock-v4-locked.md and 17-homepage-final-copy.md.
  *
- * Section order: nav, hero, proof strip, logo strip, the challenge, why this
- * works, the process (Spotlight), the team, sectors, questions, navy band,
- * contact, footer.
+ * Section order: nav, hero, proof strip, logo strip, why Gesher, our process,
+ * the team, sectors, questions, contact, footer. The challenge, why this
+ * works and the old navy band went in the redesign; the chart lives on in why
+ * Gesher, and the band's job moved into its closing band.
  *
- * The hero is untouched from the live site: same video, same cream wash, same
- * copy, same two buttons.
+ * The hero keeps the live video and cream wash. Only the words and the
+ * estimate card changed.
  *
  * All styling lives in home.css, scoped under .gesher so the generic class
  * names never bleed into other routes.
  *
- * HEBREW. One Home component, two copy tables. COPY is the English from
- * 17-homepage-final-copy.md; COPY_HE is the Hebrew from
- * 23-hebrew-copy-ben-picks.md, element for element, same keys. The route picks
- * the language (/ is English, /he/ is Hebrew) and hands it down through
- * CopyContext. The Hebrew page renders right to left: lang="he" dir="rtl" plus
- * the .gesher-rtl class on the page root, which home.css keys its few visual
- * flips off. File 23 is the only source of Hebrew. Never edit Hebrew here
- * first: change the vault file, then bring the line back here.
+ * HEBREW. One Home component, two copy tables, same keys: COPY (English) and
+ * COPY_HE. /he/ does NOT render this component yet. Until the Hebrew for the
+ * redesign is written, /he/ runs HomeLegacy.tsx, the v4 page frozen as it was
+ * (Ben, Oct 3). COPY_HE below is the redesign's Hebrew table, ready for that
+ * pass: every line that did not change keeps its Hebrew, and every new or
+ * changed line holds the English with a TODO(hebrew) comment. The Hebrew pass
+ * swaps those lines, points /he/ here in App.tsx, and deletes HomeLegacy.
+ * Until then the dev-only page /dev/home-rtl shows this layout right to left.
+ *
+ * File 23 (23-hebrew-copy-ben-picks.md) is the only source of Hebrew. Never
+ * edit Hebrew here first: change the vault file, then bring the line back.
  */
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { FAQ_ITEMS, FAQ_ITEMS_HE } from "@shared/faq";
 import { Lockup as BrandLockup } from "@/components/Lockup";
@@ -40,6 +45,9 @@ type FooterLink =
   | { kind: "anchor"; id: string; label: string }
   | { kind: "route"; href: string; label: string };
 
+// Keys follow site/39. Where a slot already had a key before the redesign it
+// kept that key and only the words changed (hero.lede is 39's hero.sub,
+// process is 39's how). The full 39-to-code map is in the pull request.
 const COPY = {
   nav: {
     homeAriaLabel: "gesher home",
@@ -49,27 +57,30 @@ const COPY = {
     closeAriaLabel: "Close menu",
     talkToUs: "Talk to us",
     links: [
-      { id: "how", label: "How it works" },
+      { id: "why", label: "Why Gesher" },
       { id: "founders", label: "Founders" },
       { id: "sectors", label: "Sectors" },
       { id: "faq", label: "Questions" },
     ],
+    // Phone menu only. Opens the valuation estimate.
+    menuEstimate: "Get your free estimate",
   },
   hero: {
     eyebrow: "For private and family businesses · 5-50M NIS",
-    headlineLead: "Get the most out of your",
-    headlineEmph: "life's work",
-    headlineTrail: ".",
-    lede: "Sell-side advisors who've sold their own companies\n& helped others do the same",
-    ctaTalk: "Talk to us",
-    ctaValuation: "Get a quick valuation",
-    // The placeholder carries the whole promise. Ben's call on Sep 17, from
-    // three drawn options: the box says what it does instead of a caption line
-    // under it, so the hero keeps its height and the footage behind it. The
-    // cost, and he took it with his eyes open, is that the sentence disappears
-    // the moment he starts typing.
+    // Ben, Oct 1. The old line, "Get the most out of your life's work.", is
+    // kept in site/39 as the backup for a future A/B test, not here.
+    headlineLead: "You built something great. We help you",
+    headlineEmph: "sell it right.",
+    headlineTrail: "",
+    lede: "More buyers. More options. Your terms.",
+    // The estimate card. The words match the valuation tool's own front door
+    // (site/35, front.headline and front.urlPlaceholder).
+    estLabel: "Free business value estimate",
+    // Screen readers only, never drawn: the name of the website box.
     valuationLabel: "Your business website",
-    valuationPlaceholder: "Enter your website for a free valuation",
+    valuationPlaceholder: "yourcompany.co.il",
+    estButton: "Get estimate",
+    estNote: "A few short questions. 100% confidential.",
   },
   proof: [
     { value: "40+", unit: "years", label: "Advising business owners" },
@@ -88,56 +99,78 @@ const COPY = {
       { src: "/brand/logos/financepond.png", alt: "FinancePond", tall: false },
     ],
   },
-  challenge: {
-    eyebrow: "The challenge",
-    headingLines: ["You built something.", "You have one shot to get this right."],
-    line: "Most owners do this once. The buyer across the table has done it many times.",
-  },
+  // Why Gesher. Four points on Hormozi's value equation, then the band.
   why: {
-    eyebrow: "Why this works",
-    headingLines: ["One buyer sets the price.", "Many buyers set the market."],
-    paras: [
-      "A broker lists your business and waits. Whoever shows up sets the terms.",
-      "We do the opposite. We find every serious buyer, screen them, and bring them to one deadline. They compete. Competition sets the price, not one buyer.",
-      "Big banks will not take a deal this size. Brokers will not run this process. That gap is why we exist.",
-    ],
-    chartCaption: "A process that finds your true market value",
-    chartAlt:
-      "One buyer sets one price. Competitive bidding pushes the price up. The gap is yours.",
+    heading: "Why Gesher",
+    p1: {
+      title: "More buyers, a better price.",
+      body: "Buyers compete on one deadline. Competition sets the price, not one buyer.",
+    },
+    p2: {
+      title: "Senior professionals with you every step of the way.",
+      body: "40 years advising owners. We lead every negotiation.",
+      nameOfir: "Ofir",
+      nameBen: "Benjamin",
+    },
+    p3: {
+      title: "Financials built for buyers.",
+      body: "We rebuild your numbers the way a buyer reads them.",
+      today: "Today",
+      buyerReady: "Buyer-ready",
+    },
+    p4: {
+      title: "You keep running your business.",
+      body: "Our team leads the process.",
+      you: "You",
+      yourBusiness: "Running your business",
+      gesher: "Gesher",
+      yourSale: "Running your sale",
+    },
+    bandLabel: "By design",
+    bandTitle: "We take on only a few sellers a year.",
+    bandBody: "If now is not your time, we will tell you.",
+    bandCta: "Get your free estimate",
   },
+  // The chart in point 1. No numbers on it, on purpose.
+  chart: {
+    priceLabel: "Price offered",
+    oneOffer: "One offer",
+    gap: "The gap is yours",
+    buyerOne: "1 buyer",
+    buyerMany: "{n} buyers",
+    // Screen readers only. The mock's own description of the chart.
+    alt: "As more buyers compete, the price offered goes up. The gap between one offer and the top offer is yours.",
+  },
+  // Our process (site/39 "How it works", key how.*). The section id stays
+  // "how" so old links to /#how still land here.
   process: {
-    eyebrow: "The process",
-    heading: "How we sell your business.",
-    lede: "Three steps. What happens, and what you get.",
+    // Ben, Oct 3: "Our process". 39 had "How it works"; the live page said
+    // "The process".
+    eyebrow: "Our process",
+    heading: "Three steps to a sale.",
+    step: "Step {n}",
     youGet: "You get",
     steps: [
       {
         id: 1,
-        roadLabel: "GET YOU A NUMBER",
-        outcome: "A real range and a plan. Sell now, sell later, or not at all.",
-        lead: "We give you a professional valuation.",
-        body: "Quietly. We rebuild your financials with the buyer in mind and map every buyer who would want you. No buyer is contacted without your approval.",
+        title: "Know your number",
+        body: "We value your business and find what raises the price.",
+        outcome: "A real range and a plan.",
       },
       {
         id: 2,
-        // The Hebrew twin of this step never said auction. It says
-        // "תחרות בין קונים", competition between buyers, and
-        // "אנחנו מנהלים תהליך תחרותי", we run a competitive process. The
-        // English was the one out of step. Matched to it on Sep 17.
-        roadLabel: "BUYERS COMPETE",
-        outcome:
-          "Written offers side by side. We negotiate the best one, on price and on your life after.",
-        lead: "We run a competitive process.",
-        body: "Serious buyers, screened by us, compete on one deadline. We sit with you in every meeting.",
+        title: "Buyers compete",
+        body: "Screened buyers bid on one deadline.",
+        outcome: "Offers side by side.",
       },
       {
         id: 3,
-        roadLabel: "CLOSE",
-        outcome: "The deal done. Your time is yours again.",
-        lead: "We close.",
-        body: "Your lawyer, your accountant, and us at one table. Every document explained in plain words before you sign.",
+        title: "Close",
+        body: "We negotiate and close for you.",
+        outcome: "The deal done.",
       },
     ],
+    note: "No buyer is contacted without your approval.",
   },
   team: {
     eyebrow: "The team",
@@ -183,12 +216,6 @@ const COPY = {
   faq: {
     eyebrow: "Questions owners ask",
     heading: "Straight answers.",
-  },
-  band: {
-    eyebrow: "What sets us apart",
-    headingLines: ["Most advisors push you to sell.", "We tell you when to wait."],
-    line: "That is why owners trust us when it is time.",
-    cta: "When you're ready",
   },
   contact: {
     eyebrow: "Get in touch",
@@ -244,17 +271,17 @@ const COPY = {
 type Copy = typeof COPY;
 
 /**
- * The Hebrew copy. Same keys as COPY, element for element, verbatim from the
- * vault file PROJECTS/israel-ai-investment-bank/site/23-hebrew-copy-ben-picks.md.
- * That file is the only source of Hebrew. A changed line goes there first,
- * then comes back here.
+ * The Hebrew table for the redesign. Same keys as COPY, element for element.
+ * Not live yet: /he/ runs HomeLegacy.tsx until this table is finished.
  *
- * Decided to stay in English on the Hebrew page: the tagline under the logo,
- * the company and partner logos, and the three chart labels inside the SVG in
- * "why this works" (no Hebrew for them yet). A few strings below are English
- * because file 23 has no Hebrew line for them yet: the screen-reader labels
- * (aria) and the thank-you note after the form is sent. Listed in the pull
- * request for Ofir's review.
+ * Lines that did not change in the redesign keep their Hebrew from file 23,
+ * verbatim. Every new or changed line holds the English with a TODO(hebrew)
+ * comment, so the Hebrew pass is a copy swap. Where an old Hebrew line sat in
+ * a changed slot, it is kept in the comment for reference; it does not match
+ * the new English, so it is not used.
+ *
+ * Decided to stay in English on the Hebrew page: the tagline under the logo
+ * and the company and partner logos.
  */
 const COPY_HE: Copy = {
   nav: {
@@ -265,36 +292,36 @@ const COPY_HE: Copy = {
     closeAriaLabel: "Close menu",
     talkToUs: "לשיחת ייעוץ",
     links: [
-      { id: "how", label: "התהליך" },
+      // TODO(hebrew): new. Takes the slot of "התהליך" (How it works).
+      { id: "why", label: "Why Gesher" },
       { id: "founders", label: "הצוות" },
       { id: "sectors", label: "ענפים" },
       { id: "faq", label: "שאלות ותשובות" },
     ],
+    // TODO(hebrew): new.
+    menuEstimate: "Get your free estimate",
   },
   hero: {
     eyebrow: "עסקים פרטיים ומשפחתיים · מחזור 5 עד 50 מיליון ש״ח",
-    // The same Hebrew line as before, split in a different place. The emphasis
-    // used to sit on the whole first sentence, "מפעל חייך.", which mirrored the
-    // English, where it sits on "life's work". Ben's call on Sep 17: in Hebrew
-    // the word that should carry the colour is the last one, יותר. The sentence
-    // builds to it, and it is the promise, not the subject.
-    // No trailing space: the JSX adds one after headlineLead, same as English.
-    headlineLead: "מפעל חייך. מגיע לו",
-    headlineEmph: "יותר",
-    headlineTrail: ".",
-    // Ben's revision, Sep 17. The second sentence used to end "במכירה של שלהם".
-    lede: "ליווי במכירת חברות.\nמכרנו חברות משלנו, וליווינו אחרים במכירת החברות שלהם.",
-    ctaTalk: "לשיחת ייעוץ",
-    // Ben's own Hebrew from file 23, kept verbatim. The English button changed
-    // to "Get a quick valuation" when the hero became a website box; this line
-    // already said the same thing, so it did not need to move.
-    ctaValuation: "ניתוח שווי ראשוני",
-    // TODO(hebrew): the hidden label is still English. Screen readers only,
-    // never drawn.
+    // TODO(hebrew): changed. Was "מפעל חייך. מגיע לו" + "יותר" + ".", the
+    // Hebrew of the old headline. The colour sits on headlineEmph.
+    headlineLead: "You built something great. We help you",
+    headlineEmph: "sell it right.",
+    headlineTrail: "",
+    // TODO(hebrew): changed. Was "ליווי במכירת חברות.\nמכרנו חברות משלנו,
+    // וליווינו אחרים במכירת החברות שלהם." A "\n" breaks the line.
+    lede: "More buyers. More options. Your terms.",
+    // TODO(hebrew): new.
+    estLabel: "Free business value estimate",
+    // TODO(hebrew): the hidden label is still English. Screen readers only.
     valuationLabel: "Your business website",
-    // Hebrew from Ben, Sep 17, pasted verbatim. This is the line a Hebrew
-    // visitor reads inside the box, so it carries the whole promise on /he/.
-    valuationPlaceholder: "הזן את האתר שלך להערכת שווי בחינם",
+    // TODO(hebrew): changed. Was "הזן את האתר שלך להערכת שווי בחינם". A domain
+    // reads the same in both languages, so this may stay as it is.
+    valuationPlaceholder: "yourcompany.co.il",
+    // TODO(hebrew): new.
+    estButton: "Get estimate",
+    // TODO(hebrew): new.
+    estNote: "A few short questions. 100% confidential.",
   },
   proof: [
     { value: "+40", unit: "שנה", label: "ליווי בעלי עסקים" },
@@ -305,54 +332,86 @@ const COPY_HE: Copy = {
     label: "ניסיון מוכח · חברות שהקמנו וליווינו",
     items: COPY.logos.items,
   },
-  challenge: {
-    eyebrow: "האתגר",
-    headingLines: ["בנית משהו.", "אין הזדמנות שנייה לעשות את זה נכון."],
-    line: "רוב הבעלים עושים את זה פעם אחת בחיים. הקונה שיושב מולך כבר עשה את זה הרבה פעמים.",
-  },
+  // TODO(hebrew): every line in why is new.
   why: {
-    eyebrow: "למה זה עובד",
-    headingLines: ["קונה אחד קובע את המחיר.", "הרבה קונים קובעים את השוק."],
-    paras: [
-      "מתווך מפרסם את העסק שלך ומחכה. מי שמגיע קובע את התנאים.",
-      "אנחנו עושים בדיוק הפוך. מאתרים כל קונה רציני, מסננים, ומביאים את כולם לשולחן אחד, בתאריך אחד. הם מתחרים. התחרות קובעת את המחיר, לא קונה אחד.",
-      "בנק השקעות גדול לא ייקח עסקה בסדר גודל כזה. מתווך לא ינהל תהליך כזה. בשביל זה אנחנו כאן.",
-    ],
-    chartCaption: "תהליך שמראה מה השוק באמת מוכן לשלם",
-    // No separate Hebrew alt text in file 23. The caption line does the job.
-    chartAlt: "תהליך שמראה מה השוק באמת מוכן לשלם",
+    heading: "Why Gesher",
+    p1: {
+      title: "More buyers, a better price.",
+      body: "Buyers compete on one deadline. Competition sets the price, not one buyer.",
+    },
+    p2: {
+      title: "Senior professionals with you every step of the way.",
+      body: "40 years advising owners. We lead every negotiation.",
+      nameOfir: "Ofir",
+      nameBen: "Benjamin",
+    },
+    p3: {
+      title: "Financials built for buyers.",
+      body: "We rebuild your numbers the way a buyer reads them.",
+      today: "Today",
+      buyerReady: "Buyer-ready",
+    },
+    p4: {
+      title: "You keep running your business.",
+      body: "Our team leads the process.",
+      you: "You",
+      yourBusiness: "Running your business",
+      gesher: "Gesher",
+      yourSale: "Running your sale",
+    },
+    bandLabel: "By design",
+    bandTitle: "We take on only a few sellers a year.",
+    bandBody: "If now is not your time, we will tell you.",
+    bandCta: "Get your free estimate",
+  },
+  // TODO(hebrew): every line in chart is new. buyerMany keeps "{n}" for the
+  // number of buyers.
+  chart: {
+    priceLabel: "Price offered",
+    oneOffer: "One offer",
+    gap: "The gap is yours",
+    buyerOne: "1 buyer",
+    buyerMany: "{n} buyers",
+    alt: "As more buyers compete, the price offered goes up. The gap between one offer and the top offer is yours.",
   },
   process: {
-    eyebrow: "התהליך",
-    heading: "איך אנחנו מוכרים את העסק שלך.",
-    lede: "שלושה שלבים. מה קורה, ומה אתה מקבל.",
+    // TODO(hebrew): changed. Was "התהליך" (The process).
+    eyebrow: "Our process",
+    // TODO(hebrew): changed. Was "איך אנחנו מוכרים את העסק שלך."
+    heading: "Three steps to a sale.",
+    // TODO(hebrew): new. Keeps "{n}" for the step number.
+    step: "Step {n}",
     youGet: "אתה מקבל",
-    // Each step's text is one line in file 23. It is split here at the first
-    // full stop, the same split the English makes: the lead sentence in
-    // burgundy serif, the rest as body. No word changes.
     steps: [
       {
         id: 1,
-        roadLabel: "מספר אמיתי",
-        outcome: "טווח שווי אמיתי ותוכנית. למכור עכשיו, למכור אחר כך, או בכלל לא.",
-        lead: "אנחנו נותנים לך הערכת שווי מקצועית.",
-        body: "בדיסקרטיות. בונים מחדש את הדוחות הכספיים שלך מנקודת המבט של הקונה, וממפים כל קונה שירצה את העסק שלך. אנחנו לא פונים לאף קונה בלי האישור שלך.",
+        // TODO(hebrew): changed. Was "מספר אמיתי" (the old road label).
+        title: "Know your number",
+        // TODO(hebrew): changed.
+        body: "We value your business and find what raises the price.",
+        // TODO(hebrew): changed.
+        outcome: "A real range and a plan.",
       },
       {
         id: 2,
-        roadLabel: "תחרות בין קונים",
-        outcome: "הצעות כתובות, זו לצד זו. אנחנו מנהלים משא ומתן על הטובה שבהן, על המחיר ועל היום שאחרי.",
-        lead: "אנחנו מנהלים תהליך תחרותי.",
-        body: "קונים רציניים, שעברו את הסינון שלנו, מגישים הצעות עד תאריך אחד. אנחנו יושבים איתך בכל פגישה.",
+        // Same words as before, so the old road label carries over.
+        title: "תחרות בין קונים",
+        // TODO(hebrew): changed.
+        body: "Screened buyers bid on one deadline.",
+        // TODO(hebrew): changed.
+        outcome: "Offers side by side.",
       },
       {
         id: 3,
-        roadLabel: "סגירה",
-        outcome: "העסקה סגורה. הזמן שלך שוב שלך.",
-        lead: "אנחנו סוגרים.",
-        body: "עורך הדין שלך, רואה החשבון שלך ואנחנו, סביב שולחן אחד. כל מסמך מוסבר במילים פשוטות לפני שאתה חותם.",
+        title: "סגירה",
+        // TODO(hebrew): changed.
+        body: "We negotiate and close for you.",
+        // TODO(hebrew): changed.
+        outcome: "The deal done.",
       },
     ],
+    // TODO(hebrew): new.
+    note: "No buyer is contacted without your approval.",
   },
   team: {
     eyebrow: "הצוות",
@@ -396,12 +455,6 @@ const COPY_HE: Copy = {
   faq: {
     eyebrow: "שאלות שבעלי עסקים שואלים",
     heading: "תשובות ישירות.",
-  },
-  band: {
-    eyebrow: "מה מייחד אותנו",
-    headingLines: ["רוב היועצים דוחפים אותך למכור.", "אנחנו אומרים לך מתי לחכות."],
-    line: "בגלל זה בעלי עסקים סומכים עלינו כשמגיע הרגע.",
-    cta: "כשתהיה מוכן",
   },
   contact: {
     eyebrow: "צור קשר",
@@ -501,6 +554,15 @@ function LangSwitch({ className = "" }: { className?: string }) {
 const HERO_VIDEO: string = "/hero/hero.mp4";
 const HERO_POSTER: string | undefined = "/hero/hero-poster.jpg";
 
+// WHY GESHER, POINT 2: the founders in two arched frames. site/39 offered two
+// looks; Ben picked the studio photos cropped into the arches as they are
+// (option A, Oct 3) over cutouts on the card's cream. These are 400px copies
+// made for the arches; the originals the team section uses are untouched.
+const FOUNDER_ARCH_PHOTOS = {
+  ofir: "/founders/gesher_ofir_arch.jpg",
+  ben: "/founders/gesher_ben_arch.jpg",
+};
+
 /* ─── Small pieces ────────────────────────────────────────────────────────── */
 
 function Lines({ lines }: { lines: string[] }) {
@@ -516,7 +578,7 @@ function Lines({ lines }: { lines: string[] }) {
 }
 
 type ButtonProps = {
-  variant?: "primary" | "outline" | "on-navy" | "on-navy-outline";
+  variant?: "primary" | "outline" | "cream" | "on-navy";
   size?: "sm" | "md" | "lg";
   arrow?: boolean;
   children: React.ReactNode;
@@ -528,7 +590,7 @@ function Button({ variant = "primary", size = "md", children, arrow = false, ...
     variant === "primary" ? "btn-primary" : "",
     variant === "outline" ? "btn-outline" : "",
     variant === "on-navy" ? "btn-on-navy" : "",
-    variant === "on-navy-outline" ? "btn-on-navy-outline" : "",
+    variant === "cream" ? "btn-outline btn-cream" : "",
     size === "sm" ? "btn-sm" : "",
     size === "lg" ? "btn-lg" : "",
   ]
@@ -630,36 +692,99 @@ const SECTOR_ICONS: Record<string, React.ReactNode> = {
 
 /* ─── Nav ─────────────────────────────────────────────────────────────────── */
 
-// linkBase is "" on the home page, so the links are plain "#how" jumps. On any
-// other page that wears this nav (the legal pages, through SiteShell below) it
-// is "/", so the same links become "/#how" and load the home page at that
-// section.
-function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string }) {
-  const { copy: C } = useCopy();
-  const homeHref = linkBase || "#top";
-  const [open, setOpen] = useState(false);
+// Jump to a section on this page. The section's scroll-margin-top (home.css)
+// keeps its heading clear of the sticky menu, and the html element's
+// scroll-behavior decides smooth or instant (instant under reduce motion).
+function jumpTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ block: "start" });
+}
 
-  // Lock body scroll while the mobile menu is open. Esc closes it.
+// The valuation estimate, in the page's own language.
+function estimateHref(lang: Lang) {
+  return lang === "he" ? "/he/valuation" : "/valuation";
+}
+
+// linkBase is "" on the home page, so the links are plain "#why" jumps. On any
+// other page that wears this nav (the legal pages, through SiteShell below) it
+// is "/", so the same links become "/#why" and load the home page at that
+// section.
+//
+// Desktop is the v4 menu as it was, with "Why Gesher" in the first slot. Under
+// 900px the links fold into the hamburger. Its sheet is the v4 sheet: the four
+// links, then "Get your free estimate" (navy, the one solid button), "Talk to
+// us" (cream with a navy outline, Ben's call on Oct 3) and EN / עב.
+function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string }) {
+  const { copy: C, lang } = useCopy();
+  const [, navigate] = useLocation();
+  const homeHref = linkBase || "#top";
+  const toolHref = estimateHref(lang);
+  const [open, setOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  // While the sheet is open: the page behind it does not scroll, focus starts
+  // on the close button and Tab stays inside the sheet, Esc closes it, and
+  // widening the window past the phone layout closes it too.
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const html = document.documentElement;
+    const body = document.body;
+    const prev = [html.style.overflow, body.style.overflow];
+    // Both, because iOS Safari scrolls the html element, not the body.
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    sheetRef.current?.querySelector<HTMLElement>(".nav-sheet-close")?.focus();
+
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        toggleRef.current?.focus();
+        return;
+      }
+      if (e.key !== "Tab" || !sheetRef.current) return;
+      const items = Array.from(sheetRef.current.querySelectorAll<HTMLElement>("a[href], button:not([disabled])"));
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
+    const wide = window.matchMedia("(min-width: 901px)");
+    const onWide = () => wide.matches && setOpen(false);
     window.addEventListener("keydown", onKey);
+    wide.addEventListener("change", onWide);
     return () => {
-      document.body.style.overflow = prev;
+      html.style.overflow = prev[0];
+      body.style.overflow = prev[1];
       window.removeEventListener("keydown", onKey);
+      wide.removeEventListener("change", onWide);
     };
   }, [open]);
 
-  const close = () => setOpen(false);
+  function closeToToggle() {
+    setOpen(false);
+    toggleRef.current?.focus();
+  }
+
+  // Close the sheet, then act once the page behind it can scroll again.
+  function closeThen(act: () => void) {
+    setOpen(false);
+    requestAnimationFrame(() => requestAnimationFrame(act));
+  }
+
+  // A link in the sheet follows itself the way a browser does, as a real
+  // fragment jump: the section lands under the menu (scroll-margin-top) and
+  // the next Tab carries on from there. Tapping the section it is already on
+  // has no fragment to change, so that one just scrolls.
   function go(id: string) {
-    close();
-    requestAnimationFrame(() => {
-      const el = document.getElementById(id);
-      if (el) window.scrollTo({ top: el.offsetTop - 24, behavior: "smooth" });
+    closeThen(() => {
+      if (window.location.hash === `#${id}`) jumpTo(id);
+      else window.location.hash = id;
     });
   }
 
@@ -669,7 +794,7 @@ function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string 
         <Lockup />
       </a>
 
-      {/* Desktop links, hidden on mobile via CSS */}
+      {/* Desktop links, hidden under 900px via CSS */}
       <div className="nav-links">
         {C.nav.links.map((l) => (
           <a key={l.id} href={`${linkBase}#${l.id}`}>
@@ -682,8 +807,10 @@ function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string 
         <LangSwitch />
       </div>
 
-      {/* Mobile hamburger, hidden on desktop via CSS */}
+      {/* The hamburger, shown under 900px via CSS. The close cross sits in
+          the same spot on the sheet, so the icon reads as turning into an X. */}
       <button
+        ref={toggleRef}
         type="button"
         className="nav-toggle"
         aria-label={C.nav.menuAriaLabel}
@@ -696,28 +823,39 @@ function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string 
         </svg>
       </button>
 
-      {/* Mobile menu sheet */}
       {open && (
-        <div id="nav-menu" className="nav-menu" role="dialog" aria-modal="true" aria-label={C.nav.menuAriaLabel}>
-          <div className="nav-menu-bar">
-            <a href={homeHref} aria-label={C.nav.homeAriaLabel} onClick={close} className="nav-lockup">
+        <div
+          id="nav-menu"
+          ref={sheetRef}
+          className="nav-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label={C.nav.menuAriaLabel}
+        >
+          <div className="nav-sheet-bar">
+            <a href={homeHref} aria-label={C.nav.homeAriaLabel} onClick={() => setOpen(false)} className="nav-lockup">
               <Lockup />
             </a>
-            <button type="button" className="nav-toggle" aria-label={C.nav.closeAriaLabel} onClick={close}>
+            <button
+              type="button"
+              className="nav-toggle nav-sheet-close"
+              aria-label={C.nav.closeAriaLabel}
+              onClick={closeToToggle}
+            >
               <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
                 <path d="M2 2l16 16M18 2L2 18" stroke="currentColor" strokeWidth="1.25" fill="none" strokeLinecap="square" />
               </svg>
             </button>
           </div>
 
-          <ul className="nav-menu-list">
+          <ul className="nav-sheet-list">
             {C.nav.links.map((l) => (
               <li key={l.id}>
                 <a
                   href={`${linkBase}#${l.id}`}
                   onClick={(e) => {
                     // Off the home page the link has to leave, so let it.
-                    if (linkBase) return close();
+                    if (linkBase) return setOpen(false);
                     e.preventDefault();
                     go(l.id);
                   }}
@@ -726,22 +864,27 @@ function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string 
                 </a>
               </li>
             ))}
-            <li>
-              <LangSwitch className="lang-switch-mobile" />
-            </li>
           </ul>
 
-          <div className="nav-menu-cta">
-            <Button
-              onClick={() => {
-                close();
-                onTalk();
+          <div className="nav-sheet-actions">
+            <a
+              className="btn btn-primary"
+              href={toolHref}
+              onClick={(e) => {
+                e.preventDefault();
+                setOpen(false);
+                navigate(toolHref);
               }}
-              arrow
-              style={{ width: "100%" }}
             >
+              {C.nav.menuEstimate}
+              <svg className="arrow" viewBox="0 0 14 14" aria-hidden="true">
+                <path d="M1 7h12M8 2l5 5-5 5" />
+              </svg>
+            </a>
+            <Button variant="cream" onClick={() => closeThen(onTalk)}>
               {C.nav.talkToUs}
             </Button>
+            <LangSwitch className="lang-switch-sheet" />
           </div>
         </div>
       )}
@@ -751,13 +894,22 @@ function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string 
 
 /* ─── Hero ────────────────────────────────────────────────────────────────── */
 
+function LockIcon() {
+  return (
+    <svg className="est-lock" width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
+      <rect x="1" y="6" width="10" height="7.5" rx="1.5" fill="currentColor" />
+      <path d="M3.2 6V4.2a2.8 2.8 0 0 1 5.6 0V6" fill="none" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
 function Hero({ onOpenValuation }: { onOpenValuation: (site?: string) => void }) {
   const { copy: C } = useCopy();
   const [site, setSite] = useState("");
 
-  // Whatever he typed rides to /valuation and lands in the website box there,
-  // already filled in. An empty box still opens the page: he came to find out
-  // what his business is worth either way, and the page will ask him again.
+  // Whatever he typed rides to the valuation estimate and lands in its first
+  // question, already filled in. An empty box still opens it: he came to find
+  // out what his business is worth either way, and the tool asks him again.
   function handleValuationSubmit(e: React.FormEvent) {
     e.preventDefault();
     onOpenValuation(site.trim() || undefined);
@@ -776,6 +928,8 @@ function Hero({ onOpenValuation }: { onOpenValuation: (site?: string) => void })
           playsInline
           preload="metadata"
           aria-hidden="true"
+          // Firefox puts a video in the Tab order. This one is wallpaper.
+          tabIndex={-1}
         />
       )}
       <div className="hero-wash" aria-hidden="true"></div>
@@ -791,52 +945,43 @@ function Hero({ onOpenValuation }: { onOpenValuation: (site?: string) => void })
           <p className="lede">
             <Lines lines={C.hero.lede.split("\n")} />
           </p>
-          {/* Two buttons used to sit here, "Talk to us" and "Quick valuation",
-              and both asked the owner to commit to something before he had any
-              reason to. This asks him for one thing he can answer without
-              thinking, and gives him a number for it. It is the OffDeal front
-              door, which is the model Ben is building against. "Talk to us" is
-              still in the nav, and the contact form is still at the bottom.
+          {/* The estimate card (site/39, mock option 3). A light framed card:
+              the title, the website box and its button in one row, then the
+              trust line. It replaced the v4 box with the arrow, whose whole
+              promise sat in a placeholder that vanished the moment he typed.
 
-              One box with the button inside it. The first pass had a wide input
-              and a big button sitting beside it as two separate slabs, which
-              read as two things shouting rather than one thing to fill in. The
-              border belongs to the wrapper, the input inside is bare, and the
-              button is small because it is a control at the end of a field.
-
-              Right to left comes free: this is a flex row and the Hebrew page
-              sets dir="rtl" on its root, so the input and button swap sides on
-              their own, and the padding uses logical properties to follow. */}
-          <form className="hero-valuation" onSubmit={handleValuationSubmit}>
-            <label htmlFor="hero-site" className="visually-hidden">
-              {C.hero.valuationLabel}
-            </label>
-            <input
-              id="hero-site"
-              type="text"
-              className="hero-valuation-input"
-              placeholder={C.hero.valuationPlaceholder}
-              value={site}
-              onChange={(e) => setSite(e.target.value)}
-              autoComplete="url"
-              inputMode="url"
-              spellCheck={false}
-              autoCapitalize="off"
-            />
-            {/* The label came off the button on Sep 17. It ran the length of
-                the field on a desktop and forced the box to stack into two
-                slabs on a phone, and the sentence it was carrying now sits in
-                the placeholder where there is room for it. The words are still
-                on the button for anyone who cannot see it. */}
-            <button
-              type="submit"
-              className="hero-valuation-btn"
-              aria-label={C.hero.ctaValuation}
-            >
-              <svg className="arrow" viewBox="0 0 14 14" aria-hidden="true">
-                <path d="M1 7h12M8 2l5 5-5 5" />
-              </svg>
-            </button>
+              id="estimate" is where "Get your free estimate" in the why
+              Gesher band lands. Right to left comes free: the row is flex and
+              the padding is logical. */}
+          <form className="est-card" id="estimate" onSubmit={handleValuationSubmit} aria-labelledby="est-title">
+            <p className="est-title" id="est-title">
+              {C.hero.estLabel}
+            </p>
+            <div className="est-row">
+              <label htmlFor="hero-site" className="visually-hidden">
+                {C.hero.valuationLabel}
+              </label>
+              <input
+                id="hero-site"
+                type="text"
+                className="est-input"
+                placeholder={C.hero.valuationPlaceholder}
+                value={site}
+                onChange={(e) => setSite(e.target.value)}
+                autoComplete="url"
+                inputMode="url"
+                spellCheck={false}
+                autoCapitalize="off"
+                enterKeyHint="go"
+              />
+              <button type="submit" className="est-btn">
+                {C.hero.estButton}
+              </button>
+            </div>
+            <p className="est-note">
+              <LockIcon />
+              <span>{C.hero.estNote}</span>
+            </p>
           </form>
         </div>
       </div>
@@ -903,410 +1048,426 @@ function LogoStrip() {
   );
 }
 
-/* ─── The challenge ───────────────────────────────────────────────────────── */
+/* ─── Why Gesher ──────────────────────────────────────────────────────────── */
 
-function Challenge() {
-  const { copy: C } = useCopy();
-  return (
-    <section className="section challenge">
-      <div className="container">
-        <p className="eyebrow">{C.challenge.eyebrow}</p>
-        <h2 className="display">
-          <Lines lines={C.challenge.headingLines} />
-        </h2>
-        <p className="lede challenge-line">{C.challenge.line}</p>
-      </div>
-    </section>
-  );
-}
+const pointNumber = (n: number) => String(n).padStart(2, "0");
 
-/* ─── Why this works ──────────────────────────────────────────────────────── */
-
-function WhyThisWorks() {
-  const { copy: C } = useCopy();
-  return (
-    <section className="section why" id="why">
-      <div className="container why-grid">
-        <div>
-          <p className="eyebrow">{C.why.eyebrow}</p>
-          <h2 className="display">
-            <Lines lines={C.why.headingLines} />
-          </h2>
-          {C.why.paras.map((p, i) => (
-            <p className="lede why-para" key={i}>
-              {p}
-            </p>
-          ))}
-        </div>
-        <div>
-          {/* One buyer pays the one-offer level. Competitive bidding stacks a
-              burgundy gap on top of that same level, and the gap is the
-              seller's upside. Heights are illustrative, not a real deal. */}
-          <svg className="gapchart" viewBox="0 0 520 300" role="img" aria-label={C.why.chartAlt}>
-            <line x1="20" y1="256" x2="500" y2="256" stroke="#DCD4C4" strokeWidth="1" />
-            <line x1="20" y1="150" x2="440" y2="150" stroke="#6F6757" strokeWidth="1" strokeDasharray="4 5" />
-            <text x="24" y="142" fontFamily="Newsreader,Georgia,serif" fontStyle="italic" fontSize="13" fill="#6F6757">
-              the one-offer level
-            </text>
-            <rect x="40" y="150" width="56" height="106" fill="#16243B" />
-            <g>
-              <rect x="176" y="150" width="44" height="106" fill="#16243B" />
-              <rect x="176" y="128" width="44" height="22" fill="#6E2B2B" />
-              <rect x="236" y="150" width="44" height="106" fill="#16243B" />
-              <rect x="236" y="108" width="44" height="42" fill="#6E2B2B" />
-              <rect x="296" y="150" width="44" height="106" fill="#16243B" />
-              <rect x="296" y="86" width="44" height="64" fill="#6E2B2B" />
-              <rect x="356" y="150" width="44" height="106" fill="#16243B" />
-              <rect x="356" y="62" width="44" height="88" fill="#6E2B2B" />
-              <rect x="416" y="150" width="44" height="106" fill="#16243B" />
-              <rect x="416" y="36" width="44" height="114" fill="#6E2B2B" />
-            </g>
-            <line x1="478" y1="36" x2="478" y2="150" stroke="#6E2B2B" strokeWidth="1" />
-            <line x1="472" y1="36" x2="484" y2="36" stroke="#6E2B2B" strokeWidth="1" />
-            <line x1="472" y1="150" x2="484" y2="150" stroke="#6E2B2B" strokeWidth="1" />
-            <text
-              x="500"
-              y="93"
-              fontFamily="Inter,system-ui,sans-serif"
-              fontSize="10"
-              fontWeight="600"
-              letterSpacing="1.4"
-              fill="#6E2B2B"
-              transform="rotate(90 500 93)"
-              textAnchor="middle"
-            >
-              THE GAP IS YOURS
-            </text>
-            <g
-              fill="#16243B"
-              fontFamily="Inter,system-ui,sans-serif"
-              fontSize="10"
-              fontWeight="500"
-              letterSpacing="1.4"
-              textAnchor="middle"
-            >
-              <text x="68" y="282">ONE BUYER</text>
-              <text x="318" y="282">COMPETITIVE BIDDING</text>
-            </g>
-          </svg>
-          <p className="chart-cap">{C.why.chartCaption}</p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── The process (Spotlight) ─────────────────────────────────────────────── */
-
-const STEP_COUNT = COPY.process.steps.length;
-// How far along the road the navy fill sits for each step. The path is drawn
-// with pathLength 100, so these are "100 minus percent filled".
-const ROAD_OFFSET: Record<number, number> = { 1: 85, 2: 52, 3: 15 };
-const TICK_MS = 3000;
-
-function useMediaQuery(query: string) {
-  const [matches, setMatches] = useState(false);
-  useEffect(() => {
-    if (!window.matchMedia) return;
-    const mq = window.matchMedia(query);
-    const onChange = () => setMatches(mq.matches);
-    onChange();
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, [query]);
-  return matches;
-}
-
-function rotate(order: number[]) {
-  return [...order.slice(1), order[0]];
-}
-
-type RoadProps = {
-  variant: "desktop" | "phone";
-  current: number;
-  onPick: (n: number) => void;
+/**
+ * The chart in point 1, reworked from the v4 "why this works" chart: five
+ * bars rising from one buyer to five, that many small people under each bar,
+ * a dashed "one offer" line off the top of the first bar, and a bracket from
+ * that line to the top of the last bar. No numbers on it, on purpose.
+ *
+ * Two shapes of the same drawing. "wide" is the mock's. "compact" is for
+ * phones, where the wide one would shrink its labels to 6px: narrower bars,
+ * bigger type, and only the two end bars labelled (the people under every bar
+ * still count them). home.css shows one or the other, so the page never
+ * measures anything and nothing jumps.
+ *
+ * Right to left, the whole drawing mirrors (one buyer on the right) and the
+ * text stays upright: every x goes through mx(), and the svg's direction flips
+ * so "start" anchors mirror with it.
+ */
+const CHART_SHAPES = {
+  wide: {
+    W: 540, H: 296, x0: 40, w: 58, base: 222,
+    xs: [40, 132, 224, 316, 408],
+    heights: [64, 92, 118, 146, 178],
+    font: { axis: 11, offer: 13, buyers: 12, gap: 11 },
+    person: { w: 12, gap: 4, top: 8, row: 17 },
+    labelDy: 58, bracketDx: 14, gapDx: 24, labelAll: true,
+  },
+  compact: {
+    // The first bar stands a little apart, so "One offer" fits beside it.
+    W: 320, H: 262, x0: 28, w: 36, base: 196,
+    xs: [28, 98, 148, 198, 248],
+    heights: [50, 72, 94, 116, 140],
+    font: { axis: 11, offer: 12, buyers: 13, gap: 11 },
+    person: { w: 10, gap: 3, top: 7, row: 14 },
+    labelDy: 52, bracketDx: 10, gapDx: 18, labelAll: false,
+  },
 };
 
-function Road({ variant, current, onPick }: RoadProps) {
+const INK = "#23201A";
+const NAVY = "#16243B";
+const TAUPE = "#6F6757";
+const BURGUNDY = "#6E2B2B";
+const MUTE_BAR = "#CFC6B5";
+const HAIRLINE = "#DCD4C4";
+
+function BuyersChart({ shape }: { shape: keyof typeof CHART_SHAPES }) {
   const { copy: C, lang } = useCopy();
-  const desktop = variant === "desktop";
-  const path = desktop
-    ? "M20 108 C 260 108, 420 96, 560 78 S 900 34, 1040 26"
-    : "M14 92 C 110 92, 160 84, 200 66 S 320 26, 361 22";
-  const width = desktop ? 18 : 14;
-  const stones = desktop
-    ? [
-        { s: 1, cx: 177, cy: 106, ly: 62 },
-        { s: 2, cx: 530, cy: 82, ly: 38 },
-        { s: 3, cx: 883, cy: 41, ly: 92 },
-      ]
-    : [
-        { s: 1, cx: 62, cy: 91, ly: 66 },
-        { s: 2, cx: 196, cy: 68, ly: 42 },
-        { s: 3, cx: 336, cy: 26, ly: 62 },
-      ];
-  const r = desktop ? 16 : 14;
-
-  // Hebrew reads right to left, so the road does too: step 1 on the right,
-  // step 3 on the left. The three path strokes are mirrored as a group, and
-  // each stone's x is mirrored by hand so the number and the label stay
-  // upright. The fill still runs from the path start, so the animation is
-  // the same, only mirrored.
+  const g = CHART_SHAPES[shape];
   const rtl = lang === "he";
-  const W = desktop ? 1060 : 375;
-  const mx = (x: number) => (rtl ? W - x : x);
-
-  // The road labels are uppercase Latin with wide tracking in English. Hebrew
-  // has no uppercase and does not track, so it gets its own face and size.
-  const labelFont = rtl ? "Heebo,Inter,system-ui,sans-serif" : "Inter,system-ui,sans-serif";
-  const labelSize = rtl ? (desktop ? 12 : 9.5) : desktop ? 10.5 : 8.5;
-  const labelSpacing = rtl ? 0 : desktop ? 1.2 : 1;
+  const mx = (x: number) => (rtl ? g.W - x : x);
+  // A box of width bw starting at x, mirrored as a box.
+  const bx = (x: number, bw: number) => (rtl ? g.W - x - bw : x);
+  const lastX = g.xs[4];
+  const oneTop = g.base - g.heights[0];
+  const topTop = g.base - g.heights[4];
+  const axisX = g.x0 - 14;
+  const bracketX = lastX + g.w + g.bracketDx;
+  const tick = shape === "wide" ? 8 : 6;
+  const gapX = bracketX + g.gapDx;
+  const gapY = (oneTop + topTop) / 2;
+  const sans = "Inter,system-ui,sans-serif";
 
   return (
     <svg
-      className={`road-ctl ${desktop ? "road-ctl-d" : "road-ctl-m"}`}
-      viewBox={desktop ? "0 0 1060 150" : "0 0 375 120"}
-      aria-hidden="true"
+      className={`wg-chart wg-chart-${shape}`}
+      viewBox={`0 0 ${g.W} ${g.H}`}
+      role="img"
+      aria-label={C.chart.alt}
+      direction={rtl ? "rtl" : "ltr"}
     >
-      <g transform={rtl ? `translate(${W} 0) scale(-1 1)` : undefined}>
-        <path d={path} stroke="#DCD4C4" strokeWidth={width} fill="none" strokeLinecap="round" />
-        <path
-          className="road-fill"
-          d={path}
-          stroke="#16243B"
-          strokeWidth={width}
-          fill="none"
-          strokeLinecap="round"
-          pathLength={100}
-          strokeDasharray={100}
-          strokeDashoffset={ROAD_OFFSET[current]}
-        />
-        <path
-          d={path}
-          stroke="#F5F0E6"
-          strokeWidth={desktop ? 1.5 : 1.2}
-          fill="none"
-          strokeDasharray={desktop ? "6 8" : "4 6"}
-        />
-      </g>
-      <g className="road-btns" fontFamily="Newsreader,Georgia,serif" fontSize={desktop ? 17 : 15} fontWeight="500" textAnchor="middle">
-        {stones.map((st, i) => (
-          <g
-            key={st.s}
-            className={current === st.s ? "on" : undefined}
-            onClick={() => onPick(st.s)}
-            style={{ cursor: "pointer" }}
-          >
-            <circle cx={mx(st.cx)} cy={st.cy} r={r} />
-            <text x={mx(st.cx)} y={st.cy + (desktop ? 6 : 5)}>
-              {st.s}
-            </text>
-            <text
-              className="lbl"
-              x={mx(st.cx)}
-              y={st.ly}
-              fontFamily={labelFont}
-              fontSize={labelSize}
-              fontWeight="600"
-              letterSpacing={labelSpacing}
-            >
-              {C.process.steps[i].roadLabel}
-            </text>
+      <text className="wg-chart-caps" x={mx(g.x0)} y={16} fontFamily={sans} fontSize={g.font.axis} letterSpacing={rtl ? 0 : 1.4} fill={TAUPE}>
+        {C.chart.priceLabel}
+      </text>
+      <path
+        d={`M${mx(axisX)} ${g.base} V28 M${mx(axisX - 4)} 34 L${mx(axisX)} 26 L${mx(axisX + 4)} 34`}
+        stroke={TAUPE}
+        strokeWidth={1}
+        fill="none"
+      />
+      <line x1={mx(axisX)} y1={g.base} x2={mx(lastX + g.w + 8)} y2={g.base} stroke={HAIRLINE} strokeWidth={1} />
+      <line
+        x1={mx(g.x0)}
+        y1={oneTop}
+        x2={mx(lastX + g.w + g.bracketDx)}
+        y2={oneTop}
+        stroke={TAUPE}
+        strokeWidth={1}
+        strokeDasharray="3 4"
+      />
+      <text
+        x={mx(g.x0)}
+        y={oneTop - 8}
+        fontFamily="Newsreader,Georgia,serif"
+        fontStyle={rtl ? "normal" : "italic"}
+        fontSize={g.font.offer}
+        fill={TAUPE}
+      >
+        {C.chart.oneOffer}
+      </text>
+
+      {g.heights.map((h, i) => {
+        const x = g.xs[i];
+        const n = i + 1;
+        const first = i === 0;
+        const people = [];
+        for (let j = 0; j < n; j++) {
+          const row = j < 3 ? 0 : 1;
+          const col = row === 0 ? j : j - 3;
+          const inRow = row === 0 ? Math.min(n, 3) : n - 3;
+          const rowW = inRow * g.person.w + (inRow - 1) * g.person.gap;
+          const px = bx(x, g.w) + (g.w - rowW) / 2 + col * (g.person.w + g.person.gap);
+          const py = g.base + g.person.top + row * g.person.row;
+          people.push(
+            <g key={j} transform={`translate(${px} ${py}) scale(${g.person.w / 12})`} fill={first ? TAUPE : NAVY}>
+              <circle cx={6} cy={3.4} r={3} />
+              <path d="M0.6 14C0.6 9.2 3 7.6 6 7.6S11.4 9.2 11.4 14Z" />
+            </g>
+          );
+        }
+        const showLabel = g.labelAll || first || i === 4;
+        return (
+          <g key={i}>
+            <rect
+              x={bx(x, g.w)}
+              y={g.base - h}
+              width={g.w}
+              height={h}
+              fill={first ? MUTE_BAR : BURGUNDY}
+              fillOpacity={first ? 1 : 0.55 + i * 0.11}
+            />
+            {people}
+            {showLabel && (
+              <text
+                x={mx(x + g.w / 2)}
+                y={g.base + g.labelDy}
+                textAnchor="middle"
+                fontFamily={sans}
+                fontSize={g.font.buyers}
+                fontWeight={first || i === 4 ? 600 : 400}
+                fill={INK}
+              >
+                {first ? C.chart.buyerOne : C.chart.buyerMany.replace("{n}", String(n))}
+              </text>
+            )}
           </g>
-        ))}
-      </g>
+        );
+      })}
+
+      <path
+        d={`M${mx(bracketX)} ${oneTop} H${mx(bracketX + tick)} V${topTop} H${mx(bracketX)}`}
+        stroke={BURGUNDY}
+        strokeWidth={1.4}
+        fill="none"
+      />
+      <text
+        className="wg-chart-caps"
+        x={mx(gapX)}
+        y={gapY}
+        transform={`rotate(-90 ${mx(gapX)} ${gapY})`}
+        textAnchor="middle"
+        fontFamily={sans}
+        fontSize={g.font.gap}
+        letterSpacing={rtl ? 0 : 1.6}
+        fontWeight={600}
+        fill={BURGUNDY}
+      >
+        {C.chart.gap}
+      </text>
     </svg>
   );
 }
 
-function CheckIcon() {
+// Point 2: the two founders in arched frames, first names under them. The
+// arch's size is fixed in CSS, so nothing moves when the lazy photo arrives.
+// The names are the caption, so the photos carry no alt text of their own.
+function FounderArches() {
+  const { copy: C } = useCopy();
+  const people = [
+    { name: C.why.p2.nameOfir, src: FOUNDER_ARCH_PHOTOS.ofir },
+    { name: C.why.p2.nameBen, src: FOUNDER_ARCH_PHOTOS.ben },
+  ];
   return (
-    <span className="ico" aria-hidden="true">
-      <svg viewBox="0 0 24 24">
-        <path d="M4 12l5 5L20 6" />
+    <div className="wg-vis wg-founders">
+      {people.map((p) => (
+        <figure key={p.src} className="wg-arch">
+          <span className="wg-arch-frame">
+            <img src={p.src} alt="" width={400} height={400} loading="lazy" decoding="async" />
+          </span>
+          <figcaption>{p.name}</figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+}
+
+// Point 3: today's statement, and the same statement rebuilt for a buyer.
+function FinancialsSheets() {
+  const { copy: C } = useCopy();
+  return (
+    <div className="wg-vis wg-sheets">
+      <figure className="wg-sheet">
+        <svg viewBox="0 0 68 96" aria-hidden="true">
+          <rect x="1" y="1" width="66" height="94" rx="2" fill="#FBF8F1" stroke={MUTE_BAR} />
+          <rect x="11" y="15" width="34" height="5" fill={MUTE_BAR} />
+          <rect x="11" y="29" width="46" height="4" fill={HAIRLINE} />
+          <rect x="11" y="41" width="40" height="4" fill={HAIRLINE} />
+          <rect x="11" y="53" width="46" height="4" fill={HAIRLINE} />
+          <rect x="11" y="65" width="30" height="4" fill={HAIRLINE} />
+        </svg>
+        <figcaption className="wg-sheet-today">{C.why.p3.today}</figcaption>
+      </figure>
+      <svg className="wg-sheet-arrow" viewBox="0 0 18 12" aria-hidden="true">
+        <path d="M1 6h15m-5-5 5 5-5 5" fill="none" stroke={NAVY} strokeWidth="1.5" />
       </svg>
-    </span>
+      <figure className="wg-sheet">
+        <svg viewBox="0 0 68 96" aria-hidden="true">
+          <rect x="1" y="1" width="66" height="94" rx="2" fill="#FBF8F1" stroke={NAVY} strokeWidth="1.2" />
+          <rect x="11" y="15" width="34" height="5" fill={NAVY} />
+          <rect x="11" y="29" width="46" height="4" fill="#B98A84" />
+          <rect x="11" y="41" width="40" height="4" fill={HAIRLINE} />
+          <rect x="11" y="53" width="46" height="4" fill="#B98A84" />
+          <rect x="11" y="65" width="30" height="4" fill={HAIRLINE} />
+          <circle cx="55" cy="83" r="9" fill={BURGUNDY} />
+          <path d="M50.5 83l3 3 6-6" fill="none" stroke="#F5F0E6" strokeWidth="1.8" />
+        </svg>
+        <figcaption>{C.why.p3.buyerReady}</figcaption>
+      </figure>
+    </div>
+  );
+}
+
+// Point 4: who runs what. A light row for him and his business, a navy row
+// for us and the sale. Plain text in the rows, so a long word wraps instead
+// of being cut.
+function WhoRunsWhat() {
+  const { copy: C } = useCopy();
+  return (
+    <div className="wg-vis wg-rows">
+      <div className="wg-row wg-row-you">
+        <svg className="wg-row-ico" viewBox="0 0 48 48" aria-hidden="true">
+          <g fill="none" stroke={NAVY} strokeWidth="1.6" strokeLinejoin="round">
+            <path d="M3 45V25l11-7v7l11-7v7l11-7V8h7v37Z" />
+            <rect x="9" y="33" width="5" height="5" />
+            <rect x="20" y="33" width="5" height="5" />
+            <rect x="29" y="33" width="5" height="5" />
+          </g>
+          <path d="M38 5c1.5-2 3.5 0 5-2" stroke={TAUPE} strokeWidth="1.3" fill="none" />
+        </svg>
+        <p>
+          <span className="wg-row-k">{C.why.p4.you}</span>
+          <span className="wg-row-v">{C.why.p4.yourBusiness}</span>
+        </p>
+      </div>
+      <div className="wg-row wg-row-us">
+        <svg className="wg-row-ico wg-row-flag" viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M4 42C16 42 14 26 26 26S34 14 38 14" fill="none" stroke="#D9B8B2" strokeWidth="1.6" strokeDasharray="3 3" />
+          <circle cx="4" cy="42" r="3" fill="#D9B8B2" />
+          <circle cx="26" cy="26" r="3" fill="#D9B8B2" />
+          <path d="M38 14V1" stroke="#D9B8B2" strokeWidth="1.6" />
+          <path d="M38 1l9 4-9 4Z" fill="#D9B8B2" />
+        </svg>
+        <p>
+          <span className="wg-row-k">{C.why.p4.gesher}</span>
+          <span className="wg-row-v">{C.why.p4.yourSale}</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function HourglassIcon() {
+  return (
+    <svg width="12" height="16" viewBox="0 0 12 16" aria-hidden="true">
+      <path d="M1 1h10M1 15h10M2 1c0 5 8 5 8 7s-8 2-8 7M10 1c0 5-8 5-8 7s8 2 8 7" fill="none" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
   );
 }
 
 /**
- * The Spotlight process.
- *
- * Desktop: three columns side by side, all three always readable. The lit one
- * is full ink with a wine underline, the other two sit dimmed.
- *
- * Phone: the same three steps stacked like a wheel, the lit one on top. Every
- * tick the list rolls up by one, so the step that just finished drops to the
- * bottom. Every step stays in the page code either way, so search engines and
- * AI crawlers read the whole story.
- *
- * The light moves on its own every three seconds, but only while the section
- * is on screen, and it pauses while the mouse is over it. The first click
- * anywhere in the section stops it for good and leaves it where the reader put
- * it. If the visitor asked their device to reduce motion, it never moves.
+ * Why Gesher. Replaces the challenge, why this works and the old navy band
+ * (site/39). Point 1 is a wide card with the chart; points 2 to 4 sit in a
+ * row of three (one column under 900px); the navy band closes the section.
  */
-function ProcessSpotlight() {
+function WhyGesher() {
   const { copy: C } = useCopy();
-  const rootRef = useRef<HTMLDivElement>(null);
-  const spotsRef = useRef<HTMLDivElement>(null);
+  const W = C.why;
 
-  const [current, setCurrent] = useState(1);
-  const [stopped, setStopped] = useState(false);
-  const [onScreen, setOnScreen] = useState(false);
-  const [hovering, setHovering] = useState(false);
-
-  // Phone wheel state. `order` is the render order of the three steps, `slide`
-  // is how far to push the list up during a roll, and `lockHeight` freezes the
-  // wheel while the extra trailing copy is in the DOM so the page cannot jump.
-  const [order, setOrder] = useState<number[]>([1, 2, 3]);
-  const [slide, setSlide] = useState(0);
-  const [lockHeight, setLockHeight] = useState(0);
-
-  const isPhone = useMediaQuery("(max-width: 860px)");
-  const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-
-  const pick = useCallback((n: number) => {
-    setStopped(true);
-    setCurrent(((n - 1) % STEP_COUNT + STEP_COUNT) % STEP_COUNT + 1);
-  }, []);
-
-  // Only run while the section is on screen.
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
-    if (!("IntersectionObserver" in window)) {
-      setOnScreen(true);
-      return;
+  // The band's button is a real link to the hero card (#estimate), so it
+  // works even before the script runs. Once it has, the page makes the jump
+  // itself, because a browser's own jump to an anchor clears focus, and with
+  // a mouse or a keyboard the cursor should then wait in the website box. Not
+  // on a touch screen, where focusing the box would throw the keyboard up
+  // mid-scroll.
+  function toEstimate(e: React.MouseEvent) {
+    e.preventDefault();
+    jumpTo("estimate");
+    if (window.matchMedia("(pointer: fine)").matches) {
+      document.getElementById("hero-site")?.focus({ preventScroll: true });
     }
-    const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => setOnScreen(e.isIntersecting)),
-      { threshold: 0.35 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  // The three-second tick.
-  useEffect(() => {
-    if (reduceMotion || stopped || hovering || !onScreen) return;
-    const t = window.setInterval(() => setCurrent((c) => (c % STEP_COUNT) + 1), TICK_MS);
-    return () => window.clearInterval(t);
-  }, [reduceMotion, stopped, hovering, onScreen]);
-
-  // Roll the phone wheel so the lit step sits on top. On desktop the three
-  // steps are grid columns, so they must stay in 1-2-3 order.
-  useLayoutEffect(() => {
-    if (!isPhone) {
-      setOrder((o) => (o[0] === 1 && o[1] === 2 ? o : [1, 2, 3]));
-      setSlide(0);
-      setLockHeight(0);
-      return;
-    }
-    if (order[0] === current || slide > 0) return;
-    const list = spotsRef.current;
-    const first = list?.firstElementChild as HTMLElement | null;
-    if (!list || !first) return;
-    if (reduceMotion) {
-      setOrder((o) => rotate(o));
-      return;
-    }
-    const gap = parseFloat(getComputedStyle(list).rowGap || "0") || 0;
-    setLockHeight(list.getBoundingClientRect().height);
-    setSlide(first.getBoundingClientRect().height + gap);
-  }, [current, isPhone, order, slide, reduceMotion]);
-
-  function finishRoll() {
-    setOrder((o) => rotate(o));
-    setSlide(0);
-    setLockHeight(0);
   }
 
-  const rendered = isPhone && slide > 0 ? [...order, order[0]] : order;
-  const stepById = (id: number) => C.process.steps.find((s) => s.id === id)!;
+  const points = [
+    { n: 2, title: W.p2.title, body: W.p2.body, vis: <FounderArches /> },
+    { n: 3, title: W.p3.title, body: W.p3.body, vis: <FinancialsSheets /> },
+    { n: 4, title: W.p4.title, body: W.p4.body, vis: <WhoRunsWhat /> },
+  ];
 
   return (
-    <section className="section process" id="how">
+    <section className="section wg" id="why">
       <div className="container">
-        <div className="process-intro">
+        <h2 className="display">{W.heading}</h2>
+
+        <div className="wg-card wg-feature">
+          <div className="wg-txt">
+            <span className="wg-num">{pointNumber(1)}</span>
+            <h3>{W.p1.title}</h3>
+            <p>{W.p1.body}</p>
+          </div>
+          <div className="wg-chart-box">
+            <BuyersChart shape="wide" />
+            <BuyersChart shape="compact" />
+          </div>
+        </div>
+
+        <div className="wg-points">
+          {points.map((p) => (
+            <article className="wg-card wg-point" key={p.n}>
+              {p.vis}
+              <span className="wg-num">{pointNumber(p.n)}</span>
+              <h3>{p.title}</h3>
+              <p>{p.body}</p>
+            </article>
+          ))}
+        </div>
+
+        <div className="wg-band">
           <div>
-            <p className="eyebrow">{C.process.eyebrow}</p>
-            <h2 className="display">{C.process.heading}</h2>
+            <p className="wg-band-label">
+              <HourglassIcon />
+              <span>{W.bandLabel}</span>
+            </p>
+            <h3>{W.bandTitle}</h3>
+            <p className="wg-band-body">{W.bandBody}</p>
           </div>
-          <p className="lede">{C.process.lede}</p>
+          <a className="btn btn-on-navy" href="#estimate" onClick={toEstimate}>
+            {W.bandCta}
+          </a>
         </div>
+      </div>
+    </section>
+  );
+}
 
-        <div
-          className="stepper"
-          ref={rootRef}
-          onMouseEnter={() => setHovering(true)}
-          onMouseLeave={() => setHovering(false)}
-        >
-          <Road variant="desktop" current={current} onPick={pick} />
-          <Road variant="phone" current={current} onPick={pick} />
+/* ─── Our process ─────────────────────────────────────────────────────────── */
 
-          <div className="sp-pills" role="group" aria-label="Steps">
-            {C.process.steps.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className={current === s.id ? "on" : undefined}
-                aria-pressed={current === s.id}
-                onClick={() => pick(s.id)}
-              >
-                {s.id}
-              </button>
-            ))}
-          </div>
+// Thin line icons in round badges, one per step: rising bars, three people
+// with the one in the middle in burgundy, a signed page.
+const STEP_ICONS: Record<number, React.ReactNode> = {
+  1: (
+    <>
+      <path d="M5 27h22" stroke={NAVY} strokeWidth="1.5" />
+      <rect x="8" y="18" width="4" height="9" fill="none" stroke={NAVY} strokeWidth="1.5" />
+      <rect x="14.5" y="13" width="4" height="14" fill="none" stroke={NAVY} strokeWidth="1.5" />
+      <rect x="21" y="7" width="4" height="20" fill={BURGUNDY} stroke={BURGUNDY} strokeWidth="1.5" />
+    </>
+  ),
+  2: (
+    <g fill="none" stroke={NAVY} strokeWidth="1.5">
+      <circle cx="7" cy="12" r="3" />
+      <path d="M2 24c0-4 2.2-6 5-6s5 2 5 6" />
+      <circle cx="25" cy="12" r="3" />
+      <path d="M20 24c0-4 2.2-6 5-6s5 2 5 6" />
+      <circle cx="16" cy="9" r="3.4" stroke={BURGUNDY} />
+      <path d="M10.5 23c0-4.6 2.5-7 5.5-7s5.5 2.4 5.5 7" stroke={BURGUNDY} />
+    </g>
+  ),
+  3: (
+    <g fill="none" stroke={NAVY} strokeWidth="1.5">
+      <rect x="7" y="4" width="18" height="24" rx="1.5" />
+      <path d="M11 10h10M11 14h10M11 18h6" />
+      <path d="M11 24c1.5-2 2.5-2 3 0s1.5 2 3 0 2-1.5 4-0.5" stroke={BURGUNDY} />
+    </g>
+  ),
+};
 
-          <div className="wheel" style={lockHeight ? { height: lockHeight } : undefined}>
-            <div
-              className="spots"
-              ref={spotsRef}
-              style={
-                slide > 0
-                  ? { transform: `translateY(-${slide}px)`, transition: "transform .55s cubic-bezier(.4,0,.2,1)" }
-                  : { transform: "none", transition: "none" }
-              }
-              onTransitionEnd={(e) => {
-                if (e.propertyName === "transform" && slide > 0) finishRoll();
-              }}
-            >
-              {rendered.map((id, i) => {
-                const s = stepById(id);
-                const ghost = i === STEP_COUNT; // the trailing copy during a roll
-                return (
-                  <div
-                    key={ghost ? "ghost" : id}
-                    className={`spot${!ghost && current === id ? " on" : ""}`}
-                    role={ghost ? undefined : "button"}
-                    tabIndex={ghost ? undefined : 0}
-                    aria-hidden={ghost ? true : undefined}
-                    onClick={ghost ? undefined : () => pick(id)}
-                    onKeyDown={
-                      ghost
-                        ? undefined
-                        : (e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              pick(id);
-                            }
-                          }
-                    }
-                  >
-                    <small>
-                      <CheckIcon />
-                      {C.process.youGet}
-                    </small>
-                    <h3>{s.outcome}</h3>
-                    <p>
-                      <span>{s.lead}</span> {s.body}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+/**
+ * Our process. Three steps on one line that joins their round icon badges,
+ * each with one line and one "You get". On a phone the steps stack and the
+ * line runs down the start edge. Nothing moves on its own: the v4 road and
+ * its three-second wheel went with the redesign.
+ */
+function HowItWorks() {
+  const { copy: C } = useCopy();
+  const P = C.process;
+  return (
+    <section className="section how" id="how">
+      <div className="container">
+        <div className="how-head">
+          <p className="eyebrow">{P.eyebrow}</p>
+          <h2 className="display">{P.heading}</h2>
         </div>
+        <ol className="how-steps">
+          {P.steps.map((s) => (
+            <li className="how-step" key={s.id}>
+              <span className="how-ico" aria-hidden="true">
+                <svg viewBox="0 0 32 32">{STEP_ICONS[s.id]}</svg>
+              </span>
+              <span className="how-n">{P.step.replace("{n}", String(s.id))}</span>
+              <h3>{s.title}</h3>
+              <p>{s.body}</p>
+              <div className="how-get">
+                <small>{P.youGet}</small>
+                <span>{s.outcome}</span>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="how-note">{P.note}</p>
       </div>
     </section>
   );
@@ -1392,28 +1553,6 @@ function Faq() {
             ))}
           </div>
         </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Navy band ───────────────────────────────────────────────────────────── */
-
-function Band({ onTalk }: { onTalk: () => void }) {
-  const { copy: C } = useCopy();
-  return (
-    <section className="band">
-      <div className="container band-grid">
-        <div>
-          <p className="eyebrow band-eyebrow">{C.band.eyebrow}</p>
-          <h2 className="display">
-            <Lines lines={C.band.headingLines} />
-          </h2>
-          <p className="band-line">{C.band.line}</p>
-        </div>
-        <Button variant="on-navy-outline" onClick={onTalk}>
-          {C.band.cta}
-        </Button>
       </div>
     </section>
   );
@@ -1685,21 +1824,15 @@ export default function Home({ lang = "en" }: { lang?: Lang }) {
     };
   }, [lang, dir]);
 
-  function scrollTo(id: string) {
-    const el = document.getElementById(id);
-    if (el) window.scrollTo({ top: el.offsetTop - 24, behavior: "smooth" });
-  }
-
-  // Arriving at "/#how" from another page (the legal pages' nav and footer link
-  // back this way). The browser tries that jump before React has drawn the
-  // section, so it lands at the top. Jump once the page is up, and again when
-  // images have loaded and moved things down.
+  // Arriving at "/#why" from another page (the legal pages' nav and footer
+  // link back this way). The browser tries that jump before React has drawn
+  // the section, so it lands at the top. Jump once the page is up, and again
+  // when images have loaded and moved things down.
   useEffect(() => {
     const id = decodeURIComponent(window.location.hash.slice(1));
     if (!id) return;
     const jump = () => {
-      const el = document.getElementById(id);
-      if (el) window.scrollTo({ top: el.offsetTop - 24, behavior: "instant" as ScrollBehavior });
+      document.getElementById(id)?.scrollIntoView({ block: "start", behavior: "instant" as ScrollBehavior });
     };
     // The section is in the DOM by the time an effect runs, so jump now.
     jump();
@@ -1711,7 +1844,7 @@ export default function Home({ lang = "en" }: { lang?: Lang }) {
   // GA4 and Meta which button it was.
   const talk = (placement: string) => {
     trackTalkClick({ placement, lang });
-    scrollTo("contact");
+    jumpTo("contact");
   };
 
   return (
@@ -1724,24 +1857,20 @@ export default function Home({ lang = "en" }: { lang?: Lang }) {
         </header>
         <Hero
           onOpenValuation={(site) => {
-            // A man on /he/ stays in Hebrew: the hero sends him to the Hebrew tool.
-            const tool = lang === "he" ? "/he/valuation" : "/valuation";
             // The website rides in history state, not in the address. It used to
             // go as ?site=, and GA4 and the Meta Pixel both record the full
             // address, so the owner's company reached Google and Meta. The page
             // says "Strictly private". Valuation.tsx reads it back out.
-            navigate(tool, site ? { state: { site } } : undefined);
+            navigate(estimateHref(lang), site ? { state: { site } } : undefined);
           }}
         />
         <ProofStrip />
         <LogoStrip />
-        <Challenge />
-        <WhyThisWorks />
-        <ProcessSpotlight />
+        <WhyGesher />
+        <HowItWorks />
         <Team />
         <Sectors />
         <Faq />
-        <Band onTalk={() => talk("band")} />
         <Contact />
         <Footer />
       </div>

@@ -65,6 +65,11 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  /* Menu links and buttons jump instead of glide for anyone who asked their
+     device to reduce motion. */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
 
   body {
     background-color: var(--color-bg);
