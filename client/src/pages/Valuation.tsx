@@ -19,7 +19,7 @@
  * WORDS. Every word on this page comes from valuationCopy.ts through the
  * context below. Never write a sentence inline in this file. Hebrew is a copy
  * swap: the layout is logical, figures sit in <bdi>, the slider follows dir.
- * Until the Hebrew pass, /he/valuation runs the old tool (ValuationLegacy.tsx).
+ * /he/valuation is this page with COPY_V_HE (site/39, Oct 4 2026).
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Lockup } from "@/components/Lockup";

@@ -9,7 +9,6 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import HomeLegacy from "./pages/HomeLegacy";
 import Valuation from "./pages/Valuation";
-import ValuationLegacy from "./pages/ValuationLegacy";
 import { lazy, Suspense } from "react";
 import ExitBrief from "./pages/ExitBrief";
 import Privacy from "./pages/Privacy";
@@ -61,13 +60,11 @@ function Router() {
       <Route path="/en/">
         <Redirect to="/" replace />
       </Route>
-      {/* The valuation tool, same two-URL model as the home page. English
-          runs the valuation estimate (Oct 1, site/35). Hebrew keeps the old
-          tool, untouched, until the Hebrew pass swaps in the new one with
-          Hebrew words and deletes ValuationLegacy. */}
+      {/* The valuation estimate (site/35), same two-URL model as the home
+          page. Hebrew is the same page with site/39's words (Oct 4). */}
       <Route path="/valuation" component={() => <Valuation lang="en" />} />
-      <Route path="/he/valuation" component={() => <ValuationLegacy lang="he" />} />
-      <Route path="/he/valuation/" component={() => <ValuationLegacy lang="he" />} />
+      <Route path="/he/valuation" component={() => <Valuation lang="he" />} />
+      <Route path="/he/valuation/" component={() => <Valuation lang="he" />} />
       {/* Dev only, never built into the live site: the redesigned homepage
           right to left, with the Hebrew it has so far, for the Hebrew-ready
           check. */}

@@ -119,7 +119,7 @@ describe("the live library rows, each industry's own low and high multiple", () 
   });
 });
 
-// The old tool still serves /he/valuation until the Hebrew pass, from the same
+// The old Exit Brief route (routes/exitBrief.ts) still prices from the same
 // library. Clinics now have a profit band and no margin, so only a profit can
 // price them there; revenue alone or the site alone goes by hand, never NaN.
 describe("the old tool's math on clinics", () => {

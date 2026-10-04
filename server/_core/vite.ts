@@ -6,7 +6,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
 import { FAQ_ITEMS, FAQ_ITEMS_HE, type FaqItem } from "@shared/faq";
-import { COPY_V } from "../../client/src/pages/valuationCopy";
+import { COPY_V, COPY_V_HE } from "../../client/src/pages/valuationCopy";
 
 /* ─── Homepage head, per language ─────────────────────────────────────────────
  * English lives at the root (/), Hebrew under /he/. Decided 2026-09-16: English
@@ -136,8 +136,7 @@ export function homeLang(reqPath: string): Lang | null {
  * Its own title and description, because the tool is what an ad points at and
  * "Free business valuation" is the promise in the tab.
  *
- * The Hebrew title and description come from site/30-hebrew-valuation-copy-ben-picks.md.
- * Both pages are indexed and both sit in sitemap.xml as a pair.
+ * Both come from the page's own copy table, valuationCopy.ts. Both pages are indexed and both sit in sitemap.xml as a pair.
  * ──────────────────────────────────────────────────────────────────────────── */
 const VALUATION_HEAD: Record<Lang, { title: string; description: string; ogLocale: string }> = {
   // site/35, head.title and head.description, from the page's own copy table.
@@ -146,11 +145,10 @@ const VALUATION_HEAD: Record<Lang, { title: string; description: string; ogLocal
     description: COPY_V.head.description,
     ogLocale: "en_US",
   },
+  // site/39 rows 107 and 108, from the same table.
   he: {
-    // Verbatim from site/30-hebrew-valuation-copy-ben-picks.md (head.title, head.description).
-    title: "ניתוח שווי ראשוני בחינם | Gesher Partners",
-    description:
-      "הדבק את האתר של העסק וקבל טווח שווי כנה תוך כמה דקות. בדיסקרטיות, ממקורות ציבוריים, מליווי במכירה לצד המוכר בישראל.",
+    title: COPY_V_HE.head.title,
+    description: COPY_V_HE.head.description,
     ogLocale: "he_IL",
   },
 };
@@ -191,17 +189,15 @@ function localizeValuation(template: string, lang: Lang): string {
 
   if (lang === "he") {
     html = html.replace(/<html[^>]*>/, '<html lang="he" dir="rtl">');
-  } else {
-    // The estimate lets a reader pinch to zoom: its owners are 55 and up, and
-    // index.html caps the zoom for the whole site. Every box on this page is
-    // 16px, so an iPhone does not jump in when one is tapped. The old Hebrew
-    // tool keeps the site's tag until the Hebrew pass. (Valuation.tsx does the
-    // same after a hop from the home page.)
-    html = html.replace(
-      /<meta name="viewport" content="[^"]*"\s*\/>/,
-      `<meta name="viewport" content="${ZOOMABLE_VIEWPORT}" />`,
-    );
   }
+  // The estimate lets a reader pinch to zoom, in both languages: its owners
+  // are 55 and up, and index.html caps the zoom for the whole site. Every box
+  // on this page is 16px, so an iPhone does not jump in when one is tapped.
+  // (Valuation.tsx does the same after a hop from the home page.)
+  html = html.replace(
+    /<meta name="viewport" content="[^"]*"\s*\/>/,
+    `<meta name="viewport" content="${ZOOMABLE_VIEWPORT}" />`,
+  );
 
   const extra = [
     `<meta property="og:locale" content="${head.ogLocale}" />`,

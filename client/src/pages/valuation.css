@@ -6,9 +6,8 @@
    pinned to the top. On the result, a main column plus a company card on the
    right (stacked first on phones).
 
-   Everything is scoped to .ve, so nothing here reaches the home page or the
-   old Hebrew tool (valuationLegacy.css, scoped to .v-page). Light only, on
-   purpose: the live site is light only.
+   Everything is scoped to .ve, so nothing here reaches the home page. Light
+   only, on purpose: the live site is light only.
 
    Built to flip. Spacing is logical (inline-start and inline-end, never left
    and right), the dropdown arrow is an element placed at the inline end, and
@@ -398,3 +397,10 @@
    which reads the direction off its own letters: a shekel figure in Latin
    letters stays left to right, a Hebrew figure stays right to left. The ring's percentage is
    pinned left to right in the markup, so it reads 42%, never %42. */
+
+/* The company card's two bands read longer in Hebrew ("5 עד 10 מיליון ש״ח")
+   than the narrow desktop card holds side by side, so ש״ח fell to a line of
+   its own. On desktop they stack, one band per row. Phones keep the pair. */
+@media (min-width: 901px) {
+  .ve[dir="rtl"] .ve-co-bands { grid-template-columns: minmax(0, 1fr); }
+}
