@@ -39,8 +39,7 @@ async function startServer() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   registerApiRoutes(app);
-  // The valuation estimate at /valuation (Oct 1). /he/valuation still runs
-  // the old tool through registerApiRoutes until the Hebrew pass.
+  // The valuation estimate, /valuation (Oct 1) and /he/valuation (Oct 4).
   registerEstimateRoutes(app);
   // tRPC API
   app.use(

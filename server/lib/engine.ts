@@ -7,7 +7,7 @@
  * the bottom.
  */
 import Anthropic from "@anthropic-ai/sdk";
-import { COPY_V } from "../../client/src/pages/valuationCopy";
+import { COPY_V, COPY_V_HE } from "../../client/src/pages/valuationCopy";
 import { EXIT_BRIEF_SYSTEM_PROMPT, HEBREW_ADDENDUM } from "./exitBriefSkill";
 
 // ─── The Brief engine ───────────────────────────────────────────────────────
@@ -133,11 +133,10 @@ export function attemptCostUsd(u: RunUsage, model: string): number | null {
 // They are the only words the server puts on the screen, so they are keyed by
 // language and picked from the run's own lang.
 //
-// English is site/35, by key, from COPY_V.server in valuationCopy.ts. The
-// Hebrew side is copied verbatim from site/30-hebrew-valuation-copy-ben-picks.md
-// and waits for the Hebrew pass. An empty string would fall back to English,
-// which is the right failure: a man reads a sentence he may not want rather
-// than a blank screen.
+// Both languages come from the page's own copy table, valuationCopy.ts:
+// English is site/35, Hebrew is site/39 rows 103 to 106 (Oct 4 2026). An
+// empty string would fall back to English, which is the right failure: a man
+// reads a sentence he may not want rather than a blank screen.
 export type RunLang = "en" | "he";
 
 export const SERVER_MESSAGES: Record<
@@ -145,23 +144,11 @@ export const SERVER_MESSAGES: Record<
   Record<RunLang, string>
 > = {
   // He pressed the button twice inside a minute.
-  cooldown: {
-    en: COPY_V.server.cooldown,
-    he: "כבר הרצת ניתוח בדקה האחרונה. חכה רגע ונסה שוב, או קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
-  },
+  cooldown: { en: COPY_V.server.cooldown, he: COPY_V_HE.server.cooldown },
   // The day's budget, or this one visitor's share of it, is gone.
-  overCap: {
-    en: COPY_V.server.overCap,
-    he: "הגענו למכסת הניתוחים החינמיים להיום. קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
-  },
-  notConfigured: {
-    en: COPY_V.server.notConfigured,
-    he: "מנוע הניתוח עדיין לא מוגדר. קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
-  },
-  busy: {
-    en: COPY_V.server.busy,
-    he: "מנוע הניתוח עמוס כרגע. נסה שוב בעוד דקה, או קבע שיחה עם הצוות ונכין את זה יחד ידנית.",
-  },
+  overCap: { en: COPY_V.server.overCap, he: COPY_V_HE.server.overCap },
+  notConfigured: { en: COPY_V.server.notConfigured, he: COPY_V_HE.server.notConfigured },
+  busy: { en: COPY_V.server.busy, he: COPY_V_HE.server.busy },
 };
 
 export function serverMessage(

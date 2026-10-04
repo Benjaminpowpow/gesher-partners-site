@@ -189,3 +189,24 @@ describe("years in business", () => {
     expect(out).not.toMatch(/25|Over\./);
   });
 });
+
+describe("years on a Hebrew run", () => {
+  it("a year the site does not show goes with its מאז (39 section M's shape)", () => {
+    const md = [
+      "## Market",
+      "Man Ltd מייבאת ומתחזקת מכונות ניקוי תעשייתיות מאז 1995, עבור מפעלים, מחסנים ורשתות קמעונאות.",
+      "",
+      "## Value",
+      "positive: **ותק ופריסה ארצית.** צוות שירות מקצועי ומחסן חלפים בכל הארץ.",
+    ].join("\n");
+    const out = scrubYears(md, { siteText: "Man Ltd, industrial cleaning machines." });
+    expect(out).not.toContain("1995");
+    expect(out).not.toContain("מאז");
+    expect(out).toContain("מכונות ניקוי תעשייתיות, עבור מפעלים");
+  });
+
+  it("a year the site shows stays", () => {
+    const md = "## Market\nMan Ltd מייבאת ומתחזקת מכונות ניקוי תעשייתיות מאז 1995, עבור מפעלים.";
+    expect(scrubYears(md, { siteText: "Man Ltd since 1995." })).toContain("מאז 1995");
+  });
+});

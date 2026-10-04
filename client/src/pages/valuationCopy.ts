@@ -8,10 +8,9 @@
  * "From the locked mockup" (site/36-valuation-estimate-mock.html) or "Kept",
  * meaning the live line, not touched.
  *
- * The Hebrew pass is a copy swap, not a rebuild. It adds COPY_V_HE: VCopy next
- * to COPY_V and hands it down the same way the home page does (Home.tsx). Until
- * then /he/valuation runs the old tool, untouched, from ValuationLegacy.tsx and
- * valuationCopyLegacy.ts, which the Hebrew pass deletes.
+ * Hebrew is a copy swap, not a rebuild: COPY_V_HE below has the same keys and
+ * is handed down the same way the home page does (Home.tsx). Its source is
+ * site/39-valuation-hebrew-worksheet.md (Oct 4 2026).
  *
  * This file is imported by the server too (the refusals, the head and the
  * Sheet labels), so it must stay plain data: no React, no browser.
@@ -30,8 +29,8 @@ export const WORKING_STAGE_IDS = ["read", "learn", "market", "value", "range"] a
 export type WorkingStageId = (typeof WORKING_STAGE_IDS)[number];
 
 /**
- * The EN / עב toggle. On, because the Hebrew tool is live at /he/valuation (the
- * old flow until the Hebrew pass). Set it to false to hide the toggle.
+ * The EN / עב toggle. On, because the Hebrew tool is live at /he/valuation.
+ * Set it to false to hide the toggle.
  */
 export const HEBREW_VALUATION_LIVE: boolean = true;
 
@@ -257,15 +256,202 @@ const COPY_V = {
 export type VCopy = typeof COPY_V;
 
 /**
- * The tables by language. Hebrew joins with the Hebrew pass; until then a
- * Hebrew request falls back to English, which only the server ever asks for.
+ * The Hebrew twin (Ben, Oct 3 and 4 2026, reviewed by Joanne). Every line is
+ * copied word for word from site/39-valuation-hebrew-worksheet.md: rows 1 to
+ * 108 from the column "Claude draft, 2026-10-02", rows 109 to 123 from
+ * section O. The row number sits next to each line. Hebrew never changes here
+ * first: fix 39, then bring the line across. qa/check-hebrew-copy.mjs checks
+ * this table against 39.
  */
-export const VALUATION_COPY: Record<VLang, VCopy> = {
-  en: COPY_V,
-  he: COPY_V,
+const COPY_V_HE: VCopy = {
+  nav: {
+    homeAriaLabel: "דף הבית של גשר", // 2
+    talkToUs: "לשיחת ייעוץ", // 1
+    langAriaLabel: "שפה", // 3
+    langEn: "EN",
+    langHe: "עב",
+  },
+
+  front: {
+    headline: "ניתוח שווי ראשוני לעסק, ללא עלות", // 4
+    progress: (percent: number) => `${percent}% הושלמו`, // 5
+    progressAriaLabel: "שאלות שנענו", // 121
+    urlLabel: "מה כתובת האתר של החברה?", // 6
+    urlPlaceholder: "yourcompany.co.il", // 7
+    urlError: "שדה חובה", // 109
+    whenLabel: "מתי תרצה למכור?", // 8
+    seriousLabel: "עד כמה אתה רציני לגבי המכירה?", // 15
+    seriousEnds: { low: "רק מתעניין", high: "מוכן להתחיל" }, // 16
+    seriousEmpty: "–",
+    seriousNotChosen: "עדיין לא נבחר", // 122
+    seriousValueText: (n: number) => `${n} מתוך 10`, // 123
+    revenueLabel: "מה היה המחזור בשנה שעברה?", // 17
+    profitLabel: "מה היה הרווח לפני מס בשנה שעברה?", // 19
+    staffLabel: "כמה עובדים יש בחברה?", // 21
+    noteLabel: "יש מידע נוסף שתרצה לשתף?", // 23
+    missing: "שדה חובה", // 24
+    selectPlaceholder: "בחר", // 9
+    contactNote: "הטווח יוצג לך אחרי שתשאיר טלפון או מייל.", // 26
+    confidential: "דיסקרטיות מלאה. הנתונים שלך לא יועברו לאף גורם.", // 27
+    submit: "המשך", // 25
+  },
+
+  // 10 to 14
+  timeToSell: {
+    now: "מוכן כבר עכשיו",
+    "within-1y": "בתוך שנה",
+    "1-2y": "שנה עד שנתיים",
+    "2-5y": "שנתיים עד 5 שנים",
+    exploring: "בשלב בחינה",
+  },
+
+  // 18
+  revenue: {
+    "under-5": "פחות מ-5 מיליון ש״ח",
+    "5-10": "5 עד 10 מיליון ש״ח",
+    "10-25": "10 עד 25 מיליון ש״ח",
+    "25-50": "25 עד 50 מיליון ש״ח",
+    "over-50": "מעל 50 מיליון ש״ח",
+  },
+
+  // 20
+  profit: {
+    "under-1": "פחות ממיליון ש״ח",
+    "1-2.5": "1 עד 2.5 מיליון ש״ח",
+    "2.5-5": "2.5 עד 5 מיליון ש״ח",
+    "5-10": "5 עד 10 מיליון ש״ח",
+    "over-10": "מעל 10 מיליון ש״ח",
+  },
+
+  // 22
+  staff: {
+    "2-10": "2 עד 10",
+    "11-50": "11 עד 50",
+    "51-100": "51 עד 100",
+    "over-100": "מעל 100",
+  },
+
+  // 28
+  disclaimer:
+    "זהו אומדן, לא הערכת שווי. הוא מבוסס על התשובות שלך, על מידע ציבורי ועל המחירים שקונים משלמים על עסקים דומים. מספר מדויק מחייב את הדוחות הכספיים שלך. אין כאן הצעה, ולא המלצה לקנות או למכור.",
+
+  working: {
+    heading: "מכינים את ניתוח השווי", // 29
+    sub: "זה לוקח דקה, לפעמים שתיים.", // 30
+    stagesAriaLabel: "בנייה של הניתוח", // 116
+    longStep: "השלב הזה ארוך יותר מהאחרים.", // 36
+    ringAriaLabel: (percent: number) => `${percent} אחוז הושלמו`, // 38
+    companyFallbackName: "העסק שלך", // 37
+  },
+
+  // 31 to 35
+  stages: {
+    read: "קוראים את האתר שלך",
+    learn: "מנתחים את פעילות העסק",
+    market: "מנתחים את השוק",
+    value: "מעריכים את שווי העסק",
+    range: "מחשבים את טווח השווי",
+  },
+
+  // 39 to 41
+  taglines: [
+    "אנחנו עובדים רק בשבילך, המוכר.",
+    "אנחנו מנהלים תהליך תחרותי אמיתי, עם קונים בארץ ובחו״ל.",
+    "אנחנו אומרים את האמת, גם כשהאמת היא לחכות שנה.",
+  ],
+
+  gate: {
+    label: "ניתוח השווי מוכן", // 42
+    heading: "צפה בטווח השווי המשוער שלך.", // 43
+    sub: "השאר טלפון או מייל, והטווח ייפתח מיד.", // 44
+    nameLabel: "השם שלך", // 45
+    phoneLabel: "טלפון", // 46
+    emailLabel: "מייל", // 47
+    errAll: "נא להזין שם, וטלפון או מייל.", // 48
+    errName: "נא להזין שם.", // 49
+    errReach: "נא להזין טלפון או מייל. אחד מהם מספיק.", // 50
+    errPhoneBad: "מספר הטלפון לא שלם. בדוק ונסה שוב.", // 52
+    errEmailBad: "כתובת המייל לא שלמה. בדוק ונסה שוב.", // 51
+    confidential: "דיסקרטיות מלאה. הפרטים שלך לא יועברו לאף גורם.", // 53
+    submit: "הצג את הטווח", // 54
+  },
+
+  result: {
+    title: (company: string) => `ניתוח שווי ראשוני של ${company}`, // 55
+    specialTitle: (company: string) => `ניתוח שווי ראשוני של ${company}`, // 67
+    privateLine: "חסוי. מבוסס על התשובות שלך ועל מידע ציבורי. אינו הערכת שווי ואינו הצעה.", // 56
+    cardMarket: "שוק", // 57
+    cardValue: "שווי", // 58
+    cardRange: "טווח השווי המשוער", // 59
+    cardSpecial: "ניתוח השווי", // 68
+    // 120: no word in Hebrew. The label alone; the icon marks the risk.
+    watchLabel: (label: string) => label,
+    // 60, the locked shape: "12 עד 28 מיליון ש״ח".
+    rangeFigure: (low: string, high: string) => `${low} עד ${high} מיליון ש״ח`,
+    rangeLine: "מבוסס על הטווחים שבחרת. הדוחות הכספיים שלך יאפשרו מספר מדויק יותר.", // 61
+    ctaLead: "רוצה מספר מדויק יותר? לשיחת ייעוץ.", // 62
+    ctaBody: "בשיחה קצרה נעבור על הנתונים האמיתיים ונראה לך מה משפיע על המחיר.", // 63
+    scarcity: "אנחנו מלווים מספר מצומצם של מוכרים בכל שנה.", // 65
+    callBtn: "לשיחת ייעוץ", // 64
+    callDone: "תודה. אופיר או בנימין יחזרו אליך בקרוב.", // 66
+    byHandLead: "העסק שלך ראוי לבחינה מעמיקה יותר.", // 71
+    byHandBody: "יש עסקים שלא מתאימים לנוסחה מהירה, והעסק שלך הוא אחד מהם. שיחה קצרה תיתן לך מספר אמיתי.", // 72
+    bigLead: "בהיקף כזה, הניתוח נעשה באופן אישי.", // 69
+    bigBody: "שיחה קצרה עם אופיר או בנימין תיתן לך מספר אמיתי.", // 70
+    specialCta: "לשיחת ייעוץ", // 73
+    companyAriaLabel: "העסק שלך", // 119
+    coRevenue: "מחזור", // 117
+    coProfit: "רווח לפני מס", // 118
+  },
+
+  error: {
+    headingBlocked: "לא עכשיו.", // 115
+    headingUnreadable: "לא הצלחנו לקרוא את האתר הזה.", // 74
+    subUnreadable: "לפעמים אין באתר מספיק מידע לניתוח. אין בכך בעיה.", // 75
+    talkBtn: "לשיחת ייעוץ", // 76
+    retryBtn: "נסה כתובת אחרת", // 77
+  },
+
+  talk: {
+    closeAriaLabel: "סגור", // 113
+    sentTitle: "תודה.", // 85
+    sentBody: "אנחנו קוראים כל פנייה בעצמנו. אופיר או בנימין יחזרו אליך בקרוב.", // 86
+    closeBtn: "סגור", // 84
+    title: "לשיחת ייעוץ.", // 78
+    subWithRun: "נעבור על הטווח שלך בשיחה.", // 79
+    subNoRun: "ספר לנו איפה אתה עומד. נגיד לך בכנות אם נוכל לעזור.", // 80
+    nameLabel: "השם שלך", // 81
+    reachLabel: "טלפון או מייל", // 82
+    messageLabel: "מה חשוב לך שנדע (לא חובה)", // 83
+    errName: "נא להזין שם.", // 110
+    errReachMissing: "נא להזין טלפון או מייל. אחד מהם מספיק.", // 111
+    errEmailBad: "כתובת המייל לא שלמה. בדוק ונסה שוב.", // 112
+    sendFailed: "ההודעה לא נשלחה. אפשר לנסות שוב, או לכתוב לנו ישירות: office@gesherpartners.com", // 114
+    submit: "שלח", // 84
+    sending: "שולח...", // 84
+    retry: "נסה שוב", // 84
+  },
+
+  server: {
+    cooldown: "כבר הרצת ניתוח לפני דקה. נא להמתין רגע ולנסות שוב.", // 103
+    overCap: "הגענו למכסת הניתוחים ללא עלות להיום. נסה שוב מחר, או כתוב לנו: office@gesherpartners.com", // 104
+    notConfigured: "הניתוח אינו זמין כרגע. כתוב לנו: office@gesherpartners.com", // 105
+    busy: "המערכת עמוסה כרגע. נסה שוב בעוד דקה.", // 106
+  },
+
+  head: {
+    title: "הערכת שווי עסק: מחשבון ראשוני ללא עלות | Gesher Partners", // 107
+    description: "חישוב שווי חברה פרטית לפי מכפיל רווח מקובל בענף. לבעלי עסקים שמתכננים למכור. תוך דקה, ללא עלות ובדיסקרטיות.", // 108
+  },
 };
 
-export { COPY_V };
+/** The tables by language. */
+export const VALUATION_COPY: Record<VLang, VCopy> = {
+  en: COPY_V,
+  he: COPY_V_HE,
+};
+
+export { COPY_V, COPY_V_HE };
 
 /** Millions, one decimal only when there is one: 6, 10.5, 2.5. */
 export function millionsLabel(valueInMillions: number): string {

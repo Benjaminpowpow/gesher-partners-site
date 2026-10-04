@@ -175,8 +175,10 @@ const COUNT_LEAD_IN =
   /(?:\b(?:with|for|over|across|after|through|spanning|of)\s+)?(?:\b(?:more than|well over|over|nearly|almost|about|some|around|close to)\s+)?$/i;
 const COUNT_TAIL =
   /^(?:\s+(?:of|in)\s+(?:experience|business|operations?|history|service|trading|activity|the (?:industry|field|market|trade|business)))?(?:\s+(?:and|of)\s+(?=\S))?/i;
+// Hebrew runs write "מאז 1995", the shape of the Man Ltd model in site/39
+// section M, so the Hebrew "since" goes with its year too.
 const YEAR_LEAD_IN =
-  /(?:\(\s*)?(?:\b(?:operating since|active since|dating back to|founded in|established in|since|from|founded|established|est\.?|in)\s+)?$/i;
+  /(?:\(\s*)?(?:\b(?:operating since|active since|dating back to|founded in|established in|since|from|founded|established|est\.?|in)\s+|(?<=^|\s)מאז\s+)?$/i;
 const YEAR_TAIL = /^\s*\)?/;
 
 function tidyText(s: string): string {

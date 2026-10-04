@@ -26,14 +26,15 @@
  * nothing is sent: no estimate letter, no confirmation. The two lead emails
  * to office@ are the only mail this file sends.
  *
- * The old tool (routes/exitBrief.ts) still serves /he/valuation until the
- * Hebrew pass. Both share the engine, the daily cap and the mail settings.
+ * /he/valuation runs here too (Oct 4), with lang "he". The old Exit Brief
+ * route (routes/exitBrief.ts) shares the engine, the daily cap and the mail
+ * settings.
  */
 import type { Express, Request, Response } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import { nanoid } from "nanoid";
-import { COPY_V, rangeFigureText } from "../../client/src/pages/valuationCopy";
+import { COPY_V, VALUATION_COPY, rangeFigureText } from "../../client/src/pages/valuationCopy";
 import {
   NOTE_MAX,
   PROFIT_BAND,
@@ -237,6 +238,18 @@ export function decideVariant(
   return { variant: "number", rangeText: rangeFigureText(r.lowM, r.highM), path: "estimate", multiple };
 }
 
+/**
+ * The range in the shape of the page he is on: "₪6M to ₪11M", or on Hebrew
+ * "6 עד 11 מיליון ש״ח" (site/39, row 60). The Sheet and office@ keep the
+ * English rangeText, so Ben reads one shape.
+ */
+export function pageRange(run: Pick<EstimateRun, "lang" | "rangeText" | "vertical" | "answers">): string {
+  if (run.lang !== "he") return run.rangeText;
+  const row = VERTICALS.get(run.vertical ?? "");
+  const r = row ? estimateRange(row, PROFIT_BAND[run.answers.profit]) : null;
+  return r?.outcome === "number" ? rangeFigureText(r.lowM, r.highM, VALUATION_COPY.he) : run.rangeText;
+}
+
 /** Drop anything from a "## Range" heading on. The page never shows one. */
 function marketAndValue(resultMd: string): string {
   return resultMd.replace(/\n*##\s+Range[\s\S]*$/, "").trim();
@@ -420,8 +433,8 @@ async function handleEstimate(req: Request, res: Response) {
       }
     }
 
-    // The Hebrew guard, for the Hebrew pass: a Hebrew run that came back in
-    // English is run again, then once on the fallback model.
+    // The Hebrew guard: a Hebrew run that came back in English is run
+    // again, then once on the fallback model.
     if (lang === "he") {
       const models = [BRIEF_MODEL, HEBREW_FALLBACK_MODEL];
       for (let n = 0; n < models.length && failsHebrewCheck(brief); n++) {
@@ -683,7 +696,7 @@ async function handleUnlock(req: Request, res: Response) {
       gaveDetails: "yes",
     }),
   );
-  res.json({ range: run.rangeText });
+  res.json({ range: pageRange(run) });
   void notifyBen("details", briefId, run, who);
 }
 

@@ -76,7 +76,7 @@ vi.mock("resend", () => ({
 
 import { registerEstimateRoutes, clearEstimateStateForTests } from "./valuationEstimate";
 import { resetGatesForTests } from "../lib/runGates";
-import { COPY_V } from "../../client/src/pages/valuationCopy";
+import { COPY_V, COPY_V_HE } from "../../client/src/pages/valuationCopy";
 
 // ─── The engine's answer ─────────────────────────────────────────────────────
 function brief(vertical: string, company = "Roltag"): string {
@@ -615,5 +615,72 @@ describe("years in business", () => {
     const ok = await estimate();
     expect(create).toHaveBeenCalledTimes(1);
     expect(ok.done?.result_md).toContain("since 1969");
+  });
+});
+
+// ─── Hebrew (site/39, Oct 4) ─────────────────────────────────────────────────
+// The Man Ltd example from 39 section M, in the engine's own markup: English
+// headings and tags, Hebrew words.
+function hebrewBrief(): string {
+  return [
+    "```json",
+    JSON.stringify({
+      company_name: "Man Ltd",
+      company_oneliner: "",
+      vertical_matched: "industrial-equipment-distribution",
+      buyer_types: "",
+      readable: true,
+    }),
+    "```",
+    "",
+    "## Market",
+    "Man Ltd מייבאת ומתחזקת מכונות ניקוי תעשייתיות מאז 1995, עבור מפעלים, מחסנים ורשתות קמעונאות. קונים טבעיים: מפיצי ציוד גדולים, היצרנים שהחברה מייצגת וקרנות השקעה. רשת השירות ומלאי החלפים עוברים לקונה במכירה.",
+    "",
+    "## Value",
+    "positive: **ותק ופריסה ארצית.** צוות שירות מקצועי ומחסן חלפים בכל הארץ.",
+    "positive: **הכנסות חוזרות משירות וחלפים.** הלקוחות תלויים בחברה לתיקונים, לתחזוקה ולחלקי חילוף.",
+    "watch: **תלות ביצרנים זרים.** יצרן שיעבור למכירה ישירה או למפיץ אחר יפגע ברווחיות.",
+  ].join("\n");
+}
+
+const HE_ANSWERS = { ...ANSWERS, lang: "he", url: "manltd.co.il", revenue: "5-10", profit: "2.5-5" };
+
+describe("a Hebrew run", () => {
+  beforeEach(() => {
+    engineText = hebrewBrief();
+    siteResult = {
+      read: { text: "Man Ltd, since 1995. " + "x".repeat(3000), finalUrl: "https://manltd.co.il/", thin: false },
+      noSuchHost: false,
+    };
+  });
+
+  it("locks the same way, then opens the range in the Hebrew shape (row 60)", async () => {
+    const r = await estimate(HE_ANSWERS);
+    expect(r.done?.variant).toBe("locked");
+    expect(calls.filter((c) => c === "engine")).toHaveLength(1); // no Hebrew or shape retry
+    expect(r.raw).not.toContain("12M");
+    expect(r.raw).not.toContain("עד 28");
+    const u = await post("/api/valuation/unlock", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "Ben", phone: "050-1234567" });
+    expect(u.data.range).toBe("12 עד 28 מיליון ש״ח");
+    expect(u.data.range).toBe(COPY_V_HE.result.rangeFigure("12", "28"));
+  });
+
+  it("keeps English for Ben: the Sheet's range and the office@ email", async () => {
+    const r = await estimate(HE_ANSWERS);
+    await post("/api/valuation/unlock", { briefId: r.done!.briefId, runToken: r.done!.run_token, name: "Ben", phone: "050-1234567" });
+    await tick();
+    expect(sheet.update.find((u) => "range" in u)?.range).toBe("₪12M to ₪28M");
+    expect(sheet.append[0]).toMatchObject({ lang: "he" });
+    expect(sent.map((m) => m.to)).toEqual([expect.stringContaining("@gesherpartners.com")]);
+    expect(sent[0].html).toContain("₪12M to ₪28M");
+    expect(sent[0].html).toContain(COPY_V.revenue["5-10"]);
+  });
+
+  it("refuses in site/39's words", async () => {
+    const ip = nextIp();
+    await estimate(HE_ANSWERS, ip);
+    const again = await estimate({ ...HE_ANSWERS, url: "another-site.co.il" }, ip);
+    expect(again.status).toBe(429);
+    expect(again.json?.error).toBe(COPY_V_HE.server.cooldown);
   });
 });

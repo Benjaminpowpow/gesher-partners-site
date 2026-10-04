@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { homeLang, localizeHtml, valuationLang } from "./vite";
+import { COPY_V_HE } from "../../client/src/pages/valuationCopy";
 
 const TEMPLATE = `<!doctype html>
 <html lang="en" dir="ltr">
@@ -108,12 +109,13 @@ describe("localizeHtml", () => {
   it("serves /he/valuation right to left, with its Hebrew title, and lets it be indexed", () => {
     for (const url of ["/he/valuation", "/he/valuation/"]) {
       const html = localizeHtml(TEMPLATE, url);
-    // The old Hebrew tool keeps the site's viewport until the Hebrew pass.
-    expect(html).toContain("maximum-scale=1");
+      // Pinch-zoom is allowed on the Hebrew estimate too.
+      expect(html).toContain('<meta name="viewport" content="width=device-width, initial-scale=1.0" />');
       expect(html).toContain('<html lang="he" dir="rtl">');
       expect(html).toContain('<link rel="canonical" href="https://gesherpartners.com/he/valuation" />');
       expect(html).toContain('<meta property="og:locale" content="he_IL" />');
-      expect(html).toContain("<title>ניתוח שווי ראשוני בחינם | Gesher Partners</title>");
+      expect(html).toContain(`<title>${COPY_V_HE.head.title}</title>`);
+      expect(html).toContain(`<meta name="description" content="${COPY_V_HE.head.description}" />`);
       expect(html).not.toContain("noindex");
       expect(html).toContain('hreflang="x-default" href="https://gesherpartners.com/valuation"');
     }
