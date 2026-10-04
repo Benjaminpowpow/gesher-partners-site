@@ -1583,19 +1583,6 @@ export default function Valuation({ lang = "en", copy }: { lang?: VLang; copy?: 
     stripSiteParam();
   }, []);
 
-  // Let him pinch to zoom here. index.html caps the zoom for the whole site;
-  // the server lifts it on a direct visit (server/_core/vite.ts), and this
-  // lifts it after a hop from the home page, then puts it back on the way out.
-  useEffect(() => {
-    const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
-    if (!meta) return;
-    const before = meta.content;
-    meta.content = "width=device-width, initial-scale=1.0";
-    return () => {
-      meta.content = before;
-    };
-  }, []);
-
   // The server sets <html lang dir> on first load; this keeps it right after a
   // client-side hop, and puts it back on the way out.
   useEffect(() => {

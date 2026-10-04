@@ -15,6 +15,10 @@
    The few rules that need a Hebrew twin sit at the bottom under [dir="rtl"]. */
 
 .ve {
+  /* The logo, as on the home page (Ben, Oct 4, option B): the bridge 22%
+     larger, 4px from "gesher" in this smaller header (it was 1 and 10px). */
+  --mark-scale: 1.22;
+  --mark-gap: 4px;
   --cream: #F5F0E6;
   --warm-white: #FBF8F1;
   --hairline: #DCD4C4;
@@ -60,11 +64,16 @@
 /* Hebrew faces. The page root carries lang="he" on a Hebrew page, and every
    rule reads these two tokens, so nothing else needs a Hebrew twin. */
 .ve[lang="he"] {
-  --font-serif: "Frank Ruhl Libre", "Newsreader", Georgia, serif;
-  --font-sans: "Heebo", "Inter", sans-serif;
+  /* One face, IBM Plex Sans Hebrew (Ben, Oct 4). */
+  --font-serif: "IBM Plex Sans Hebrew", "Arial Hebrew", Arial, sans-serif;
+  --font-sans: "IBM Plex Sans Hebrew", "Arial Hebrew", Arial, sans-serif;
   /* Spaced-out Hebrew letters read as broken words. */
   --ls-label: 0;
 }
+
+/* Plex weights (Ben, Oct 4): headlines 600, body 400, buttons and labels 500
+   (both are 500 already). */
+.ve[lang="he"] :is(h1, h2, h3) { font-weight: 600; }
 
 /* ─── Page shell ─────────────────────────────────────────────────────────── */
 .ve-topbar {
@@ -75,7 +84,7 @@
 }
 .ve-topbar .brand { display: inline-flex; text-decoration: none; min-height: 44px; align-items: center; }
 .ve-topbar .lockup { display: inline-grid; gap: 2px; justify-items: start; }
-.ve-topbar .lockup-row { display: flex; align-items: center; gap: 10px; }
+.ve-topbar .lockup-row { display: flex; align-items: center; gap: var(--mark-gap, 10px); }
 .ve-topbar .brand-mark, .ve-topbar .wordmark { display: block; flex-shrink: 0; }
 .ve-topbar .lockup-tag {
   font-family: "Newsreader", Georgia, serif; font-size: 12px; color: var(--taupe);

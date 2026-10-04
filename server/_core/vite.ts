@@ -194,9 +194,8 @@ function localizeValuation(template: string, lang: Lang): string {
     html = html.replace(/<html[^>]*>/, '<html lang="he" dir="rtl">');
   }
   // The estimate lets a reader pinch to zoom, in both languages: its owners
-  // are 55 and up, and index.html caps the zoom for the whole site. Every box
-  // on this page is 16px, so an iPhone does not jump in when one is tapped.
-  // (Valuation.tsx does the same after a hop from the home page.)
+  // are 55 and up. Since Oct 4 index.html no longer caps the zoom anywhere,
+  // so this only guards against the cap coming back.
   html = html.replace(
     /<meta name="viewport" content="[^"]*"\s*\/>/,
     `<meta name="viewport" content="${ZOOMABLE_VIEWPORT}" />`,
