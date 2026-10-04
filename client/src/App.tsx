@@ -7,6 +7,7 @@ import { trackPageView } from "./lib/analytics";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import HomeLegacy from "./pages/HomeLegacy";
 import Valuation from "./pages/Valuation";
 import ValuationLegacy from "./pages/ValuationLegacy";
 import { lazy, Suspense } from "react";
@@ -48,8 +49,12 @@ function Router() {
           (server/_core/vite.ts) and 301s the old /en/ to the root; the
           Redirect below only covers a client-side hop to the old URL. */}
       <Route path="/" component={() => <Home lang="en" />} />
-      <Route path="/he" component={() => <Home lang="he" />} />
-      <Route path="/he/" component={() => <Home lang="he" />} />
+      {/* Hebrew keeps the v4 homepage, frozen in HomeLegacy, until the Hebrew
+          for the October redesign (site/39) is written. Ben, Oct 3. The
+          Hebrew pass points these two at Home lang="he" and deletes
+          HomeLegacy. */}
+      <Route path="/he" component={HomeLegacy} />
+      <Route path="/he/" component={HomeLegacy} />
       <Route path="/en">
         <Redirect to="/" replace />
       </Route>
@@ -63,6 +68,10 @@ function Router() {
       <Route path="/valuation" component={() => <Valuation lang="en" />} />
       <Route path="/he/valuation" component={() => <ValuationLegacy lang="he" />} />
       <Route path="/he/valuation/" component={() => <ValuationLegacy lang="he" />} />
+      {/* Dev only, never built into the live site: the redesigned homepage
+          right to left, with the Hebrew it has so far, for the Hebrew-ready
+          check. */}
+      {import.meta.env.DEV && <Route path="/dev/home-rtl" component={() => <Home lang="he" />} />}
       {/* Dev only, never built into the live site: the new tool right to
           left with placeholder words, for the Hebrew-ready check. */}
       {import.meta.env.DEV && (
