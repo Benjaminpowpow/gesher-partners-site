@@ -26,6 +26,7 @@ export default defineConfig({
       "server/**/*.spec.ts",
       "shared/**/*.test.ts",
       "client/src/pages/**/*.test.tsx",
+      "client/src/hooks/**/*.test.ts",
     ],
   },
 });

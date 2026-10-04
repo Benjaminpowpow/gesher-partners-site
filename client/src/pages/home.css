@@ -44,6 +44,10 @@
 }
 
 .gesher {
+  /* The logo: the bridge drawn 22% larger than the wordmark's line, 5px from
+     "gesher" (Ben, Oct 4, option B; it was 1 and 12px). Lockup.tsx reads these. */
+  --mark-scale: 1.22;
+  --mark-gap: 5px;
   --cream: #F5F0E6;        /* Page background. The default surface. */
   --warm-white: #FBF8F1;   /* Cards, raised surfaces */
   --hairline: #DCD4C4;     /* Thin dividers, borders (use at 0.5–1px) */
@@ -65,8 +69,10 @@
   --border-on-navy: rgba(245, 240, 230, 0.18);
   --font-serif: "Newsreader", "Newsreader Fallback", "Source Serif Pro", Georgia, "Times New Roman", serif;
   --font-sans:  "Inter", "Inter Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-hebrew-serif: "Frank Ruhl Libre", "Newsreader", Georgia, serif;
-  --font-hebrew-sans:  "Heebo", "Inter", sans-serif;
+  /* Hebrew: one face, IBM Plex Sans Hebrew, for headlines and body (Ben,
+     Oct 4). */
+  --font-hebrew-serif: "IBM Plex Sans Hebrew", "Arial Hebrew", Arial, sans-serif;
+  --font-hebrew-sans:  "IBM Plex Sans Hebrew", "Arial Hebrew", Arial, sans-serif;
   --fs-h1: clamp(42px, 5vw, 60px);
   --fs-h2: clamp(30px, 3.2vw, 40px);
   --fs-h3: 22px;
@@ -121,9 +127,9 @@
 /* ---------- Hebrew ----------
    Home.tsx marks the page root with lang="he" dir="rtl" and the .gesher-rtl
    class for the Hebrew page. Swapping the two font tokens here moves every
-   rule that reads var(--font-serif) or var(--font-sans) to Frank Ruhl Libre
-   and Heebo in one go, so no rule below needs a Hebrew twin. Both faces are
-   loaded in client/index.html. Layout follows dir="rtl" on its own because the
+   rule that reads var(--font-serif) or var(--font-sans) to IBM Plex Sans
+   Hebrew in one go, so no rule below needs a Hebrew twin. It is loaded in
+   client/index.html, weights 400, 500 and 600 only. Layout follows dir="rtl" on its own because the
    spacing rules use logical properties; the few visual flips that do not
    (hero wash, hero video, arrows, select chevron, the road) are keyed off
    .gesher-rtl further down or handled in Home.tsx. */
@@ -131,6 +137,11 @@
   --font-serif: var(--font-hebrew-serif);
   --font-sans: var(--font-hebrew-sans);
 }
+/* Plex weights (Ben, Oct 4): headlines 600, body 400, buttons and labels 500.
+   Buttons and form labels are 500 already; the eyebrow labels were 600.
+   [dir] lifts these over the per-section heading rules. */
+&[lang="he"][dir] :is(h1, h2, h3) { font-weight: 600; }
+&[lang="he"][dir] .eyebrow { font-weight: 500; }
 /* The tagline under the logo stays in English, in the English face. */
 &[lang="he"] .lockup-tag { font-family: "Newsreader", "Source Serif Pro", Georgia, "Times New Roman", serif; }
 /* Neither Hebrew face has an italic. The browser would slant it by force.
@@ -871,7 +882,7 @@ p:last-child { margin-bottom: 0; }
 
 /* ---------- Lockup: mark, wordmark, and the line under it ---------- */
 .lockup { display: inline-grid; gap: 2px; justify-items: start; }
-.lockup-row { display: flex; align-items: center; gap: 12px; }
+.lockup-row { display: flex; align-items: center; gap: var(--mark-gap, 12px); }
 .lockup-tag {
   font-family: var(--font-serif);
   font-size: 13px;
@@ -1085,11 +1096,29 @@ p:last-child { margin-bottom: 0; }
   .sgrid > div > span:last-child { font-size: 12px; line-height: 1.35; }
 
   .form { grid-template-columns: 1fr; }
+}
 
-  /* Footer links were 23px tall, too small to hit with a thumb. Padding brings
-     each one to a comfortable target without changing how the row looks. */
+/* ---------- Thumb targets ----------
+   Under 900px, where the menu is the hamburger, so a phone on its side
+   (863px) gets them too; they sat in the 860px block until Oct 4. Every link
+   here is at least 44px each way. The footer links were 23px tall: padding
+   brings them up without changing how the row looks. "Terms" was 41px wide,
+   EN and עב 19 by 36, the office@ link 42px tall. */
+@media (max-width: 900px) {
   .footer-links { gap: 4px 24px; }
-  .footer-links a { display: inline-block; padding: 11px 0; }
+  .footer-links a { display: inline-block; padding: 11px 0; min-width: 44px; }
+  .footer-links .lang-switch a {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 44px; min-height: 44px; padding: 0;
+  }
+  .contact-mail a { padding: 9px 0; min-height: 44px; }
+}
+
+/* A 320px phone (the first iPhone SE). "20+companies" is one word to the
+   browser ({value}<small>{unit}</small>, no space), so the numbers row ran
+   31px off the screen. The unit goes under its number. */
+@media (max-width: 359px) {
+  .proof-n small { display: block; margin-inline-start: 0; }
 }
 
 /* ---------- Legal pages ----------
@@ -1168,6 +1197,19 @@ section[id] { scroll-margin-top: 94px; }
 @media (max-width: 900px) {
   .nav-links { display: none; }
   .nav-toggle { display: inline-flex; }
+}
+
+/* On a phone the header slides up out of the way while he reads down, and
+   back the moment he scrolls up (hooks/useHideOnScroll.ts sets data-hidden,
+   phone widths only). A transform, so nothing under it moves. About as quick
+   as jfrog.com's (Ben's reference, Oct 4). The sheet is fixed to the screen
+   and a moved header would carry it, so while it is open the header does not
+   move at all. */
+.site-header { transition: transform 280ms cubic-bezier(0.2, 0, 0, 1); }
+.site-header[data-hidden] { transform: translateY(-100%); }
+.site-header:has(.nav-sheet) { transform: none; transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .site-header { transition: none; }
 }
 
 /* The phone sheet. The v4 sheet, with the estimate button added. Its bar

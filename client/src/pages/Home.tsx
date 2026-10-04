@@ -31,6 +31,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { FAQ_ITEMS, FAQ_ITEMS_HE } from "@shared/faq";
 import { Lockup as BrandLockup } from "@/components/Lockup";
+import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { trackContactSubmit, trackTalkClick } from "@/lib/analytics";
 import "./home.css";
 
@@ -698,6 +699,10 @@ function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string 
   const [open, setOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  // Under 900px the header slides away on scroll down and back on scroll up
+  // (Ben, Oct 4). Never while the sheet is open.
+  useHideOnScroll(navRef, open);
 
   // While the sheet is open: the page behind it does not scroll, focus starts
   // on the close button and Tab stays inside the sheet, Esc closes it, and
@@ -715,7 +720,7 @@ function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string 
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setOpen(false);
-        toggleRef.current?.focus();
+        toggleRef.current?.focus({ preventScroll: true });
         return;
       }
       if (e.key !== "Tab" || !sheetRef.current) return;
@@ -743,9 +748,12 @@ function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string 
     };
   }, [open]);
 
+  // Focus goes back to the hamburger without scrolling: Chrome on Android
+  // scrolled to where the sticky header first sat, the top of the page, so
+  // closing the menu threw him back to the start (found Oct 4).
   function closeToToggle() {
     setOpen(false);
-    toggleRef.current?.focus();
+    toggleRef.current?.focus({ preventScroll: true });
   }
 
   // Close the sheet, then act once the page behind it can scroll again.
@@ -766,7 +774,7 @@ function Nav({ onTalk, linkBase = "" }: { onTalk: () => void; linkBase?: string 
   }
 
   return (
-    <nav className="nav" aria-label={C.nav.primaryAriaLabel}>
+    <nav ref={navRef} className="nav" aria-label={C.nav.primaryAriaLabel}>
       <a href={homeHref} aria-label={C.nav.homeAriaLabel} className="nav-lockup">
         <Lockup />
       </a>
@@ -1087,7 +1095,10 @@ function BuyersChart({ shape }: { shape: keyof typeof CHART_SHAPES }) {
   const tick = shape === "wide" ? 8 : 6;
   const gapX = bracketX + g.gapDx;
   const gapY = (oneTop + topTop) / 2;
-  const sans = "Inter,system-ui,sans-serif";
+  // Hebrew labels in the site's Hebrew face (Ben, Oct 4). The Latin faces
+  // have no Hebrew letters, so the phone drew them in its own system font.
+  const hebrew = '"IBM Plex Sans Hebrew","Arial Hebrew",Arial,sans-serif';
+  const sans = rtl ? hebrew : "Inter,system-ui,sans-serif";
 
   return (
     <svg
@@ -1119,7 +1130,7 @@ function BuyersChart({ shape }: { shape: keyof typeof CHART_SHAPES }) {
       <text
         x={mx(g.x0)}
         y={oneTop - 8}
-        fontFamily="Newsreader,Georgia,serif"
+        fontFamily={rtl ? hebrew : "Newsreader,Georgia,serif"}
         fontStyle={rtl ? "normal" : "italic"}
         fontSize={g.font.offer}
         fill={TAUPE}
