@@ -19,16 +19,13 @@
  * names never bleed into other routes.
  *
  * HEBREW. One Home component, two copy tables, same keys: COPY (English) and
- * COPY_HE. /he/ does NOT render this component yet. Until the Hebrew for the
- * redesign is written, /he/ runs HomeLegacy.tsx, the v4 page frozen as it was
- * (Ben, Oct 3). COPY_HE below is the redesign's Hebrew table, ready for that
- * pass: every line that did not change keeps its Hebrew, and every new or
- * changed line holds the English with a TODO(hebrew) comment. The Hebrew pass
- * swaps those lines, points /he/ here in App.tsx, and deletes HomeLegacy.
- * Until then the dev-only page /dev/home-rtl shows this layout right to left.
+ * COPY_HE. / renders it in English, /he/ in Hebrew, right to left (Oct 4,
+ * site/40). The v4 page that /he/ ran until then is deleted.
  *
- * File 23 (23-hebrew-copy-ben-picks.md) is the only source of Hebrew. Never
- * edit Hebrew here first: change the vault file, then bring the line back.
+ * The Hebrew comes from the vault: file 23 (23-hebrew-copy-ben-picks.md) for
+ * the lines the redesign kept, file 40 (40-homepage-hebrew-worksheet.md,
+ * section L1 wins) for the rest. Never edit Hebrew here first: change the
+ * vault file, then bring the line back.
  */
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -103,8 +100,10 @@ const COPY = {
   why: {
     heading: "Why Gesher",
     p1: {
-      title: "More buyers, a better price.",
-      body: "Buyers compete on one deadline. Competition sets the price, not one buyer.",
+      // Ben, Oct 4 (site/40 L1): the title repeats the hero line, and the body
+      // is the chart's own description.
+      title: "More buyers. More options. Your terms.",
+      body: "As more buyers compete, the price offered goes up. The gap between one offer and the top offer is yours.",
     },
     p2: {
       title: "Senior professionals with you every step of the way.",
@@ -272,146 +271,127 @@ type Copy = typeof COPY;
 
 /**
  * The Hebrew table for the redesign. Same keys as COPY, element for element.
- * Not live yet: /he/ runs HomeLegacy.tsx until this table is finished.
  *
  * Lines that did not change in the redesign keep their Hebrew from file 23,
- * verbatim. Every new or changed line holds the English with a TODO(hebrew)
- * comment, so the Hebrew pass is a copy swap. Where an old Hebrew line sat in
- * a changed slot, it is kept in the comment for reference; it does not match
- * the new English, so it is not used.
+ * verbatim. Every new or changed line is Ben's final pick in file 40 (Oct 4),
+ * pasted verbatim.
  *
  * Decided to stay in English on the Hebrew page: the tagline under the logo
  * and the company and partner logos.
  */
 const COPY_HE: Copy = {
   nav: {
-    homeAriaLabel: "gesher home",
-    primaryAriaLabel: "Primary",
+    homeAriaLabel: "דף הבית של גשר",
+    primaryAriaLabel: "ניווט ראשי",
     tagline: "Your sell-side advisor",
-    menuAriaLabel: "Menu",
-    closeAriaLabel: "Close menu",
+    menuAriaLabel: "תפריט",
+    closeAriaLabel: "סגור תפריט",
     talkToUs: "לשיחת ייעוץ",
     links: [
-      // TODO(hebrew): new. Takes the slot of "התהליך" (How it works).
-      { id: "why", label: "Why Gesher" },
+      { id: "why", label: "למה גשר" },
       { id: "founders", label: "הצוות" },
       { id: "sectors", label: "ענפים" },
       { id: "faq", label: "שאלות ותשובות" },
     ],
-    // TODO(hebrew): new.
-    menuEstimate: "Get your free estimate",
+    menuEstimate: "לניתוח שווי ראשוני ללא עלות",
   },
   hero: {
     eyebrow: "עסקים פרטיים ומשפחתיים · מחזור 5 עד 50 מיליון ש״ח",
-    // TODO(hebrew): changed. Was "מפעל חייך. מגיע לו" + "יותר" + ".", the
-    // Hebrew of the old headline. The colour sits on headlineEmph.
-    headlineLead: "You built something great. We help you",
-    headlineEmph: "sell it right.",
+    // The colour sits on headlineEmph.
+    headlineLead: "בנית עסק מצליח. אנחנו נעזור לך",
+    headlineEmph: "למכור אותו נכון.",
     headlineTrail: "",
-    // TODO(hebrew): changed. Was "ליווי במכירת חברות.\nמכרנו חברות משלנו,
-    // וליווינו אחרים במכירת החברות שלהם." A "\n" breaks the line.
-    lede: "More buyers. More options. Your terms.",
-    // TODO(hebrew): new.
-    estLabel: "Free business value estimate",
-    // TODO(hebrew): the hidden label is still English. Screen readers only.
-    valuationLabel: "Your business website",
-    // TODO(hebrew): changed. Was "הזן את האתר שלך להערכת שווי בחינם". A domain
-    // reads the same in both languages, so this may stay as it is.
+    lede: "יותר קונים. יותר אפשרויות. בתנאים שלך.",
+    // The valuation tool's own front door, word for word.
+    estLabel: "ניתוח שווי ראשוני לעסק, ללא עלות",
+    valuationLabel: "אתר העסק שלך",
+    // A domain reads the same in both languages.
     valuationPlaceholder: "yourcompany.co.il",
-    // TODO(hebrew): new.
-    estButton: "Get estimate",
-    // TODO(hebrew): new.
-    estNote: "A few short questions. 100% confidential.",
+    estButton: "התחל",
+    estNote: "כמה שאלות קצרות. דיסקרטיות מלאה.",
   },
+  // "40+" on purpose (Ofir, Sep 30): in a right-to-left line it shows as +40,
+  // the plus on the left of the number. The old string "+40" put it on the
+  // right.
   proof: [
-    { value: "+40", unit: "שנה", label: "ליווי בעלי עסקים" },
-    { value: "+20", unit: "חברות", label: "נמכרו. חלקן שלנו." },
+    { value: "40+", unit: "שנה", label: "ליווי בעלי עסקים" },
+    { value: "20+", unit: "חברות", label: "נמכרו. חלקן שלנו." },
     { value: "12", unit: "ענפים", label: "שבהם ליווינו" },
   ],
   logos: {
     label: "ניסיון מוכח · חברות שהקמנו וליווינו",
     items: COPY.logos.items,
   },
-  // TODO(hebrew): every line in why is new.
   why: {
-    heading: "Why Gesher",
+    heading: "למה גשר",
     p1: {
-      title: "More buyers, a better price.",
-      body: "Buyers compete on one deadline. Competition sets the price, not one buyer.",
+      title: "יותר קונים. יותר אפשרויות. בתנאים שלך.",
+      body: "ככל שיותר קונים מתחרים, המחיר המוצע עולה. הפער בין הצעה אחת להצעה הגבוהה ביותר הוא שלך.",
     },
     p2: {
-      title: "Senior professionals with you every step of the way.",
-      body: "40 years advising owners. We lead every negotiation.",
-      nameOfir: "Ofir",
-      nameBen: "Benjamin",
+      title: "אנשי מקצוע בכירים לצידך, לאורך כל הדרך.",
+      body: "40 שנה של ליווי בעלי עסקים. אנחנו מובילים כל משא ומתן.",
+      nameOfir: "אופיר",
+      nameBen: "בנימין",
     },
     p3: {
-      title: "Financials built for buyers.",
-      body: "We rebuild your numbers the way a buyer reads them.",
-      today: "Today",
-      buyerReady: "Buyer-ready",
+      // Ben, Oct 4: the Hebrew says more than the English here, on purpose.
+      title: "דוחות כספיים מותאמים לקונים, לא למס הכנסה.",
+      body: "אנחנו מתאימים את המספרים שלך לאופן שבו קונה קורא אותם.",
+      today: "היום",
+      buyerReady: "מוכן לקונה",
     },
     p4: {
-      title: "You keep running your business.",
-      body: "Our team leads the process.",
-      you: "You",
-      yourBusiness: "Running your business",
-      gesher: "Gesher",
-      yourSale: "Running your sale",
+      title: "אתה ממשיך לנהל את העסק.",
+      body: "הצוות שלנו מוביל את תהליך המכירה.",
+      you: "אתה",
+      yourBusiness: "ממשיך לנהל את העסק",
+      // The firm is אנחנו in Hebrew, not the name.
+      gesher: "אנחנו",
+      yourSale: "מנהלים את תהליך המכירה",
     },
-    bandLabel: "By design",
-    bandTitle: "We take on only a few sellers a year.",
-    bandBody: "If now is not your time, we will tell you.",
-    bandCta: "Get your free estimate",
+    bandLabel: "מתוך בחירה",
+    bandTitle: "אנחנו מלווים מספר מצומצם של מוכרים בכל שנה.",
+    bandBody: "אם זה לא הזמן הנכון למכור, נגיד לך.",
+    bandCta: "לניתוח שווי ראשוני ללא עלות",
   },
-  // TODO(hebrew): every line in chart is new. buyerMany keeps "{n}" for the
-  // number of buyers.
+  // buyerMany keeps "{n}" for the number of buyers.
   chart: {
-    priceLabel: "Price offered",
-    oneOffer: "One offer",
-    gap: "The gap is yours",
-    buyerOne: "1 buyer",
-    buyerMany: "{n} buyers",
-    alt: "As more buyers compete, the price offered goes up. The gap between one offer and the top offer is yours.",
+    priceLabel: "המחיר המוצע",
+    oneOffer: "הצעה אחת",
+    gap: "הפער שלך",
+    buyerOne: "קונה אחד",
+    buyerMany: "{n} קונים",
+    alt: "ככל שיותר קונים מתחרים, המחיר המוצע עולה. הפער בין הצעה אחת להצעה הגבוהה ביותר הוא שלך.",
   },
   process: {
-    // TODO(hebrew): changed. Was "התהליך" (The process).
-    eyebrow: "Our process",
-    // TODO(hebrew): changed. Was "איך אנחנו מוכרים את העסק שלך."
-    heading: "Three steps to a sale.",
-    // TODO(hebrew): new. Keeps "{n}" for the step number.
-    step: "Step {n}",
+    eyebrow: "התהליך שלנו",
+    heading: "שלושה שלבים עד למכירה.",
+    // Keeps "{n}" for the step number.
+    step: "שלב {n}",
     youGet: "אתה מקבל",
     steps: [
       {
         id: 1,
-        // TODO(hebrew): changed. Was "מספר אמיתי" (the old road label).
-        title: "Know your number",
-        // TODO(hebrew): changed.
-        body: "We value your business and find what raises the price.",
-        // TODO(hebrew): changed.
-        outcome: "A real range and a plan.",
+        title: "שווי העסק",
+        body: "אנחנו מעריכים את שווי העסק ומוצאים מה מעלה את המחיר.",
+        outcome: "טווח שווי אמיתי ותוכנית מכירה.",
       },
       {
         id: 2,
         // Same words as before, so the old road label carries over.
         title: "תחרות בין קונים",
-        // TODO(hebrew): changed.
-        body: "Screened buyers bid on one deadline.",
-        // TODO(hebrew): changed.
-        outcome: "Offers side by side.",
+        body: "קונים שעברו את הסינון שלנו מגישים הצעות עד תאריך אחד.",
+        outcome: "השוואת הצעות, זו לצד זו.",
       },
       {
         id: 3,
         title: "סגירה",
-        // TODO(hebrew): changed.
-        body: "We negotiate and close for you.",
-        // TODO(hebrew): changed.
-        outcome: "The deal done.",
+        body: "אנחנו מנהלים את המשא ומתן וסוגרים בשבילך.",
+        outcome: "העסקה סגורה.",
       },
     ],
-    // TODO(hebrew): new.
-    note: "No buyer is contacted without your approval.",
+    note: "אנחנו לא פונים לאף קונה בלי האישור שלך.",
   },
   team: {
     eyebrow: "הצוות",
@@ -440,20 +420,21 @@ const COPY_HE: Copy = {
     items: [
       { icon: "factory", name: "תעשייה", sub: "מתכת, פלסטיק, אריזות" },
       { icon: "box", name: "יבוא והפצה", sub: "יבואנים, סיטונאים, משווקים" },
-      { icon: "shop", name: "מסחר ושירותים", sub: "קמעונאות, מסחר B2B, תחזוקה" },
-      { icon: "fork", name: "מזון ומסעדנות", sub: "יצרנים, סוחרים, רשתות" },
+      { icon: "shop", name: "מסחר ושירותים", sub: "קמעונאות, מסחר B2B, שירותי תחזוקה" },
+      { icon: "fork", name: "מזון ומסעדנות", sub: "יצרנים, מפיצים, רשתות" },
       { icon: "house", name: "בנייה ונדל״ן", sub: "קבלנים, חומרי בניין, יזמים" },
-      { icon: "bridge", name: "תשתיות", sub: "עבודות הנדסה אזרחית, מים וחשמל, קבלני משנה" },
+      { icon: "bridge", name: "תשתיות", sub: "הנדסה אזרחית, חשמל ומים, קבלני משנה" },
       { icon: "truck", name: "תחבורה ורכב", sub: "ציי רכב, הובלות, מוסכים" },
       { icon: "screen", name: "טכנולוגיה ותוכנה", sub: "ERP, תוכנה ענפית, שירותי IT" },
       { icon: "heart", name: "בריאות", sub: "מרפאות, ציוד רפואי, אופטיקה" },
       { icon: "case", name: "מקצועות חופשיים", sub: "ראיית חשבון, רפואת שיניים, הנדסה" },
       { icon: "umbrella", name: "סוכנויות ביטוח", sub: "סוכנויות ותיקי ביטוח" },
-      { icon: "plane", name: "תיירות ואירוח", sub: "נסיעות, מלונות, פנאי" },
+      { icon: "plane", name: "תיירות ואירוח", sub: "סוכנויות נסיעות, מלונאות, פנאי" },
     ],
   },
   faq: {
-    eyebrow: "שאלות שבעלי עסקים שואלים",
+    // Ben, Oct 4: the search words owners type (site/40 L1).
+    eyebrow: "שאלות על מכירת עסק",
     heading: "תשובות ישירות.",
   },
   contact: {
@@ -477,18 +458,14 @@ const COPY_HE: Copy = {
       // A domain reads the same in both languages, so no new Hebrew is needed.
       website: "yourcompany.co.il",
       // Was "בחר טווח" (select a range) when this was a dropdown. It is a box
-      // he types into now. A plain figure carries across both languages, so no
-      // new Hebrew was needed. TODO(hebrew): Ben may want a worded hint here.
-      revenue: "12,000,000",
+      // he types into now. Words, no ₪ (site/40, Oct 4).
+      revenue: "לדוגמה: 12 מיליון",
       message: "לא חובה",
     },
     send: "שלח",
     // Hebrew, Sep 17. Ben waived the English-only rule for this one word, so it
     // is the one line here he did not hand over himself. Flag it for Ofir.
     sending: "שולח",
-    // TODO(hebrew): still English. Rare on this page, because the valuation tool
-    // is English only today. It can still happen: run the valuation, then land
-    // on /he/. Lands with Ofir's review.
     // Hebrew, approved by Ben on 2026-09-16, pasted verbatim. Ofir still sees it
     // in his review of the whole page.
     sendFailed:
@@ -500,7 +477,7 @@ const COPY_HE: Copy = {
       "אנחנו קוראים כל פנייה בעצמנו. אופיר או בנימין יחזרו אליך תוך שני ימי עסקים.",
   },
   footer: {
-    ariaLabel: "Footer",
+    ariaLabel: "תחתית העמוד",
     disclaimer:
       "Gesher Partners אינה יועץ השקעות מורשה. אין באתר הזה ייעוץ השקעות, ולא הצעה לקנות או למכור נייר ערך כלשהו.",
     // The valuation tool has a Hebrew twin since Sep 24. Privacy and terms

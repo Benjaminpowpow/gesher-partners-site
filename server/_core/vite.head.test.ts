@@ -73,15 +73,15 @@ describe("localizeHtml", () => {
     for (const url of ["/he/", "/he", "/he/?utm=x"]) {
       const html = localizeHtml(TEMPLATE, url);
       expect(html).toContain('<html lang="he" dir="rtl">');
-      expect(html).toContain("<title>Gesher Partners | ליווי במכירת עסקים פרטיים בישראל</title>");
-      expect(html).toContain('<meta name="description" content="Gesher Partners מייעצת');
-      expect(html).toContain('<meta property="og:title" content="Gesher Partners | ליווי');
+      expect(html).toContain("<title>מכירת עסק או חברה פרטית בישראל | Gesher Partners</title>");
+      expect(html).toContain('<meta name="description" content="ליווי מקצועי במכירת עסק');
+      expect(html).toContain('<meta property="og:title" content="מכירת עסק או חברה פרטית');
       expect(html).toContain('<meta property="og:url" content="https://gesherpartners.com/he/" />');
       expect(html).toContain('<meta property="og:locale" content="he_IL" />');
       expect(html).toContain('<link rel="canonical" href="https://gesherpartners.com/he/" />');
       expect(html).toContain('hreflang="x-default" href="https://gesherpartners.com/"');
       expect(html).toContain('"@type":"FAQPage","inLanguage":"he"');
-      expect(html).toContain("כמה העסק שלי שווה?");
+      expect(html).toContain("כמה שווה העסק שלי?");
     }
   });
 

@@ -83,7 +83,7 @@
   --ls-tight: -0.01em;
   --radius-sharp: 0px;
   --radius: 2px;          /* Default. Cards, inputs, badges. */
-  --radius-btn: 4px;      /* Buttons only — a notch softer than cards. */
+  --radius-btn: 4px;      /* Buttons only, a notch softer than cards. */
   --radius-lg: 4px;       /* Largest we go elsewhere. */
   --border-hairline: 0.5px solid var(--hairline);
   --border-thin: 1px solid var(--hairline);
@@ -235,7 +235,7 @@
    copy on the right (like the English left), not the bright, busy open end. */
 &.gesher-rtl .hero-video { transform: scaleX(-1); }
 
-/* ---------- Hero — Headline emphasis ---------- */
+/* ---------- Hero: headline emphasis ---------- */
 .hl-emph { white-space: nowrap; }
 .hl-emph.emph-plain { font-style: normal; color: inherit; }
 .hero .hl-emph.emph-italic {
@@ -250,7 +250,7 @@
   padding-bottom: 4px;
 }
 
-/* ---------- Hero — Mobile ---------- */
+/* ---------- Hero: mobile ---------- */
 @media (max-width: 720px) {
   .hero {
     padding: 44px 0 80px;
@@ -418,7 +418,7 @@ p:last-child { margin-bottom: 0; }
 }
 .lang-switch-mobile { font-size: 18px; padding: 22px 4px; gap: 10px; }
 
-/* ---------- Nav — mobile hamburger + full-screen menu ---------- */
+/* ---------- Nav: mobile hamburger + full-screen menu ---------- */
 .nav-toggle {
   display: none; /* shown only on mobile, below */
   align-items: center;
@@ -1147,9 +1147,6 @@ p:last-child { margin-bottom: 0; }
    the Hebrew page mirrors without a twin rule. The few drawn things that have
    a direction (the sheet arrow in point 3, the flag path in point 4) flip
    under .gesher-rtl. The chart mirrors itself in Home.tsx.
-
-   /he/ still runs the v4 page (HomeLegacy). homeLegacy.css puts back the
-   shared rules changed here, so that page is untouched.
    ═══════════════════════════════════════════════════════════════════════════ */
 .gesher {
 
