@@ -27,7 +27,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "How do you get paid?",
-    a: "Mostly a success fee, paid when the deal closes. A small commitment fee at the start covers the preparation work. That work is yours whether you sell or not.",
+    a: "Mostly a success fee, paid when the deal closes. During the preparation there is a small monthly retainer, and every shekel of it is credited against the success fee. That work is yours whether you sell or not.",
   },
   {
     q: "Will my employees, customers, or competitors find out?",
@@ -52,33 +52,35 @@ export const FAQ_ITEMS: FaqItem[] = [
 ];
 
 /**
- * The same nine questions in Hebrew, same order. Verbatim from the vault file
- * PROJECTS/israel-ai-investment-bank/site/23-hebrew-copy-ben-picks.md, which is
- * the only source of Hebrew for the site. Never edit the Hebrew here first:
- * a change goes into that file, then comes back here.
+ * The same nine questions in Hebrew, same order. Verbatim from the vault:
+ * PROJECTS/israel-ai-investment-bank/site/23-hebrew-copy-ben-picks.md, plus
+ * Ben's Oct 4 changes in site/40-homepage-hebrew-worksheet.md, section L1
+ * (questions in the words owners search, and the monthly retainer in place of
+ * the old fee word). Never edit the Hebrew here first: a change goes into the
+ * vault, then comes back here.
  *
  * The Hebrew homepage renders this list, and the server builds the Hebrew
  * FAQPage schema from it, the same one-list rule as the English above.
  */
 export const FAQ_ITEMS_HE: FaqItem[] = [
   {
-    q: "כמה העסק שלי שווה?",
-    a: "זה מתחיל ברווח, אחרי התאמות לשכר שלך ולהוצאות חד-פעמיות. המספר הזה מקבל מכפיל, שנקבע לפי הענף, לפי יציבות הרווחים ולפי מי הקונה. קונים שונים מתמחרים את אותה חברה אחרת. אתה מקבל טווח כתוב כבר בשבועות הראשונים, לפני שפונים לקונה כלשהו.",
+    q: "כמה שווה העסק שלי?",
+    a: "זה מתחיל ברווח, אחרי התאמות לשכר שלך ולהוצאות חד-פעמיות. המספר הזה מקבל מכפיל, שנקבע לפי הענף, לפי יציבות הרווחים ולפי מי הקונה. קונים שונים מתמחרים את אותה חברה אחרת. אתה מקבל טווח שווי כתוב כבר בשבועות הראשונים, לפני שפונים לקונה כלשהו.",
   },
   {
     q: "העסק שלי קטן מדי למכירה?",
     a: "לא. אנחנו עובדים עם עסקים במחזור של 5 עד 50 מיליון ש״ח. בנקי השקעות גדולים מנהלים תהליך אמיתי, אבל לא לעסקה בסדר גודל כזה. אנחנו מביאים את התהליך הזה אליך. בגלל זה אנחנו כאן.",
   },
   {
-    q: "קונה כבר פנה אליי. אני עדיין צריך יועץ?",
+    q: "קיבלתי הצעה לקנות את העסק. אני עדיין צריך יועץ?",
     a: "הצעה אומרת לך שיש ביקוש. היא לא אומרת לך מה המחיר. קונה אחד לבד קובע את התנאים. אנחנו מכינים את העסק ומביאים עוד קונים רציניים לאותו תאריך. עכשיו ההצעה הראשונה היא נקודת הפתיחה, לא המחיר הסופי. הקונה שלך מוזמן להשתתף.",
   },
   {
-    q: "איך אתם מקבלים תשלום?",
-    a: "בעיקר דמי הצלחה, שמשולמים כשהעסקה נסגרת. דמי רצינות קטנים בהתחלה מכסים את עבודת ההכנה. העבודה הזאת שלך, בין אם תמכור ובין אם לא.",
+    q: "איך בנויה העמלה שלכם על מכירת עסק?",
+    a: "בעיקר דמי הצלחה, שמשולמים כשהעסקה נסגרת. בזמן ההכנה יש ריטיינר חודשי קטן, וכל שקל ממנו מקוזז מדמי ההצלחה. העבודה הזאת שלך, בין אם תמכור ובין אם לא.",
   },
   {
-    q: "העובדים, הלקוחות או המתחרים שלי יגלו?",
+    q: "העובדים, הלקוחות או המתחרים שלי יגלו שאני מוכר?",
     a: "לא. קונים חותמים על הסכם סודיות (NDA) לפני שהם מגלים את שם החברה שלך. אתה מאשר את רשימת הקונים לפני שאנחנו פונים למישהו. שמות לקוחות וחוזים עוברים רק לקונים בשלב הסופי, וגם אז בשלבים.",
   },
   {
@@ -86,7 +88,7 @@ export const FAQ_ITEMS_HE: FaqItem[] = [
     a: "חודשים, לא שבועות. הכנת הדוחות הכספיים, הערכת השווי ורשימת הקונים לוקחת כמה שבועות. תהליך הקונים, מהפנייה הראשונה ועד להצעות חתומות, הוא החלק הארוך ביותר. אחר כך יש בדיקת נאותות ועורכי דין. אתה מקבל עדכון כתוב כל שבוע.",
   },
   {
-    q: "מי קונה עסקים כמו שלי?",
+    q: "מי קונה עסק כמו שלי?",
     a: "קונים אסטרטגיים, קרנות השקעה, קבוצות אחזקות, ולפעמים קונה זר שנכנס לישראל. כל אחד מהם מתמחר את אותו העסק אחרת. היופי הוא בעיני המתבונן, וגם המחיר. התפקיד שלנו הוא למצוא את הקונה שרואה בעסק שלך הכי הרבה.",
   },
   {
@@ -94,7 +96,7 @@ export const FAQ_ITEMS_HE: FaqItem[] = [
     a: "הרבה פעמים כן. רוב הקונים רוצים שהבעלים יישאר לתקופת חפיפה, וחלקם רוצים יותר מזה. התפקיד שלך, השכר ומשך התקופה נסגרים במשא ומתן יחד עם המחיר, לצד תשלום מותנה (Earn-out) והגנה על אנשי מפתח. אנחנו נותנים לתנאים האלה את אותו המשקל כמו למחיר.",
   },
   {
-    q: "אני חייב למכור?",
+    q: "אני חייב למכור אחרי הערכת השווי?",
     a: "לא. הערכת השווי וההכנה עומדות בפני עצמן. אם העסק יהיה שווה יותר אחרי כמה תיקונים, אנחנו אומרים את זה ומראים לך מה לעשות. ההחלטה לצאת לשוק היא תמיד שלך.",
   },
 ];

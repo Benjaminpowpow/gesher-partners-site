@@ -28,8 +28,9 @@ import { COPY_V, COPY_V_HE } from "../../client/src/pages/valuationCopy";
  *
  * The nine questions come from shared/faq.ts, the same lists the page renders,
  * so the schema and the visible page can never drift apart. The Hebrew wording
- * is verbatim from the vault file site/23-hebrew-copy-ben-picks.md, the only
- * source of Hebrew. Change it there first, then here.
+ * is verbatim from the vault files site/23-hebrew-copy-ben-picks.md and
+ * site/40-homepage-hebrew-worksheet.md (section L1). Change it there first,
+ * then here.
  * ──────────────────────────────────────────────────────────────────────────── */
 const SITE = "https://gesherpartners.com";
 
@@ -75,14 +76,16 @@ const HOME_HEAD: Record<Lang, HomeHead> = {
     faq: FAQ_ITEMS,
   },
   he: {
-    title: "Gesher Partners | ליווי במכירת עסקים פרטיים בישראל",
+    // site/40 L1 (Ben, Oct 4): built on the words Israeli owners type into
+    // Google (מכירת עסק, מכירת חברה פרטית, כמה שווה העסק שלי).
+    title: "מכירת עסק או חברה פרטית בישראל | Gesher Partners",
     description:
-      "Gesher Partners מייעצת לבעלי עסקים פרטיים ומשפחתיים בישראל, עם מחזור של 5 עד 50 מיליון ש״ח, במכירת החברה שלהם. תהליך מובנה, תחרות בין קונים, והערכת שווי כתובה לפני שפונים לקונה כלשהו.",
+      "ליווי מקצועי במכירת עסק או חברה פרטית, במחזור של 5 עד 50 מיליון ש״ח. יותר קונים מתחרים על העסק שלך, ומחיר טוב יותר. כמה שווה העסק שלך? ניתוח שווי ראשוני ללא עלות.",
     ogLocale: "he_IL",
-    // File 23 has no separate ProfessionalService sentence, so the schema
-    // carries the same Hebrew meta description. Same facts, one source.
+    // The schema carries the same Hebrew as the meta description. Same facts,
+    // one source.
     serviceDescription:
-      "Gesher Partners מייעצת לבעלי עסקים פרטיים ומשפחתיים בישראל, עם מחזור של 5 עד 50 מיליון ש״ח, במכירת החברה שלהם. תהליך מובנה, תחרות בין קונים, והערכת שווי כתובה לפני שפונים לקונה כלשהו.",
+      "ליווי מקצועי במכירת עסק או חברה פרטית, במחזור של 5 עד 50 מיליון ש״ח. יותר קונים מתחרים על העסק שלך, ומחיר טוב יותר. כמה שווה העסק שלך? ניתוח שווי ראשוני ללא עלות.",
     faq: FAQ_ITEMS_HE,
   },
 };

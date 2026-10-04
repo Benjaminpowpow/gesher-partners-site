@@ -11,7 +11,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import Home from "../Home";
-import HomeLegacy from "../HomeLegacy";
 
 beforeAll(() => {
   // jsdom has no layout: no matchMedia, no scrolling.
@@ -229,11 +228,12 @@ describe("page", () => {
     expect(document.body.textContent).not.toContain("—");
   });
 
-  it("leaves /he/ on the frozen v4 page, words untouched", () => {
-    render(<HomeLegacy />);
-    expect(document.querySelector(".gesher-legacy")?.getAttribute("dir")).toBe("rtl");
+  it("runs /he/ on the same page, right to left, with site/40's words", () => {
+    render(<Home lang="he" />);
+    expect(document.querySelector(".gesher-rtl")?.getAttribute("dir")).toBe("rtl");
     const h1 = screen.getByRole("heading", { level: 1 });
-    expect(h1.textContent).toBe("מפעל חייך. מגיע לו יותר.");
-    expect(screen.getByRole("navigation", { name: "Primary" }).textContent).toContain("התהליך");
+    expect(h1.textContent).toBe("בנית עסק מצליח. אנחנו נעזור לך למכור אותו נכון.");
+    expect(screen.getByRole("navigation", { name: "ניווט ראשי" }).textContent).toContain("למה גשר");
+    expect(document.body.textContent).not.toContain("—");
   });
 });
