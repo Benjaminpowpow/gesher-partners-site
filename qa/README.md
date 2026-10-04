@@ -31,6 +31,7 @@ Then, with `PLAYWRIGHT_BROWSERS_PATH` set and `BASE=http://127.0.0.1:4460`:
 | `node qa/valuation-en-same.mjs shoot main` (against a main build), `... shoot branch`, then `... compare` | English `/valuation` pixel for pixel against main. |
 | `node qa/site-polish.mjs` | The phone menu on iPhone 14 (WebKit) and Pixel 7 (Chromium) on `/`, `/he/`, `/privacy`, `/terms`: hides on scroll down, back on a small scroll up, always at the top, never with the sheet open or focus in it, closing the sheet keeps his place, menu links land with the heading in view, no layout shift, reduce motion. Desktop 1440 menu against the live site. Tap targets and side scroll at 320, 390, 863, 1440. Pinch-zoom. The Hebrew font loaded (document.fonts), English faces unchanged against live. |
 | `node qa/logo-shots.mjs` | The logo, live against this build: nav, phone sheet, footer, valuation header, English and Hebrew, 390 and 1440. One sheet per width. |
+| `node qa/valuation-header.mjs` | The valuation page's top, live against this build, English and Hebrew at 320, 390 and 1440: the logo keeps its tagline on one line, "Talk to us" on one line, no side scroll against the device width, and the progress strip pinned with its label inside it. Writes two before/after sheets. |
 | `node qa/logo-options.mjs` | The logo with other `--mark-scale` and `--mark-gap` values side by side, for choosing a size. |
 
 `LIVE` (default `https://gesherpartners.com`) is the "before" for the scripts
