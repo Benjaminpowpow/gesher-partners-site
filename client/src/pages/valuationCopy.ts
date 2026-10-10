@@ -52,7 +52,7 @@ const COPY_V = {
 
   /* ─── Screen 1. The front door ───────────────────────────────────────── */
   front: {
-    headline: "Free business value estimate",
+    headline: "Business value estimate. No cost, no commitment.",
     // The small label at the end of the progress line (Ben, Oct 2): one step
     // per required answer, 0% to 100%.
     progress: (percent: number) => `${percent}% complete`,
@@ -262,6 +262,11 @@ export type VCopy = typeof COPY_V;
  * section O. The row number sits next to each line. Hebrew never changes here
  * first: fix 39, then bring the line across. qa/check-hebrew-copy.mjs checks
  * this table against 39.
+ *
+ * Oct 10: site/43-ofir-site-markup-oct9-worksheet.md, section 5 (lines 55 to
+ * 73), wins over 39 for the rows it names. The tool is the preliminary
+ * estimate, never the analysis, and the firm says the short "we". Until 39
+ * catches up, the checker above reports those rows as different.
  */
 const COPY_V_HE: VCopy = {
   nav: {
@@ -273,7 +278,7 @@ const COPY_V_HE: VCopy = {
   },
 
   front: {
-    headline: "ניתוח שווי ראשוני לעסק, ללא עלות", // 4
+    headline: "הערכת שווי ראשוני לעסק, ללא עלות וללא התחייבות", // 4
     progress: (percent: number) => `${percent}% הושלמו`, // 5
     progressAriaLabel: "שאלות שנענו", // 121
     urlLabel: "מה כתובת האתר של החברה?", // 6
@@ -333,12 +338,12 @@ const COPY_V_HE: VCopy = {
 
   // 28
   disclaimer:
-    "זהו אומדן, לא הערכת שווי. הוא מבוסס על התשובות שלך, על מידע ציבורי ועל המחירים שקונים משלמים על עסקים דומים. מספר מדויק מחייב את הדוחות הכספיים שלך. אין כאן הצעה, ולא המלצה לקנות או למכור.",
+    "זהו אומדן ראשוני, לא הערכת שווי מקצועית. הוא מבוסס על התשובות שלך, על מידע ציבורי ועל המחירים שקונים משלמים על עסקים דומים. מספר מדויק מחייב את הדוחות הכספיים שלך. אין כאן הצעה, ולא המלצה לקנות או למכור.",
 
   working: {
-    heading: "מכינים את ניתוח השווי", // 29
+    heading: "מכינים את הערכת השווי", // 29
     sub: "זה לוקח דקה, לפעמים שתיים.", // 30
-    stagesAriaLabel: "בנייה של הניתוח", // 116
+    stagesAriaLabel: "בניית ההערכה", // 116
     longStep: "השלב הזה ארוך יותר מהאחרים.", // 36
     ringAriaLabel: (percent: number) => `${percent} אחוז הושלמו`, // 38
     companyFallbackName: "העסק שלך", // 37
@@ -355,13 +360,13 @@ const COPY_V_HE: VCopy = {
 
   // 39 to 41
   taglines: [
-    "אנחנו עובדים רק בשבילך, המוכר.",
-    "אנחנו מנהלים תהליך תחרותי אמיתי, עם קונים בארץ ובחו״ל.",
-    "אנחנו אומרים את האמת, גם כשהאמת היא לחכות שנה.",
+    "אנו עובדים רק בשבילך, המוכר.",
+    "אנו מנהלים תהליך תחרותי אמיתי, עם קונים בארץ ובחו״ל.",
+    "אנו אומרים את האמת, גם כשהאמת היא לחכות שנה.",
   ],
 
   gate: {
-    label: "ניתוח השווי מוכן", // 42
+    label: "הערכת השווי מוכנה", // 42
     heading: "צפה בטווח השווי המשוער שלך.", // 43
     sub: "השאר טלפון או מייל, והטווח ייפתח מיד.", // 44
     nameLabel: "השם שלך", // 45
@@ -377,13 +382,13 @@ const COPY_V_HE: VCopy = {
   },
 
   result: {
-    title: (company: string) => `ניתוח שווי ראשוני של ${company}`, // 55
-    specialTitle: (company: string) => `ניתוח שווי ראשוני של ${company}`, // 67
-    privateLine: "חסוי. מבוסס על התשובות שלך ועל מידע ציבורי. אינו הערכת שווי ואינו הצעה.", // 56
+    title: (company: string) => `הערכת שווי ראשוני של ${company}`, // 55
+    specialTitle: (company: string) => `הערכת שווי ראשוני של ${company}`, // 67
+    privateLine: "חסוי. מבוסס על התשובות שלך ועל מידע ציבורי. אינו הערכת שווי מקצועית ואינו הצעה.", // 56
     cardMarket: "שוק", // 57
     cardValue: "שווי", // 58
     cardRange: "טווח השווי המשוער", // 59
-    cardSpecial: "ניתוח השווי", // 68
+    cardSpecial: "הערכת השווי", // 68
     // 120: no word in Hebrew. The label alone; the icon marks the risk.
     watchLabel: (label: string) => label,
     // 60, the locked shape: "12 עד 28 מיליון ש״ח".
@@ -391,12 +396,12 @@ const COPY_V_HE: VCopy = {
     rangeLine: "מבוסס על הטווחים שבחרת. הדוחות הכספיים שלך יאפשרו מספר מדויק יותר.", // 61
     ctaLead: "רוצה מספר מדויק יותר? לשיחת ייעוץ.", // 62
     ctaBody: "בשיחה קצרה נעבור על הנתונים האמיתיים ונראה לך מה משפיע על המחיר.", // 63
-    scarcity: "אנחנו מלווים מספר מצומצם של מוכרים בכל שנה.", // 65
+    scarcity: "אנו מלווים מספר מצומצם של מוכרים בכל שנה.", // 65
     callBtn: "לשיחת ייעוץ", // 64
     callDone: "תודה. אופיר או בנימין יחזרו אליך בקרוב.", // 66
     byHandLead: "העסק שלך ראוי לבחינה מעמיקה יותר.", // 71
     byHandBody: "יש עסקים שלא מתאימים לנוסחה מהירה, והעסק שלך הוא אחד מהם. שיחה קצרה תיתן לך מספר אמיתי.", // 72
-    bigLead: "בהיקף כזה, הניתוח נעשה באופן אישי.", // 69
+    bigLead: "בהיקף כזה, ההערכה נעשית באופן אישי.", // 69
     bigBody: "שיחה קצרה עם אופיר או בנימין תיתן לך מספר אמיתי.", // 70
     specialCta: "לשיחת ייעוץ", // 73
     companyAriaLabel: "העסק שלך", // 119
@@ -407,7 +412,7 @@ const COPY_V_HE: VCopy = {
   error: {
     headingBlocked: "לא עכשיו.", // 115
     headingUnreadable: "לא הצלחנו לקרוא את האתר הזה.", // 74
-    subUnreadable: "לפעמים אין באתר מספיק מידע לניתוח. אין בכך בעיה.", // 75
+    subUnreadable: "לפעמים אין באתר מספיק מידע להערכה. אין בכך בעיה.", // 75
     talkBtn: "לשיחת ייעוץ", // 76
     retryBtn: "נסה כתובת אחרת", // 77
   },
@@ -415,7 +420,7 @@ const COPY_V_HE: VCopy = {
   talk: {
     closeAriaLabel: "סגור", // 113
     sentTitle: "תודה.", // 85
-    sentBody: "אנחנו קוראים כל פנייה בעצמנו. אופיר או בנימין יחזרו אליך בקרוב.", // 86
+    sentBody: "אנו קוראים כל פנייה בעצמנו. אופיר או בנימין יחזרו אליך בקרוב.", // 86
     closeBtn: "סגור", // 84
     title: "לשיחת ייעוץ.", // 78
     subWithRun: "נעבור על הטווח שלך בשיחה.", // 79
@@ -433,9 +438,9 @@ const COPY_V_HE: VCopy = {
   },
 
   server: {
-    cooldown: "כבר הרצת ניתוח לפני דקה. נא להמתין רגע ולנסות שוב.", // 103
-    overCap: "הגענו למכסת הניתוחים ללא עלות להיום. נסה שוב מחר, או כתוב לנו: office@gesherpartners.com", // 104
-    notConfigured: "הניתוח אינו זמין כרגע. כתוב לנו: office@gesherpartners.com", // 105
+    cooldown: "כבר הרצת הערכה לפני דקה. נא להמתין רגע ולנסות שוב.", // 103
+    overCap: "הגענו למכסת ההערכות ללא עלות להיום. נסה שוב מחר, או כתוב לנו: office@gesherpartners.com", // 104
+    notConfigured: "ההערכה אינה זמינה כרגע. כתוב לנו: office@gesherpartners.com", // 105
     busy: "המערכת עמוסה כרגע. נסה שוב בעוד דקה.", // 106
   },
 

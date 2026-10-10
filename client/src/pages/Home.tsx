@@ -24,10 +24,11 @@
  *
  * The Hebrew comes from the vault: file 23 (23-hebrew-copy-ben-picks.md) for
  * the lines the redesign kept, file 40 (40-homepage-hebrew-worksheet.md,
- * section L1 wins) for the rest. Never edit Hebrew here first: change the
- * vault file, then bring the line back.
+ * section L1 wins) for the rest, and file 43 (43-ofir-site-markup-oct9-
+ * worksheet.md, Ofir's Oct 9 markup) over both. Never edit Hebrew here first:
+ * change the vault file, then bring the line back.
  */
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, Fragment, useContext, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { FAQ_ITEMS, FAQ_ITEMS_HE } from "@shared/faq";
 import { Lockup as BrandLockup } from "@/components/Lockup";
@@ -42,6 +43,16 @@ type Lang = "en" | "he";
 type FooterLink =
   | { kind: "anchor"; id: string; label: string }
   | { kind: "route"; href: string; label: string };
+
+// The founders' photos, one file each for both places they show: why Gesher
+// point 2 and the team. Square with rounded corners in both, same crop (Ofir,
+// Oct 9, site/43 section 6). They are 480px copies of the 1200px studio
+// squares (gesher_*_final.jpg), which stay as they were. The arched 400px
+// copies point 2 used before are deleted.
+const FOUNDER_PHOTOS = {
+  ofir: "/founders/gesher_ofir_square.jpg",
+  ben: "/founders/gesher_ben_square.jpg",
+};
 
 // Keys follow site/39. Where a slot already had a key before the redesign it
 // kept that key and only the words changed (hero.lede is 39's hero.sub,
@@ -64,16 +75,18 @@ const COPY = {
     menuEstimate: "Get your free estimate",
   },
   hero: {
-    eyebrow: "For private and family businesses · 5-50M NIS",
     // Ben, Oct 1. The old line, "Get the most out of your life's work.", is
     // kept in site/39 as the backup for a future A/B test, not here.
-    headlineLead: "You built something great. We help you",
-    headlineEmph: "sell it right.",
+    // Oct 10 (site/43): two lines, split at the comma. The "\n" is the forced
+    // break. Line two is the rest of headlineLead plus headlineEmph. The
+    // eyebrow above the headline (the 5 to 50M range) is gone with its key.
+    headlineLead: "You built something great,\nwe help you",
+    headlineEmph: "sell it. The right way.",
     headlineTrail: "",
     lede: "More buyers. More options. Your terms.",
     // The estimate card. The words match the valuation tool's own front door
-    // (site/35, front.headline and front.urlPlaceholder).
-    estLabel: "Free business value estimate",
+    // (site/43 line 54, front.headline, and site/35 front.urlPlaceholder).
+    estLabel: "Business value estimate. No cost, no commitment.",
     // Screen readers only, never drawn: the name of the website box.
     valuationLabel: "Your business website",
     valuationPlaceholder: "yourcompany.co.il",
@@ -81,9 +94,9 @@ const COPY = {
     estNote: "A few short questions. 100% confidential.",
   },
   proof: [
-    { value: "40+", unit: "years", label: "Advising business owners" },
+    { value: "40+", unit: "years", label: "Advising companies and business owners" },
     { value: "20+", unit: "companies", label: "Built and sold" },
-    { value: "12", unit: "sectors", label: "Where we have worked" },
+    { value: "12+", unit: "sectors", label: "Where we work" },
   ],
   logos: {
     label: "Track record · Where we have built and advised",
@@ -98,17 +111,18 @@ const COPY = {
     ],
   },
   // Why Gesher. Four points on Hormozi's value equation, then the band.
+  // A "\n" in a title is a forced line break (site/43 section 6).
   why: {
-    heading: "Why Gesher",
+    heading: "Why choose Gesher",
     p1: {
       // Ben, Oct 4 (site/40 L1): the title repeats the hero line, and the body
-      // is the chart's own description.
-      title: "More buyers. More options. Your terms.",
-      body: "As more buyers compete, the price offered goes up. The gap between one offer and the top offer is yours.",
+      // is the chart's own description. Oct 10: one phrase per line.
+      title: "More buyers.\nMore options.\nYour terms.",
+      body: "As more buyers compete, the price offered goes up. The gap between one offer and many is all yours.",
     },
     p2: {
-      title: "Senior professionals with you every step of the way.",
-      body: "40 years advising owners. We lead every negotiation.",
+      title: "Senior professionals with you\nevery step of the way.",
+      body: "40 years advising companies and business owners. We lead every negotiation.",
       nameOfir: "Ofir",
       nameBen: "Benjamin",
     },
@@ -120,14 +134,15 @@ const COPY = {
     },
     p4: {
       title: "You keep running your business.",
-      body: "Our team leads the process.",
+      body: "Our team leads the sale.",
       you: "You",
       yourBusiness: "Running your business",
       gesher: "Gesher",
       yourSale: "Running your sale",
     },
-    bandLabel: "By design",
-    bandTitle: "We take on only a few sellers a year.",
+    // The small "By design" label above the title is gone (site/43, Oct 10).
+    // The title carries it now.
+    bandTitle: "By choice, we take on only a few sellers a year.",
     bandBody: "If now is not your time, we will tell you.",
     bandCta: "Get your free estimate",
   },
@@ -135,25 +150,25 @@ const COPY = {
   chart: {
     priceLabel: "Price offered",
     oneOffer: "One offer",
-    gap: "The gap is yours",
+    gap: "The gap is all yours",
     buyerOne: "1 buyer",
     buyerMany: "{n} buyers",
-    // Screen readers only. The mock's own description of the chart.
-    alt: "As more buyers compete, the price offered goes up. The gap between one offer and the top offer is yours.",
+    // Screen readers only. The same words as point 1's body.
+    alt: "As more buyers compete, the price offered goes up. The gap between one offer and many is all yours.",
   },
   // Our process (site/39 "How it works", key how.*). The section id stays
   // "how" so old links to /#how still land here.
   process: {
     // Ben, Oct 3: "Our process". 39 had "How it works"; the live page said
-    // "The process".
-    eyebrow: "Our process",
+    // "The process". Oct 10 (site/43): "Our process is different".
+    eyebrow: "Our process is different",
     heading: "Three steps to a sale.",
     step: "Step {n}",
     youGet: "You get",
     steps: [
       {
         id: 1,
-        title: "Know your number",
+        title: "Valuation",
         body: "We value your business and find what raises the price.",
         outcome: "A real range and a plan.",
       },
@@ -177,7 +192,7 @@ const COPY = {
     heading: "Built by people who have been on your side of the table.",
     people: [
       {
-        photo: "/founders/gesher_ofir_final.jpg",
+        photo: FOUNDER_PHOTOS.ofir,
         name: "Ofir Ben Haim, CPA",
         role: "Managing partner",
         // Ben's line, Sep 17. The old bio claimed experience without naming a
@@ -186,7 +201,7 @@ const COPY = {
         bio: "40 years advising Israeli business owners. Led the sale of more than 20 companies, including Metropoli-net to Milgam and Alpha CSP to Malam. Founded and sold his own CPA firm, OB&H.",
       },
       {
-        photo: "/founders/gesher_ben_final.jpg",
+        photo: FOUNDER_PHOTOS.ben,
         name: "Benjamin Aronson",
         role: "Managing partner",
         bio: "Founded and sold his own company. Grew a business line from zero to $4.9M in yearly revenue in 12 months. Started in M&A at KPMG Israel.",
@@ -194,10 +209,10 @@ const COPY = {
     ],
     coda: "We know what it feels like to sell something you built over years.",
   },
+  // No lede under the heading since site/43 (Oct 10).
   sectors: {
     eyebrow: "Sectors",
-    heading: "Private and family businesses in 12 sectors.",
-    lede: "Low-tech and high-tech. The buyer changes by sector. The process does not.",
+    heading: "Private and family businesses.",
     items: [
       { icon: "factory", name: "Manufacturing", sub: "Metal, plastics, packaging" },
       { icon: "box", name: "Import & distribution", sub: "Importers, wholesalers, dealers" },
@@ -275,7 +290,7 @@ type Copy = typeof COPY;
  *
  * Lines that did not change in the redesign keep their Hebrew from file 23,
  * verbatim. Every new or changed line is Ben's final pick in file 40 (Oct 4),
- * pasted verbatim.
+ * or in file 43 (Oct 10) where 43 touches it, pasted verbatim.
  *
  * Decided to stay in English on the Hebrew page: the tagline under the logo
  * and the company and partner logos.
@@ -289,22 +304,26 @@ const COPY_HE: Copy = {
     closeAriaLabel: "סגור תפריט",
     talkToUs: "לשיחת ייעוץ",
     links: [
-      { id: "why", label: "למה גשר" },
+      { id: "why", label: "מדוע בגשר" },
       { id: "founders", label: "הצוות" },
-      { id: "sectors", label: "ענפים" },
+      { id: "sectors", label: "תחומים" },
       { id: "faq", label: "שאלות ותשובות" },
     ],
-    menuEstimate: "לניתוח שווי ראשוני ללא עלות",
+    menuEstimate: "להערכת שווי ראשוני ללא עלות",
   },
   hero: {
-    eyebrow: "עסקים פרטיים ומשפחתיים · מחזור 5 עד 50 מיליון ש״ח",
-    // The colour sits on headlineEmph.
-    headlineLead: "בנית עסק מצליח. אנחנו נעזור לך",
-    headlineEmph: "למכור אותו נכון.",
+    // The colour sits on headlineEmph. The "\n" is the forced break after the
+    // comma; line two (the rest of the lead plus the emph) never wraps, see
+    // home.css. No period at the end (Ofir, Oct 9). The firm's long "we" lives
+    // in this headline only; every other line says the short one (site/43,
+    // decision 3).
+    headlineLead: "בנית עסק מצליח,\nאנחנו נעזור לך",
+    headlineEmph: "למכור, ונכון",
     headlineTrail: "",
     lede: "יותר קונים. יותר אפשרויות. בתנאים שלך.",
-    // The valuation tool's own front door, word for word.
-    estLabel: "ניתוח שווי ראשוני לעסק, ללא עלות",
+    // The tool named in full, so it carries וללא התחייבות. The tool's own
+    // headline adds לעסק (site/43 lines 10 and 55).
+    estLabel: "הערכת שווי ראשוני, ללא עלות וללא התחייבות",
     valuationLabel: "אתר העסק שלך",
     // A domain reads the same in both languages.
     valuationPlaceholder: "yourcompany.co.il",
@@ -314,59 +333,60 @@ const COPY_HE: Copy = {
   // "40+" on purpose (Ofir, Sep 30): in a right-to-left line it shows as +40,
   // the plus on the left of the number. The old string "+40" put it on the
   // right.
+  // "12+" the same way: it shows as +12.
   proof: [
-    { value: "40+", unit: "שנה", label: "ליווי בעלי עסקים" },
+    { value: "40+", unit: "שנה", label: "ליווי חברות ועסקים" },
     { value: "20+", unit: "חברות", label: "נמכרו. חלקן שלנו." },
-    { value: "12", unit: "ענפים", label: "שבהם ליווינו" },
+    { value: "12+", unit: "תחומים", label: "שבהם אנו פועלים" },
   ],
   logos: {
     label: "ניסיון מוכח · חברות שהקמנו וליווינו",
     items: COPY.logos.items,
   },
   why: {
-    heading: "למה גשר",
+    heading: "מדוע לבחור בגשר",
     p1: {
-      title: "יותר קונים. יותר אפשרויות. בתנאים שלך.",
-      body: "ככל שיותר קונים מתחרים, המחיר המוצע עולה. הפער בין הצעה אחת להצעה הגבוהה ביותר הוא שלך.",
+      title: "יותר קונים.\nיותר אפשרויות.\nבתנאים שלך.",
+      body: "ככל שיותר קונים מתחרים, המחיר המוצע יעלה. הפער בין הצעה אחת להרבה הצעות כולו שלך.",
     },
     p2: {
-      title: "אנשי מקצוע בכירים לצידך, לאורך כל הדרך.",
-      body: "40 שנה של ליווי בעלי עסקים. אנחנו מובילים כל משא ומתן.",
+      title: "אנשי מקצוע בכירים לצידך,\nלאורך כל הדרך.",
+      body: "40 שנה של ליווי חברות ועסקים. אנו מובילים כל משא ומתן.",
       nameOfir: "אופיר",
       nameBen: "בנימין",
     },
     p3: {
       // Ben, Oct 4: the Hebrew says more than the English here, on purpose.
-      title: "דוחות כספיים מותאמים לקונים, לא למס הכנסה.",
-      body: "אנחנו מתאימים את המספרים שלך לאופן שבו קונה קורא אותם.",
+      title: "דוחות כספיים מותאמים לקונים,\nלא למס הכנסה.",
+      body: "אנו מתאימים את המספרים שלך כפי שקונה צריך לקבל אותם.",
       today: "היום",
       buyerReady: "מוכן לקונה",
     },
     p4: {
-      title: "אתה ממשיך לנהל את העסק.",
-      body: "הצוות שלנו מוביל את תהליך המכירה.",
-      you: "אתה",
-      yourBusiness: "ממשיך לנהל את העסק",
-      // The firm is אנחנו in Hebrew, not the name.
-      gesher: "אנחנו",
-      yourSale: "מנהלים את תהליך המכירה",
+      // Ofir, Oct 9: the title is neutral now, so the two rows under it are
+      // nouns too (site/43 lines 25 to 28).
+      title: "העסק נשאר בידיך.",
+      body: "הצוות שלנו מוביל את המכירה.",
+      you: "בידיך",
+      yourBusiness: "ניהול העסק",
+      gesher: "אצלנו",
+      yourSale: "ניהול המכירה",
     },
-    bandLabel: "מתוך בחירה",
-    bandTitle: "אנחנו מלווים מספר מצומצם של מוכרים בכל שנה.",
-    bandBody: "אם זה לא הזמן הנכון למכור, נגיד לך.",
-    bandCta: "לניתוח שווי ראשוני ללא עלות",
+    bandTitle: "מבחירה שלנו, אנו מלווים מספר מצומצם של מוכרים בכל שנה.",
+    bandBody: "אם טרם הגיע הזמן למכור, נאמר לך.",
+    bandCta: "להערכת שווי ראשוני ללא עלות",
   },
   // buyerMany keeps "{n}" for the number of buyers.
   chart: {
     priceLabel: "המחיר המוצע",
     oneOffer: "הצעה אחת",
-    gap: "הפער שלך",
+    gap: "הפער כולו שלך",
     buyerOne: "קונה אחד",
     buyerMany: "{n} קונים",
-    alt: "ככל שיותר קונים מתחרים, המחיר המוצע עולה. הפער בין הצעה אחת להצעה הגבוהה ביותר הוא שלך.",
+    alt: "ככל שיותר קונים מתחרים, המחיר המוצע יעלה. הפער בין הצעה אחת להרבה הצעות כולו שלך.",
   },
   process: {
-    eyebrow: "התהליך שלנו",
+    eyebrow: "התהליך שלנו שונה",
     heading: "שלושה שלבים עד למכירה.",
     // Keeps "{n}" for the step number.
     step: "שלב {n}",
@@ -374,8 +394,8 @@ const COPY_HE: Copy = {
     steps: [
       {
         id: 1,
-        title: "שווי העסק",
-        body: "אנחנו מעריכים את שווי העסק ומוצאים מה מעלה את המחיר.",
+        title: "קביעת שווי",
+        body: "אנו מעריכים את שווי העסק ומוצאים מה מעלה את המחיר.",
         outcome: "טווח שווי אמיתי ותוכנית מכירה.",
       },
       {
@@ -388,36 +408,35 @@ const COPY_HE: Copy = {
       {
         id: 3,
         title: "סגירה",
-        body: "אנחנו מנהלים את המשא ומתן וסוגרים בשבילך.",
+        body: "אנו מנהלים את המשא ומתן וסוגרים בשבילך.",
         outcome: "העסקה סגורה.",
       },
     ],
-    note: "אנחנו לא פונים לאף קונה בלי האישור שלך.",
+    note: "אנו לא פונים לאף קונה בלי האישור שלך.",
   },
   team: {
     eyebrow: "הצוות",
     heading: "צוות שכבר היה בנעליים שלך.",
     people: [
       {
-        photo: "/founders/gesher_ofir_final.jpg",
+        photo: FOUNDER_PHOTOS.ofir,
         name: "רו״ח אופיר בן חיים",
         role: "שותף מנהל",
         // Hebrew from Ben, Sep 17, pasted verbatim.
         bio: "מעל 40 שנה מלווה בעלי עסקים בישראל. ניהל את מכירתן של יותר מ-20 חברות, בהן מטרופולינט למילגם ואלפא CSP למלם. הקים ומכר את משרד רואי החשבון שלו, OB&H.",
       },
       {
-        photo: "/founders/gesher_ben_final.jpg",
+        photo: FOUNDER_PHOTOS.ben,
         name: "בנימין ארונסון",
         role: "שותף מנהל",
         bio: "הקים ומכר חברה משלו. הצמיח תחום פעילות מאפס ל-4.9 מיליון דולר הכנסות בשנה תוך 12 חודשים. התחיל את דרכו במיזוגים ורכישות ב-KPMG ישראל.",
       },
     ],
-    coda: "אנחנו יודעים איך זה מרגיש למכור משהו שבנית במשך שנים.",
+    coda: "אנו יודעים איך זה מרגיש למכור משהו שבנית במשך שנים.",
   },
   sectors: {
-    eyebrow: "ענפים",
-    heading: "עסקים פרטיים ומשפחתיים ב-12 ענפים.",
-    lede: "תעשייה מסורתית והייטק. הקונה משתנה מענף לענף. התהליך לא.",
+    eyebrow: "תחומים",
+    heading: "עסקים פרטיים ומשפחתיים.",
     items: [
       { icon: "factory", name: "תעשייה", sub: "מתכת, פלסטיק, אריזות" },
       { icon: "box", name: "יבוא והפצה", sub: "יבואנים, סיטונאים, משווקים" },
@@ -485,10 +504,10 @@ const COPY_HE: Copy = {
     // exist in English only, so those links go to the English pages.
     links: [
       { kind: "anchor", id: "how", label: "התהליך" },
-      { kind: "anchor", id: "sectors", label: "ענפים" },
+      { kind: "anchor", id: "sectors", label: "תחומים" },
       { kind: "anchor", id: "founders", label: "הצוות" },
       { kind: "anchor", id: "faq", label: "שאלות ותשובות" },
-      { kind: "route", href: "/he/valuation", label: "ניתוח שווי ראשוני" },
+      { kind: "route", href: "/he/valuation", label: "הערכת שווי ראשוני" },
       { kind: "route", href: "/privacy", label: "פרטיות" },
       { kind: "route", href: "/terms", label: "תנאי שימוש" },
     ] as FooterLink[],
@@ -532,16 +551,28 @@ function LangSwitch({ className = "" }: { className?: string }) {
 const HERO_VIDEO: string = "/hero/hero.mp4";
 const HERO_POSTER: string | undefined = "/hero/hero-poster.jpg";
 
-// WHY GESHER, POINT 2: the founders in two arched frames. site/39 offered two
-// looks; Ben picked the studio photos cropped into the arches as they are
-// (option A, Oct 3) over cutouts on the card's cream. These are 400px copies
-// made for the arches; the originals the team section uses are untouched.
-const FOUNDER_ARCH_PHOTOS = {
-  ofir: "/founders/gesher_ofir_arch.jpg",
-  ben: "/founders/gesher_ben_arch.jpg",
-};
-
 /* ─── Small pieces ────────────────────────────────────────────────────────── */
+
+// Copy with forced line breaks: every "\n" becomes a <br>. The space before
+// each break keeps the words apart for search engines and screen readers; a
+// browser never draws a space at the end of a line.
+function Broken({ text }: { text: string }) {
+  return (
+    <>
+      {text.split("\n").map((part, i) => (
+        <Fragment key={i}>
+          {i > 0 && (
+            <>
+              {" "}
+              <br />
+            </>
+          )}
+          {part}
+        </Fragment>
+      ))}
+    </>
+  );
+}
 
 function Lines({ lines }: { lines: string[] }) {
   return (
@@ -891,6 +922,11 @@ function LockIcon() {
 function Hero({ onOpenValuation }: { onOpenValuation: (site?: string) => void }) {
   const { copy: C } = useCopy();
   const [site, setSite] = useState("");
+  // Two lines (site/43, Oct 10): the lead up to its "\n" is line one; the
+  // rest of the lead and the emph are line two, kept together in
+  // .hero-line2 so home.css can hold it on one line.
+  const leadLines = C.hero.headlineLead.split("\n");
+  const leadTail = leadLines.pop() ?? "";
 
   // Whatever he typed rides to the valuation estimate and lands in its first
   // question, already filled in. An empty box still opens it: he came to find
@@ -921,10 +957,16 @@ function Hero({ onOpenValuation }: { onOpenValuation: (site?: string) => void })
 
       <div className="container hero-container">
         <div className="hero-copy">
-          <p className="eyebrow">{C.hero.eyebrow}</p>
           <h1 className="display hero-headline">
-            {C.hero.headlineLead && <>{C.hero.headlineLead} </>}
-            <span className="hl-emph emph-italic">{C.hero.headlineEmph}</span>
+            {leadLines.map((line, i) => (
+              <Fragment key={i}>
+                {line} <br />
+              </Fragment>
+            ))}
+            <span className="hero-line2">
+              {leadTail && <>{leadTail} </>}
+              <span className="hl-emph emph-italic">{C.hero.headlineEmph}</span>
+            </span>
             {C.hero.headlineTrail}
           </h1>
           <p className="lede">
@@ -1210,21 +1252,23 @@ function BuyersChart({ shape }: { shape: keyof typeof CHART_SHAPES }) {
   );
 }
 
-// Point 2: the two founders in arched frames, first names under them. The
-// arch's size is fixed in CSS, so nothing moves when the lazy photo arrives.
-// The names are the caption, so the photos carry no alt text of their own.
-function FounderArches() {
+// Point 2: the two founders in rounded squares, first names under them. The
+// arched tops went on Oct 10 (site/43): same square, same crop as the team
+// section. The frame's size is fixed in CSS, so nothing moves when the lazy
+// photo arrives. The names are the caption, so the photos carry no alt text
+// of their own.
+function FounderPhotos() {
   const { copy: C } = useCopy();
   const people = [
-    { name: C.why.p2.nameOfir, src: FOUNDER_ARCH_PHOTOS.ofir },
-    { name: C.why.p2.nameBen, src: FOUNDER_ARCH_PHOTOS.ben },
+    { name: C.why.p2.nameOfir, src: FOUNDER_PHOTOS.ofir },
+    { name: C.why.p2.nameBen, src: FOUNDER_PHOTOS.ben },
   ];
   return (
     <div className="wg-vis wg-founders">
       {people.map((p) => (
-        <figure key={p.src} className="wg-arch">
-          <span className="wg-arch-frame">
-            <img src={p.src} alt="" width={400} height={400} loading="lazy" decoding="async" />
+        <figure key={p.src} className="wg-photo">
+          <span className="wg-photo-frame">
+            <img src={p.src} alt="" width={480} height={480} loading="lazy" decoding="async" />
           </span>
           <figcaption>{p.name}</figcaption>
         </figure>
@@ -1308,14 +1352,6 @@ function WhoRunsWhat() {
   );
 }
 
-function HourglassIcon() {
-  return (
-    <svg width="12" height="16" viewBox="0 0 12 16" aria-hidden="true">
-      <path d="M1 1h10M1 15h10M2 1c0 5 8 5 8 7s-8 2-8 7M10 1c0 5-8 5-8 7s8 2 8 7" fill="none" stroke="currentColor" strokeWidth="1.2" />
-    </svg>
-  );
-}
-
 /**
  * Why Gesher. Replaces the challenge, why this works and the old navy band
  * (site/39). Point 1 is a wide card with the chart; points 2 to 4 sit in a
@@ -1340,7 +1376,7 @@ function WhyGesher() {
   }
 
   const points = [
-    { n: 2, title: W.p2.title, body: W.p2.body, vis: <FounderArches /> },
+    { n: 2, title: W.p2.title, body: W.p2.body, vis: <FounderPhotos /> },
     { n: 3, title: W.p3.title, body: W.p3.body, vis: <FinancialsSheets /> },
     { n: 4, title: W.p4.title, body: W.p4.body, vis: <WhoRunsWhat /> },
   ];
@@ -1353,7 +1389,9 @@ function WhyGesher() {
         <div className="wg-card wg-feature">
           <div className="wg-txt">
             <span className="wg-num">{pointNumber(1)}</span>
-            <h3>{W.p1.title}</h3>
+            <h3>
+              <Broken text={W.p1.title} />
+            </h3>
             <p>{W.p1.body}</p>
           </div>
           <div className="wg-chart-box">
@@ -1367,7 +1405,9 @@ function WhyGesher() {
             <article className="wg-card wg-point" key={p.n}>
               {p.vis}
               <span className="wg-num">{pointNumber(p.n)}</span>
-              <h3>{p.title}</h3>
+              <h3>
+                <Broken text={p.title} />
+              </h3>
               <p>{p.body}</p>
             </article>
           ))}
@@ -1375,10 +1415,6 @@ function WhyGesher() {
 
         <div className="wg-band">
           <div>
-            <p className="wg-band-label">
-              <HourglassIcon />
-              <span>{W.bandLabel}</span>
-            </p>
             <h3>{W.bandTitle}</h3>
             <p className="wg-band-body">{W.bandBody}</p>
           </div>
@@ -1495,13 +1531,8 @@ function Sectors() {
   return (
     <section className="section sectors" id="sectors">
       <div className="container">
-        <div className="sectors-top">
-          <div>
-            <p className="eyebrow">{C.sectors.eyebrow}</p>
-            <h2 className="display">{C.sectors.heading}</h2>
-          </div>
-          <p className="lede">{C.sectors.lede}</p>
-        </div>
+        <p className="eyebrow">{C.sectors.eyebrow}</p>
+        <h2 className="display">{C.sectors.heading}</h2>
         <div className="sgrid">
           {C.sectors.items.map((s) => (
             <div key={s.name}>

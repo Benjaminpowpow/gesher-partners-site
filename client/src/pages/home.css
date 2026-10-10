@@ -23,8 +23,8 @@
   line-gap-override: 0%;
 }
 /* The italic runs the other way. The site loads no Newsreader italic, so
-   "sell it right." is the upright face slanted by the browser, about 4%
-   narrower than Georgia's own italic. */
+   the hero's emph words are the upright face slanted by the browser, about
+   4% narrower than Georgia's own italic. */
 @font-face {
   font-family: "Newsreader Fallback";
   font-style: italic;
@@ -221,8 +221,21 @@
    button. That was necessary while the button carried a sentence. It does not
    any more, so the box stays one row at every width and the phone rules live
    with the rest of the box above. */
-.hero .eyebrow { margin-bottom: 28px; }
-.hero h1.hero-headline { margin-bottom: 26px; max-width: 18ch; }
+/* The hero headline is two lines, split at the comma (site/43, Oct 10). The
+   break is a <br> in Home.tsx; line two is .hero-line2. The old 18ch cap went:
+   it broke line one too. Above 720px line two never wraps, in both languages,
+   and at these sizes it always fits the container (English line two is about
+   14.4 times the font size wide, Hebrew 11.25; measured in Chromium). It may
+   run past the 36rem column into the video's washed side; the estimate card
+   and the lede stay in the column. The eyebrow above it is gone, with its
+   rule. */
+.hero h1.hero-headline { margin-bottom: 26px; max-width: none; }
+/* As wide as its longer line, so neither line wraps. Inside the column the
+   balanced wrap broke line one ("You built / something great,"). */
+@media (min-width: 721px) {
+  .hero h1.hero-headline { width: max-content; }
+  .hero-line2 { white-space: nowrap; }
+}
 .hero .lede { max-width: none; margin-bottom: 36px; font-size: 22px; }
 
 /* RTL: the copy sits on the right, so the cream wash flips to keep it solid
@@ -246,12 +259,15 @@
    copy on the right (like the English left), not the bright, busy open end. */
 &.gesher-rtl .hero-video { transform: scaleX(-1); }
 
-/* ---------- Hero: headline emphasis ---------- */
+/* ---------- Hero: headline emphasis ----------
+   The colour marks the emph words, at the headline's own weight (Ofir,
+   Oct 9: same weight as the rest). It was 400 against the headline's 500,
+   and 600 in Hebrew. */
 .hl-emph { white-space: nowrap; }
 .hl-emph.emph-plain { font-style: normal; color: inherit; }
 .hero .hl-emph.emph-italic {
   font-style: italic;
-  font-weight: 400;
+  font-weight: inherit;
   color: var(--taupe);
 }
 .hl-emph.emph-marked {
@@ -270,6 +286,18 @@
   }
   .hero-copy { max-width: none; margin: 0; }
   .hl-emph { white-space: normal; }
+  /* Hebrew line two (the rest of the lead plus the emph) stays whole on
+     a phone (site/43): the font shrinks with the screen until it fits the
+     container (the width less 2 x 20px). 11.6 is the measured 11.25 plus 3%
+     of room for WebKit; the fallback faces run narrower, so they fit too.
+     360px gets about
+     27.6px, 390px about 30px; 42px, the old phone size, from about 530px up.
+     English wraps here (each line runs wider than a phone at 42px), and a
+     plain wrap reads better than the balanced one: at 390px it keeps "sell
+     it." together. */
+  .hero h1.hero-headline { text-wrap: wrap; }
+  &[lang="he"] .hero h1.hero-headline { font-size: min(42px, calc((100vw - 40px) / 11.6)); }
+  &[lang="he"] .hero-line2 { white-space: nowrap; }
   .hero-wash {
     background: linear-gradient(
       to bottom,
@@ -969,10 +997,12 @@ p:last-child { margin-bottom: 0; }
   max-width: 920px;
 }
 .person { display: grid; grid-template-columns: 150px 1fr; gap: 26px; align-items: start; }
+/* Square with 12px corners, the same file and crop as why Gesher point 2
+   (site/43, Oct 10). It was 150 by 180 with 2px corners. */
 .person img {
-  width: 150px; height: 180px;
-  object-fit: cover; object-position: top;
-  display: block; border-radius: var(--radius);
+  width: 150px; height: 150px;
+  object-fit: cover;
+  display: block; border-radius: 12px;
 }
 .person h3 { font-family: var(--font-serif); font-weight: 500; font-size: 22px; color: var(--navy); margin: 0; }
 .person .role {
@@ -993,8 +1023,9 @@ p:last-child { margin-bottom: 0; }
   line-height: 1.4;
 }
 
-/* ---------- Sectors ---------- */
-.sectors-top { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: end; }
+/* ---------- Sectors ----------
+   The eyebrow and heading sit straight in the container. The two-column
+   .sectors-top that held the lede beside them went with the lede (site/43). */
 .sgrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1071,7 +1102,6 @@ p:last-child { margin-bottom: 0; }
 
 /* ---------- Phone and tablet ---------- */
 @media (max-width: 860px) {
-  .sectors-top,
   .v4-founders .people,
   .contact-grid,
   .faq-top { grid-template-columns: 1fr; gap: 36px; }
@@ -1088,7 +1118,7 @@ p:last-child { margin-bottom: 0; }
   .marquee-set img.tall { height: 34px; }
 
   .person { grid-template-columns: 120px 1fr; gap: 20px; }
-  .person img { width: 120px; height: 144px; }
+  .person img { width: 120px; height: 120px; }
 
   .sgrid { grid-template-columns: repeat(2, 1fr); margin-top: 32px; }
   .sgrid > div { padding: 12px 12px 13px; }
@@ -1116,8 +1146,10 @@ p:last-child { margin-bottom: 0; }
 
 /* A 320px phone (the first iPhone SE). "20+companies" is one word to the
    browser ({value}<small>{unit}</small>, no space), so the numbers row ran
-   31px off the screen. The unit goes under its number. */
-@media (max-width: 359px) {
+   31px off the screen. The unit goes under its number. Since "12" became
+   "12+" (site/43, Oct 10), "12+sectors" ran 5px off a 360px screen in
+   WebKit too, so the rule now covers every phone under 380px. */
+@media (max-width: 379px) {
   .proof-n small { display: block; margin-inline-start: 0; }
 }
 
@@ -1440,31 +1472,32 @@ section[id] { scroll-margin-top: 94px; }
   margin-bottom: 6px;
 }
 
-/* Point 2: two arched frames, first names under them. Fixed size, so the
-   card never moves when the lazy photo arrives. */
+/* Point 2: two rounded squares, first names under them (site/43, Oct 10: no
+   more arched tops; 12px corners, like an account avatar; the same photo
+   file and crop as the team section). Fixed size, so the card never moves
+   when the lazy photo arrives. */
 .wg-founders {
   display: flex;
   justify-content: center;
   align-items: end;
   gap: 28px;
 }
-.wg-arch { margin: 0; display: grid; justify-items: center; gap: 8px; }
-.wg-arch-frame {
+.wg-photo { margin: 0; display: grid; justify-items: center; gap: 8px; }
+.wg-photo-frame {
   display: block;
-  width: 84px;
-  height: 106px;
+  width: 96px;
+  height: 96px;
   overflow: hidden;
-  border-radius: 42px 42px 0 0;
+  border-radius: 12px;
   background: #E3D9C7;
 }
-.wg-arch-frame img {
+.wg-photo-frame img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 0;
 }
-.wg-arch figcaption {
+.wg-photo figcaption {
   font-size: 14px;
   font-weight: 500;
   line-height: 1.2;
@@ -1539,23 +1572,13 @@ section[id] { scroll-margin-top: 94px; }
   border-radius: var(--radius);
   padding: 40px 36px;
 }
-.wg-band-label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 10px;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #D9B8B2;
-}
+/* The small label row above the title, with its hourglass, went on Oct 10
+   (site/43). */
 .wg-band h3 { color: var(--cream); font-size: clamp(24px, 2.6vw, 30px); }
 .wg-band-body { color: var(--fg-on-navy-muted); font-size: 17px; margin: 8px 0 0; }
 .wg-band .btn { flex: none; }
 
-&[lang="he"] .wg-row-k,
-&[lang="he"] .wg-band-label { letter-spacing: 0.04em; }
+&[lang="he"] .wg-row-k { letter-spacing: 0.04em; }
 
 @media (max-width: 900px) {
   .wg-points { grid-template-columns: 1fr; }

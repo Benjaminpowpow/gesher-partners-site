@@ -164,7 +164,7 @@ describe("hamburger", () => {
 
 describe("hero estimate card", () => {
   function card() {
-    return screen.getByRole("form", { name: "Free business value estimate" });
+    return screen.getByRole("form", { name: "Business value estimate. No cost, no commitment." });
   }
 
   it("has the 39 words: title, placeholder, button, trust line", () => {
@@ -225,15 +225,45 @@ describe("page", () => {
 
   it("has no em-dash anywhere on the page", () => {
     render(<Home />);
-    expect(document.body.textContent).not.toContain("—");
+    expect(document.body.textContent).not.toContain("\u2014");
   });
 
-  it("runs /he/ on the same page, right to left, with site/40's words", () => {
+  it("runs /he/ on the same page, right to left, with site/43's words", () => {
     render(<Home lang="he" />);
     expect(document.querySelector(".gesher-rtl")?.getAttribute("dir")).toBe("rtl");
     const h1 = screen.getByRole("heading", { level: 1 });
-    expect(h1.textContent).toBe("בנית עסק מצליח. אנחנו נעזור לך למכור אותו נכון.");
-    expect(screen.getByRole("navigation", { name: "ניווט ראשי" }).textContent).toContain("למה גשר");
-    expect(document.body.textContent).not.toContain("—");
+    expect(h1.textContent).toBe("בנית עסק מצליח, אנחנו נעזור לך למכור, ונכון");
+    expect(screen.getByRole("navigation", { name: "ניווט ראשי" }).textContent).toContain("מדוע בגשר");
+    expect(document.body.textContent).not.toContain("\u2014");
+  });
+
+  // site/43, Oct 10: the hero is two lines split at the comma, line two kept
+  // whole in .hero-line2, the colour on the emph only.
+  it("splits the hero at the comma, in both languages", () => {
+    for (const [lang, one, two, emph] of [
+      ["en", "You built something great,", "we help you sell it. The right way.", "sell it. The right way."],
+      ["he", "בנית עסק מצליח,", "אנחנו נעזור לך למכור, ונכון", "למכור, ונכון"],
+    ] as const) {
+      const { unmount } = render(<Home lang={lang} />);
+      const h1 = screen.getByRole("heading", { level: 1 });
+      expect(h1.querySelectorAll("br")).toHaveLength(1);
+      expect(h1.firstChild?.textContent?.trim()).toBe(one);
+      expect(h1.querySelector(".hero-line2")?.textContent).toBe(two);
+      expect(h1.querySelector(".hl-emph")?.textContent).toBe(emph);
+      unmount();
+    }
+  });
+
+  it("drops the hero eyebrow, the band label and the sectors lede", () => {
+    for (const lang of ["en", "he"] as const) {
+      const { unmount } = render(<Home lang={lang} />);
+      expect(document.querySelector(".hero .eyebrow")).toBeNull();
+      expect(document.querySelector(".wg-band-label")).toBeNull();
+      expect(document.querySelector("#sectors .lede")).toBeNull();
+      // No revenue range anywhere on the page (the FAQ's A2 had it too).
+      const text = document.body.textContent ?? "";
+      expect(text).not.toMatch(/50M|50 מיליון/);
+      unmount();
+    }
   });
 });
