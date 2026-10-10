@@ -221,20 +221,17 @@
    button. That was necessary while the button carried a sentence. It does not
    any more, so the box stays one row at every width and the phone rules live
    with the rest of the box above. */
-/* The hero headline is two lines, split at the comma (site/43, Oct 10). The
-   break is a <br> in Home.tsx; line two is .hero-line2. The old 18ch cap went:
-   it broke line one too. Above 720px line two never wraps, in both languages,
-   and at these sizes it always fits the container (English line two is about
-   14.4 times the font size wide, Hebrew 11.25; measured in Chromium). It may
-   run past the 36rem column into the video's washed side; the estimate card
-   and the lede stay in the column. The eyebrow above it is gone, with its
-   rule. */
-.hero h1.hero-headline { margin-bottom: 26px; max-width: none; }
-/* As wide as its longer line, so neither line wraps. Inside the column the
-   balanced wrap broke line one ("You built / something great,"). */
+/* The hero headline is two lines at every width, split at the comma, never
+   more (site/43 and Ben, Oct 10). The break is a <br> in Home.tsx; line two
+   is .hero-line2. Neither line wraps: the phone rule below shrinks the font
+   until the longer line fits. Above 720px the h1 is as wide as its longer
+   line, which always fits the container (English about 11.7 times the font
+   size, Hebrew 11.25), and may run past the 36rem column into the video's
+   washed side; the estimate card and the lede stay in the column. The old
+   18ch cap and the eyebrow above it are gone. */
+.hero h1.hero-headline { margin-bottom: 26px; max-width: none; white-space: nowrap; }
 @media (min-width: 721px) {
   .hero h1.hero-headline { width: max-content; }
-  .hero-line2 { white-space: nowrap; }
 }
 .hero .lede { max-width: none; margin-bottom: 36px; font-size: 22px; }
 
@@ -285,19 +282,16 @@
     min-height: clamp(520px, calc(100svh - 72px), 720px);
   }
   .hero-copy { max-width: none; margin: 0; }
-  .hl-emph { white-space: normal; }
-  /* Hebrew line two (the rest of the lead plus the emph) stays whole on
-     a phone (site/43): the font shrinks with the screen until it fits the
-     container (the width less 2 x 20px). 11.6 is the measured 11.25 plus 3%
-     of room for WebKit; the fallback faces run narrower, so they fit too.
-     360px gets about
-     27.6px, 390px about 30px; 42px, the old phone size, from about 530px up.
-     English wraps here (each line runs wider than a phone at 42px), and a
-     plain wrap reads better than the balanced one: at 390px it keeps "sell
-     it." together. */
-  .hero h1.hero-headline { text-wrap: wrap; }
+  /* The headline is two lines on a phone too, never more (Ben, Oct 10): the
+     font shrinks with the screen until the longer line fits the container
+     (the width less 2 x 20px). The divisor is that line's width in font
+     sizes, measured in Chromium and WebKit, plus 3% of room. English line one,
+     "You built a great business,", is 11.67: divisor 12, so 360px gets about
+     26.7px and 390px about 29px. Hebrew line two is 11.25: divisor 11.6, so
+     27.6px and 30px. Both reach 42px, the old phone size, from about 540px.
+     The fallback faces are matched or narrower, so they fit too. */
+  .hero h1.hero-headline { font-size: min(42px, calc((100vw - 40px) / 12)); }
   &[lang="he"] .hero h1.hero-headline { font-size: min(42px, calc((100vw - 40px) / 11.6)); }
-  &[lang="he"] .hero-line2 { white-space: nowrap; }
   .hero-wash {
     background: linear-gradient(
       to bottom,

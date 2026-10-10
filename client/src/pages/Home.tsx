@@ -80,8 +80,9 @@ const COPY = {
     // Oct 10 (site/43): two lines, split at the comma. The "\n" is the forced
     // break. Line two is the rest of headlineLead plus headlineEmph. The
     // eyebrow above the headline (the 5 to 50M range) is gone with its key.
-    headlineLead: "You built something great,\nwe help you",
-    headlineEmph: "sell it. The right way.",
+    // The words are Ben's, later on Oct 10, over the sheet's English.
+    headlineLead: "You built a great business,\nwe help you",
+    headlineEmph: "sell it right.",
     headlineTrail: "",
     lede: "More buyers. More options. Your terms.",
     // The estimate card. The words match the valuation tool's own front door

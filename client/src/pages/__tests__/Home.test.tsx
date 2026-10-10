@@ -241,7 +241,7 @@ describe("page", () => {
   // whole in .hero-line2, the colour on the emph only.
   it("splits the hero at the comma, in both languages", () => {
     for (const [lang, one, two, emph] of [
-      ["en", "You built something great,", "we help you sell it. The right way.", "sell it. The right way."],
+      ["en", "You built a great business,", "we help you sell it right.", "sell it right."],
       ["he", "בנית עסק מצליח,", "אנחנו נעזור לך למכור, ונכון", "למכור, ונכון"],
     ] as const) {
       const { unmount } = render(<Home lang={lang} />);
