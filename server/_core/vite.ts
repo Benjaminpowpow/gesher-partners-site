@@ -68,24 +68,27 @@ type HomeHead = {
 const HOME_HEAD: Record<Lang, HomeHead> = {
   en: {
     title: "Gesher Partners | Sell-side M&amp;A advisor for private businesses in Israel",
+    // site/43 (Oct 10): no revenue range on the public page, in either
+    // language.
     description:
-      "Gesher Partners advises owners of private and family businesses in Israel, 5 to 50M NIS in revenue, on the sale of their company. Structured process, competing buyers, documented valuation before any buyer is approached.",
+      "Gesher Partners advises owners of private and family businesses in Israel on the sale of their company. Structured process, competing buyers, documented valuation before any buyer is approached.",
     ogLocale: "en_US",
     serviceDescription:
-      "Sell-side M&A advisor for private and family businesses in Israel with 5 to 50M NIS in revenue. A real competitive process with many buyers, run by advisors who have sold their own companies.",
+      "Sell-side M&A advisor for private and family businesses in Israel. A real competitive process with many buyers, run by advisors who have sold their own companies.",
     faq: FAQ_ITEMS,
   },
   he: {
     // site/40 L1 (Ben, Oct 4): built on the words Israeli owners type into
-    // Google (מכירת עסק, מכירת חברה פרטית, כמה שווה העסק שלי).
+    // Google (מכירת עסק, מכירת חברה פרטית, כמה שווה העסק שלי). site/43 line
+    // 52 (Oct 10): no revenue range, and the tool's new name.
     title: "מכירת עסק או חברה פרטית בישראל | Gesher Partners",
     description:
-      "ליווי מקצועי במכירת עסק או חברה פרטית, במחזור של 5 עד 50 מיליון ש״ח. יותר קונים מתחרים על העסק שלך, ומחיר טוב יותר. כמה שווה העסק שלך? ניתוח שווי ראשוני ללא עלות.",
+      "ליווי מקצועי במכירת עסק או חברה פרטית בישראל. יותר קונים מתחרים על העסק שלך, ומחיר טוב יותר. כמה שווה העסק שלך? הערכת שווי ראשוני ללא עלות.",
     ogLocale: "he_IL",
     // The schema carries the same Hebrew as the meta description. Same facts,
     // one source.
     serviceDescription:
-      "ליווי מקצועי במכירת עסק או חברה פרטית, במחזור של 5 עד 50 מיליון ש״ח. יותר קונים מתחרים על העסק שלך, ומחיר טוב יותר. כמה שווה העסק שלך? ניתוח שווי ראשוני ללא עלות.",
+      "ליווי מקצועי במכירת עסק או חברה פרטית בישראל. יותר קונים מתחרים על העסק שלך, ומחיר טוב יותר. כמה שווה העסק שלך? הערכת שווי ראשוני ללא עלות.",
     faq: FAQ_ITEMS_HE,
   },
 };
