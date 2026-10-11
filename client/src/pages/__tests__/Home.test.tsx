@@ -233,12 +233,13 @@ describe("page", () => {
     expect(document.querySelector(".gesher-rtl")?.getAttribute("dir")).toBe("rtl");
     const h1 = screen.getByRole("heading", { level: 1 });
     expect(h1.textContent).toBe("בנית עסק מצליח, אנחנו נעזור לך למכור, ונכון");
-    expect(screen.getByRole("navigation", { name: "ניווט ראשי" }).textContent).toContain("מדוע בגשר");
+    expect(screen.getByRole("navigation", { name: "ניווט ראשי" }).textContent).toContain("מדוע גשר");
     expect(document.body.textContent).not.toContain("\u2014");
   });
 
   // site/43, Oct 10: the hero is two lines split at the comma, line two kept
-  // whole in .hero-line2, the colour on the emph only.
+  // whole in .hero-line2. Since site/44 (Oct 11) the emph has no colour of its
+  // own; jsdom has no styles, so the browser checks cover that.
   it("splits the hero at the comma, in both languages", () => {
     for (const [lang, one, two, emph] of [
       ["en", "You built a great business,", "we help you sell it right.", "sell it right."],
