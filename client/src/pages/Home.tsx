@@ -170,7 +170,7 @@ const COPY = {
       {
         id: 1,
         title: "Valuation",
-        body: "We value your business and find what raises the price.",
+        body: "We value your business and find what raises the price, and what lowers it.",
         outcome: "A real range and a plan.",
       },
       {
@@ -305,15 +305,16 @@ const COPY_HE: Copy = {
     closeAriaLabel: "סגור תפריט",
     talkToUs: "לשיחת ייעוץ",
     links: [
-      { id: "why", label: "מדוע בגשר" },
+      { id: "why", label: "מדוע גשר" },
       { id: "founders", label: "הצוות" },
       { id: "sectors", label: "תחומים" },
       { id: "faq", label: "שאלות ותשובות" },
     ],
-    menuEstimate: "להערכת שווי ראשוני ללא עלות",
+    menuEstimate: "להערכת שווי ראשונית ללא עלות",
   },
   hero: {
-    // The colour sits on headlineEmph. The "\n" is the forced break after the
+    // headlineEmph has no colour of its own since Oct 11 (site/44): the whole
+    // headline is navy. The "\n" is the forced break after the
     // comma; line two (the rest of the lead plus the emph) never wraps, see
     // home.css. No period at the end (Ofir, Oct 9). The firm's long "we" lives
     // in this headline only; every other line says the short one (site/43,
@@ -324,7 +325,7 @@ const COPY_HE: Copy = {
     lede: "יותר קונים. יותר אפשרויות. בתנאים שלך.",
     // The tool named in full, so it carries וללא התחייבות. The tool's own
     // headline adds לעסק (site/43 lines 10 and 55).
-    estLabel: "הערכת שווי ראשוני, ללא עלות וללא התחייבות",
+    estLabel: "הערכת שווי ראשונית, ללא עלות וללא התחייבות",
     valuationLabel: "אתר העסק שלך",
     // A domain reads the same in both languages.
     valuationPlaceholder: "yourcompany.co.il",
@@ -375,7 +376,7 @@ const COPY_HE: Copy = {
     },
     bandTitle: "מבחירה שלנו, אנו מלווים מספר מצומצם של מוכרים בכל שנה.",
     bandBody: "אם טרם הגיע הזמן למכור, נאמר לך.",
-    bandCta: "להערכת שווי ראשוני ללא עלות",
+    bandCta: "להערכת שווי ראשונית ללא עלות",
   },
   // buyerMany keeps "{n}" for the number of buyers.
   chart: {
@@ -396,14 +397,14 @@ const COPY_HE: Copy = {
       {
         id: 1,
         title: "קביעת שווי",
-        body: "אנו מעריכים את שווי העסק ומוצאים מה מעלה את המחיר.",
+        body: "אנו מעריכים את שווי העסק ומוצאים מה מעלה ומה מוריד את המחיר.",
         outcome: "טווח שווי אמיתי ותוכנית מכירה.",
       },
       {
         id: 2,
         // Same words as before, so the old road label carries over.
         title: "תחרות בין קונים",
-        body: "קונים שעברו את הסינון שלנו מגישים הצעות עד תאריך אחד.",
+        body: "קונים שעברו את הסינון שלנו מגישים הצעות עד תאריך קבוע מראש.",
         outcome: "השוואת הצעות, זו לצד זו.",
       },
       {
@@ -508,7 +509,7 @@ const COPY_HE: Copy = {
       { kind: "anchor", id: "sectors", label: "תחומים" },
       { kind: "anchor", id: "founders", label: "הצוות" },
       { kind: "anchor", id: "faq", label: "שאלות ותשובות" },
-      { kind: "route", href: "/he/valuation", label: "הערכת שווי ראשוני" },
+      { kind: "route", href: "/he/valuation", label: "הערכת שווי ראשונית" },
       { kind: "route", href: "/privacy", label: "פרטיות" },
       { kind: "route", href: "/terms", label: "תנאי שימוש" },
     ] as FooterLink[],

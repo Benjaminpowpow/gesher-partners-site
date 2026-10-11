@@ -129,7 +129,7 @@
    class for the Hebrew page. Swapping the two font tokens here moves every
    rule that reads var(--font-serif) or var(--font-sans) to IBM Plex Sans
    Hebrew in one go, so no rule below needs a Hebrew twin. It is loaded in
-   client/index.html, weights 400, 500 and 600 only. Layout follows dir="rtl" on its own because the
+   client/index.html, weights 400, 500, 600, and 700 for the eyebrows. Layout follows dir="rtl" on its own because the
    spacing rules use logical properties; the few visual flips that do not
    (hero wash, hero video, arrows, select chevron, the road) are keyed off
    .gesher-rtl further down or handled in Home.tsx. */
@@ -138,10 +138,10 @@
   --font-sans: var(--font-hebrew-sans);
 }
 /* Plex weights (Ben, Oct 4): headlines 600, body 400, buttons and labels 500.
-   Buttons and form labels are 500 already; the eyebrow labels were 600.
-   [dir] lifts these over the per-section heading rules. */
+   Buttons and form labels are 500 already. The eyebrow labels were 500 here
+   until Oct 11; now they take the base rule's 700 in both languages
+   (site/44). [dir] lifts these over the per-section heading rules. */
 &[lang="he"][dir] :is(h1, h2, h3) { font-weight: 600; }
-&[lang="he"][dir] .eyebrow { font-weight: 500; }
 /* The tagline under the logo stays in English, in the English face. */
 &[lang="he"] .lockup-tag { font-family: "Newsreader", "Source Serif Pro", Georgia, "Times New Roman", serif; }
 /* Neither Hebrew face has an italic. The browser would slant it by force.
@@ -257,15 +257,15 @@
 &.gesher-rtl .hero-video { transform: scaleX(-1); }
 
 /* ---------- Hero: headline emphasis ----------
-   The colour marks the emph words, at the headline's own weight (Ofir,
-   Oct 9: same weight as the rest). It was 400 against the headline's 500,
-   and 600 in Hebrew. */
+   One colour for the whole headline, the navy line one uses (Ofir, Oct 11,
+   site/44; the emph words were taupe). Same weight as the rest (Oct 9). The
+   English emph keeps its italic; Hebrew has none. */
 .hl-emph { white-space: nowrap; }
 .hl-emph.emph-plain { font-style: normal; color: inherit; }
 .hero .hl-emph.emph-italic {
   font-style: italic;
   font-weight: inherit;
-  color: var(--taupe);
+  color: inherit;
 }
 .hl-emph.emph-marked {
   font-style: normal;
@@ -320,8 +320,11 @@
 }
 
 /* ---------- Type helpers ---------- */
+/* The small label above a section heading. Oct 11 (Ofir, site/44): bold and
+   about 15% bigger, one rule for every eyebrow in both languages. It was 13px
+   at 600 (500 in Hebrew). The 700 weight is loaded in client/index.html. */
 .eyebrow {
-  font-family: var(--font-sans); font-weight: 600; font-size: 13px;
+  font-family: var(--font-sans); font-weight: 700; font-size: 15px;
   letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy);
   margin: 0 0 18px;
 }
@@ -1008,11 +1011,14 @@ p:last-child { margin-bottom: 0; }
   font-weight: 500;
 }
 .person p { font-size: 16px; margin: 0; }
+/* No width cap, so the line sits on one line on a desktop in both languages
+   (Ofir, Oct 11, site/44; at 34ch the Hebrew broke in two at 1440). Phones
+   wrap it. */
 .coda {
   font-family: var(--font-serif);
   font-size: 22px;
   color: var(--navy);
-  max-width: 34ch;
+  max-width: none;
   margin-top: 48px;
   line-height: 1.4;
 }

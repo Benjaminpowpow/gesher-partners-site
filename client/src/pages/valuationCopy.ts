@@ -278,7 +278,7 @@ const COPY_V_HE: VCopy = {
   },
 
   front: {
-    headline: "הערכת שווי ראשוני לעסק, ללא עלות וללא התחייבות", // 4
+    headline: "הערכת שווי ראשונית לעסק, ללא עלות וללא התחייבות", // 4
     progress: (percent: number) => `${percent}% הושלמו`, // 5
     progressAriaLabel: "שאלות שנענו", // 121
     urlLabel: "מה כתובת האתר של החברה?", // 6
@@ -382,8 +382,8 @@ const COPY_V_HE: VCopy = {
   },
 
   result: {
-    title: (company: string) => `הערכת שווי ראשוני של ${company}`, // 55
-    specialTitle: (company: string) => `הערכת שווי ראשוני של ${company}`, // 67
+    title: (company: string) => `הערכת שווי ראשונית של ${company}`, // 55
+    specialTitle: (company: string) => `הערכת שווי ראשונית של ${company}`, // 67
     privateLine: "חסוי. מבוסס על התשובות שלך ועל מידע ציבורי. אינו הערכת שווי מקצועית ואינו הצעה.", // 56
     cardMarket: "שוק", // 57
     cardValue: "שווי", // 58
