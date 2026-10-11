@@ -8,7 +8,10 @@
  * the kind of thing that drifts the moment there are two copies.
  *
  * Wording is locked in the vault at
- * PROJECTS/israel-ai-investment-bank/site/17-homepage-final-copy.md.
+ * PROJECTS/israel-ai-investment-bank/site/17-homepage-final-copy.md. The "too
+ * small" answer was rewritten Oct 11 in site/45-faq-too-small-fix.md, after the
+ * revenue range came off the page and left "a deal this size" pointing at
+ * nothing.
  */
 export type FaqItem = { q: string; a: string };
 
@@ -19,7 +22,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: "Is my business too small to sell?",
-    a: "No. Big banks run a real process, but not for a deal this size. We bring that process to you. That is why we exist.",
+    a: "Usually not. The real test is not size. It is steady profit, and a business that can run without you. Big investment banks go after large deals. We bring the same competitive process to businesses like yours. If yours is not ready yet, we tell you, and show you what to fix first.",
   },
   {
     q: "A buyer already approached me. Do I still need an advisor?",
@@ -58,7 +61,8 @@ export const FAQ_ITEMS: FaqItem[] = [
  * (questions in the words owners search, and the monthly retainer in place of
  * the old fee word), plus site/43-ofir-site-markup-oct9-worksheet.md, section
  * 3 (Oct 10: A2 without the revenue range, A1 says the field, not the
- * branch, and the firm's short "we" in every answer). Never edit the Hebrew
+ * branch, and the firm's short "we" in every answer), plus site/45 (Oct 11:
+ * the new "too small" answer). Never edit the Hebrew
  * here first: a change goes into the vault, then comes back here.
  *
  * The Hebrew homepage renders this list, and the server builds the Hebrew
@@ -71,7 +75,7 @@ export const FAQ_ITEMS_HE: FaqItem[] = [
   },
   {
     q: "העסק שלי קטן מדי למכירה?",
-    a: "לא. בנקי השקעות גדולים מנהלים תהליך תחרותי אמיתי, אבל לא לעסקים בסדר גודל כזה. אנו מביאים את התהליך הזה אליך. בגלל זה אנו כאן.",
+    a: "בדרך כלל לא. המבחן האמיתי אינו הגודל, אלא רווח יציב ועסק שיכול לפעול גם בלעדיך. בנקי השקעות גדולים מתמקדים בעסקאות גדולות. אנו מביאים את אותו תהליך תחרותי לעסקים כמו שלך. אם העסק שלך טרם מוכן, אנו אומרים לך את זה ומראים לך מה לתקן קודם.",
   },
   {
     q: "קיבלתי הצעה לקנות את העסק. אני עדיין צריך יועץ?",
