@@ -9,7 +9,7 @@ import { getLoginUrl } from "./const";
 import { initAnalytics } from "./lib/analytics";
 import "./index.css";
 
-// GA4 and the Meta Pixel. Both stay off unless their VITE_ id is set.
+// GA4, the Meta Pixel and Clarity. Each stays off unless its VITE_ id is set.
 initAnalytics();
 
 const queryClient = new QueryClient();

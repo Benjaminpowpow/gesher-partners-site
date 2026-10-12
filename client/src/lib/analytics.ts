@@ -1,12 +1,13 @@
 /**
- * Google Analytics 4 and the Meta Pixel. One file, so there is one place to
- * look when a number in either dashboard looks wrong.
+ * Google Analytics 4, the Meta Pixel and Microsoft Clarity. One file, so there
+ * is one place to look when a number in any dashboard looks wrong.
  *
- * Both IDs come from Render, never from this file:
+ * All three IDs come from Render, never from this file:
  *   VITE_GA4_MEASUREMENT_ID   the G-XXXXXXX id of the GA4 web stream
  *   VITE_META_PIXEL_ID        the number id of the Meta dataset (the pixel)
+ *   VITE_CLARITY_PROJECT_ID   the Clarity project id (letters and digits)
  *
- * Vite bakes VITE_ values into the page at build time. So a change to either
+ * Vite bakes VITE_ values into the page at build time. So a change to any
  * one in Render needs a fresh deploy to show up, not just a restart.
  *
  * Blank means off. No script tag is added, nothing is sent, and every track
@@ -31,6 +32,9 @@
  * Page views. GA4 counts every page change on its own ("enhanced measurement",
  * on by default in the stream settings). Meta does not, so trackPageView sends
  * Meta a PageView each time the route changes.
+ *
+ * Clarity records sessions and heatmaps. It only loads here and gets no events.
+ * It follows route changes on its own, so it needs nothing from trackPageView.
  */
 
 type Params = Record<string, string | number | undefined>;
@@ -43,6 +47,7 @@ type Fbq = ((...args: unknown[]) => void) & {
   loaded: boolean;
   version: string;
 };
+type Clarity = ((...args: unknown[]) => void) & { q?: unknown[] };
 
 declare global {
   interface Window {
@@ -50,15 +55,19 @@ declare global {
     gtag?: Gtag;
     fbq?: Fbq;
     _fbq?: Fbq;
+    clarity?: Clarity;
   }
 }
 
 const GA4_ID = (import.meta.env.VITE_GA4_MEASUREMENT_ID ?? "").trim();
 const PIXEL_ID = (import.meta.env.VITE_META_PIXEL_ID ?? "").trim();
+const CLARITY_ID = (import.meta.env.VITE_CLARITY_PROJECT_ID ?? "").trim();
 
-// A typo in Render should switch the tag off, not send junk to Google or Meta.
+// A typo in Render should switch the tag off, not send junk to Google, Meta
+// or Microsoft.
 const GA4_ON = /^G-[A-Z0-9]+$/.test(GA4_ID);
 const PIXEL_ON = /^\d+$/.test(PIXEL_ID);
+const CLARITY_ON = /^[a-z0-9]+$/i.test(CLARITY_ID);
 
 let started = false;
 
@@ -101,13 +110,27 @@ function startPixel(): void {
   window.fbq("track", "PageView");
 }
 
-/** Called once from main.tsx. Safe to call with both vars blank. */
+function startClarity(): void {
+  // Microsoft's snippet, typed. It queues calls until the tag arrives, and
+  // like gtag it pushes the arguments object itself.
+  if (!window.clarity) {
+    const c = function clarity() {
+      // eslint-disable-next-line prefer-rest-params
+      (c.q = c.q || []).push(arguments);
+    } as Clarity;
+    window.clarity = c;
+  }
+  addScript(`https://www.clarity.ms/tag/${encodeURIComponent(CLARITY_ID)}`);
+}
+
+/** Called once from main.tsx. Safe to call with every var blank. */
 export function initAnalytics(): void {
   if (started || typeof window === "undefined") return;
   started = true;
   try {
     if (GA4_ON) startGa4();
     if (PIXEL_ON) startPixel();
+    if (CLARITY_ON) startClarity();
   } catch {
     // An ad blocker or a broken tag must never take the page down with it.
   }
